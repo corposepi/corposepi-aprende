@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CORPOSEPI — Plataforma de Aprendizaje</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,700;0,900;1,300;1,700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+:root{
+  --corp:#B8410A;--corp2:#8B2F07;--corp3:#E8651A;
+  --gold:#C49A2A;--gold2:#E8B84B;
+  --sage:#4A6741;--sage2:#6B8F61;
+  --cream:#FAF7F2;--cream2:#F2EDE4;--cream3:#E8E0D0;
+  --dark:#1A1208;--dark2:#2A1E0E;--dark3:#3D2E18;
+  --text:#2A1E0E;--muted:#7A6A54;--hint:#B0A090;
+  --white:#FFFFFF;
+  --radius:16px;--radius-sm:10px;--radius-lg:24px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);min-height:100vh;overflow-x:hidden;}
+
+/* ── LOGIN ── */
+#login-screen{position:fixed;inset:0;background:var(--dark);display:flex;align-items:center;justify-content:center;z-index:9999;padding:1rem;overflow-y:auto;}
+.ls-wrap{width:100%;max-width:440px;padding:2rem 0;}
+.ls-brand{text-align:center;margin-bottom:2.5rem;}
+.ls-brand-name{font-family:'Fraunces',serif;font-size:2.8rem;font-weight:900;color:var(--white);letter-spacing:-.02em;line-height:1;}
+.ls-brand-sub{font-size:.72rem;color:var(--hint);text-transform:uppercase;letter-spacing:.15em;margin-top:.4rem;}
+.ls-brand-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--corp3);margin:0 4px;vertical-align:middle;}
+.ls-role-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:1.25rem;}
+.ls-role{padding:.75rem .5rem;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,.08);cursor:pointer;text-align:center;transition:all .2s;background:rgba(255,255,255,.03);}
+.ls-role:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.15);}
+.ls-role.active{background:var(--corp);border-color:var(--corp);}
+.ls-role-icon{font-size:1.3rem;margin-bottom:.3rem;}
+.ls-role-name{font-size:.72rem;font-weight:600;color:rgba(255,255,255,.8);text-transform:uppercase;letter-spacing:.08em;}
+.ls-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);padding:1.5rem;}
+.ls-label{font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--hint);margin-bottom:.4rem;display:block;}
+.ls-input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:var(--radius-sm);padding:.75rem 1rem;color:var(--white);font-family:'DM Sans',sans-serif;font-size:.9rem;outline:none;margin-bottom:.65rem;transition:border .2s;}
+.ls-input:focus{border-color:var(--corp3);}
+.ls-input::placeholder{color:rgba(255,255,255,.25);}
+.ls-select{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:var(--radius-sm);padding:.75rem 1rem;color:var(--white);font-family:'DM Sans',sans-serif;font-size:.9rem;outline:none;margin-bottom:.65rem;cursor:pointer;}
+.ls-select option{background:var(--dark2);color:var(--white);}
+.ls-btn{width:100%;background:linear-gradient(135deg,var(--corp),var(--corp3));border:none;border-radius:var(--radius-sm);padding:.85rem;color:var(--white);font-family:'DM Sans',sans-serif;font-size:.95rem;font-weight:600;cursor:pointer;letter-spacing:.02em;transition:opacity .2s;}
+.ls-btn:hover{opacity:.9;}
+.ls-err{background:rgba(220,50,30,.1);border:1px solid rgba(220,50,30,.3);border-radius:8px;padding:.5rem .9rem;font-size:.75rem;color:#FF8070;margin-bottom:.6rem;display:none;}
+.ls-err.show{display:block;}
+.ls-note{font-size:.65rem;color:rgba(255,255,255,.25);text-align:center;margin-top:.75rem;line-height:1.7;}
+
+/* ── APP ── */
+#app{display:none;min-height:100vh;flex-direction:column;}
+
+/* TOPBAR */
+.topbar{background:var(--dark);position:sticky;top:0;z-index:100;border-bottom:1px solid rgba(255,255,255,.06);}
+.tb-inner{max-width:1200px;margin:0 auto;padding:.65rem 1.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;}
+.tb-brand{display:flex;align-items:center;gap:.6rem;}
+.tb-logo{font-family:'Fraunces',serif;font-size:1.2rem;font-weight:900;color:var(--white);letter-spacing:-.01em;}
+.tb-logo span{color:var(--corp3);}
+.tb-nav{display:flex;align-items:center;gap:.25rem;}
+.tb-nav-item{padding:.4rem .8rem;border-radius:8px;font-size:.78rem;font-weight:500;color:rgba(255,255,255,.5);cursor:pointer;transition:all .2s;border:none;background:transparent;}
+.tb-nav-item:hover{color:var(--white);background:rgba(255,255,255,.06);}
+.tb-nav-item.active{color:var(--white);background:rgba(255,255,255,.1);}
+.tb-right{display:flex;align-items:center;gap:.75rem;}
+.tb-tokens{display:flex;gap:.4rem;}
+.tb-token{display:flex;align-items:center;gap:.3rem;padding:.3rem .7rem;border-radius:99px;font-size:.72rem;font-weight:600;font-family:'DM Mono',monospace;}
+.tt-fnx{background:rgba(184,65,10,.2);color:#FF8F50;border:1px solid rgba(184,65,10,.3);}
+.tt-cpi{background:rgba(196,154,42,.15);color:var(--gold2);border:1px solid rgba(196,154,42,.3);}
+.tb-user{font-size:.72rem;color:rgba(255,255,255,.4);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tb-logout{background:transparent;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:.32rem .7rem;color:rgba(255,255,255,.4);font-family:'DM Sans',sans-serif;font-size:.7rem;cursor:pointer;transition:all .2s;}
+.tb-logout:hover{border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7);}
+
+/* CONTENT */
+.app-content{flex:1;}
+.section{display:none;padding:2rem 1.5rem;max-width:1200px;margin:0 auto;}
+.section.active{display:block;}
+
+/* PAGE HEADER */
+.page-hdr{margin-bottom:2rem;}
+.page-eyebrow{font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--corp);margin-bottom:.4rem;}
+.page-title{font-family:'Fraunces',serif;font-size:2rem;font-weight:700;color:var(--dark);line-height:1.15;margin-bottom:.4rem;}
+.page-title em{font-style:italic;color:var(--corp);}
+.page-sub{font-size:.9rem;color:var(--muted);max-width:560px;line-height:1.7;}
+
+/* ── INICIO / HOME ── */
+.home-hero{background:var(--dark);border-radius:var(--radius-lg);padding:2.5rem;margin-bottom:1.5rem;position:relative;overflow:hidden;}
+.home-hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 80% 50%,rgba(184,65,10,.15),transparent 60%);pointer-events:none;}
+.home-hero-content{position:relative;z-index:1;}
+.home-greeting{font-size:.75rem;color:var(--hint);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.5rem;}
+.home-name{font-family:'Fraunces',serif;font-size:2.2rem;font-weight:900;color:var(--white);line-height:1.1;margin-bottom:.35rem;}
+.home-name em{font-style:italic;color:var(--corp3);}
+.home-quote{font-size:.88rem;color:rgba(255,255,255,.4);max-width:420px;line-height:1.6;border-left:2px solid var(--corp);padding-left:.9rem;margin-top:1rem;}
+
+.stats-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1.5rem;}
+.stat{background:var(--white);border-radius:var(--radius);padding:1.1rem 1.25rem;border:1px solid var(--cream3);}
+.stat-val{font-family:'Fraunces',serif;font-size:1.8rem;font-weight:700;line-height:1;}
+.stat-lbl{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:.25rem;}
+.stat-sub{font-size:.7rem;color:var(--hint);margin-top:.1rem;}
+
+/* BLOQUES GRID */
+.bloques-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.75rem;margin-bottom:1.5rem;}
+.bloque-card{border-radius:var(--radius);padding:1.25rem;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+.bloque-card::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity .2s;}
+.bloque-card:hover::before{opacity:1;}
+.bloque-card:hover{transform:translateY(-2px);}
+.bc-1{background:linear-gradient(135deg,#1A3A2A,#2A5A3A);border:1px solid rgba(74,103,65,.4);}
+.bc-1::before{background:linear-gradient(135deg,#1F4A32,#2F6A42);}
+.bc-2{background:linear-gradient(135deg,#1A2A3A,#2A3A5A);border:1px solid rgba(42,90,130,.4);}
+.bc-2::before{background:linear-gradient(135deg,#1F3A4A,#2F4A6A);}
+.bc-3{background:linear-gradient(135deg,#3A1A0A,#5A2A1A);border:1px solid rgba(130,60,20,.4);}
+.bc-3::before{background:linear-gradient(135deg,#4A2010,#6A3020);}
+.bc-4{background:linear-gradient(135deg,#2A1A3A,#3A2A5A);border:1px solid rgba(80,50,130,.4);}
+.bc-4::before{background:linear-gradient(135deg,#3A2050,#4A3070);}
+.bc-num{font-family:'Fraunces',serif;font-size:3rem;font-weight:900;color:rgba(255,255,255,.08);position:absolute;right:.75rem;top:.25rem;line-height:1;}
+.bc-icon{font-size:1.5rem;margin-bottom:.6rem;position:relative;}
+.bc-name{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.5);margin-bottom:.2rem;position:relative;}
+.bc-title{font-family:'Fraunces',serif;font-size:1.1rem;font-weight:700;color:var(--white);position:relative;line-height:1.2;}
+.bc-count{font-size:.7rem;color:rgba(255,255,255,.35);margin-top:.5rem;position:relative;}
+
+/* ACCIONES ARTICULADORAS */
+.acciones-strip{display:flex;gap:.5rem;overflow-x:auto;padding-bottom:.5rem;margin-bottom:1.5rem;scrollbar-width:none;}
+.acciones-strip::-webkit-scrollbar{display:none;}
+.accion-chip{background:var(--white);border:1px solid var(--cream3);border-radius:99px;padding:.5rem 1rem;font-size:.75rem;font-weight:500;color:var(--muted);cursor:pointer;white-space:nowrap;transition:all .2s;display:flex;align-items:center;gap:.4rem;}
+.accion-chip:hover,.accion-chip.active{background:var(--corp);border-color:var(--corp);color:var(--white);}
+.accion-chip.active-gold{background:var(--gold);border-color:var(--gold);color:var(--dark);}
+
+/* PROYECTOS */
+.proyectos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem;}
+.proyecto-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);overflow:hidden;transition:all .2s;cursor:pointer;}
+.proyecto-card:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(26,18,8,.1);}
+.pc-header{padding:1.25rem;border-bottom:1px solid var(--cream3);}
+.pc-tags{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.75rem;}
+.pc-tag{font-size:.6rem;font-weight:600;padding:2px 7px;border-radius:99px;text-transform:uppercase;letter-spacing:.06em;}
+.pt-bloque1{background:#E8F5E9;color:#2E7D32;}
+.pt-bloque2{background:#E3F2FD;color:#1565C0;}
+.pt-bloque3{background:#FBE9E7;color:#BF360C;}
+.pt-bloque4{background:#F3E5F5;color:#6A1B9A;}
+.pt-integrador{background:linear-gradient(135deg,#FFF3E0,#FBE9E7);color:#E65100;}
+.pt-activo{background:#E8F5E9;color:#2E7D32;}
+.pt-revision{background:#FFF8E1;color:#F57F17;}
+.pt-completado{background:#F5F5F5;color:#757575;}
+.pc-title{font-family:'Fraunces',serif;font-size:1rem;font-weight:700;color:var(--dark);margin-bottom:.35rem;line-height:1.25;}
+.pc-desc{font-size:.78rem;color:var(--muted);line-height:1.6;}
+.pc-body{padding:1rem 1.25rem;}
+.pc-progress-label{display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-bottom:.35rem;}
+.pc-progress-bar{height:4px;background:var(--cream3);border-radius:2px;overflow:hidden;}
+.pc-progress-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--corp),var(--corp3));transition:width .5s ease;}
+.pc-meta{display:flex;align-items:center;justify-content:space-between;margin-top:.85rem;}
+.pc-ciclo{font-size:.68rem;font-weight:600;color:var(--muted);font-family:'DM Mono',monospace;}
+.pc-reward{font-size:.7rem;font-weight:600;color:var(--corp);display:flex;align-items:center;gap:.2rem;}
+.pc-footer{padding:.85rem 1.25rem;background:var(--cream);border-top:1px solid var(--cream3);display:flex;align-items:center;justify-content:space-between;}
+.pc-docente{font-size:.7rem;color:var(--muted);}
+.pc-btn{background:var(--dark);color:var(--white);border:none;border-radius:8px;padding:.4rem .9rem;font-family:'DM Sans',sans-serif;font-size:.72rem;font-weight:600;cursor:pointer;}
+
+/* DETALLE PROYECTO */
+.proyecto-detalle{display:none;position:fixed;inset:0;background:rgba(26,18,8,.7);z-index:200;overflow-y:auto;padding:1.5rem;}
+.pd-card{background:var(--white);border-radius:var(--radius-lg);max-width:680px;margin:0 auto;overflow:hidden;}
+.pd-header{padding:2rem;background:var(--dark);position:relative;}
+.pd-close{position:absolute;top:1rem;right:1rem;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.6);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.pd-tags{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.75rem;}
+.pd-title{font-family:'Fraunces',serif;font-size:1.5rem;font-weight:700;color:var(--white);margin-bottom:.35rem;line-height:1.2;}
+.pd-pregunta{font-size:.82rem;color:rgba(255,255,255,.5);font-style:italic;line-height:1.6;}
+.pd-body{padding:1.75rem;}
+.pd-section{margin-bottom:1.5rem;}
+.pd-section-title{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--corp);margin-bottom:.75rem;padding-bottom:.35rem;border-bottom:1px solid var(--cream3);}
+.pd-reto{background:var(--cream);border-radius:var(--radius-sm);padding:1rem;font-size:.85rem;color:var(--text);line-height:1.7;border-left:3px solid var(--corp);}
+.etapas-list{display:flex;flex-direction:column;gap:.5rem;}
+.etapa{display:flex;gap:.75rem;align-items:flex-start;padding:.65rem;background:var(--cream);border-radius:var(--radius-sm);}
+.etapa-num{width:28px;height:28px;border-radius:50%;background:var(--corp);color:var(--white);font-size:.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.etapa-info{}
+.etapa-name{font-size:.82rem;font-weight:600;color:var(--dark);margin-bottom:.15rem;}
+.etapa-desc{font-size:.75rem;color:var(--muted);line-height:1.5;}
+.recursos-list{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;}
+.recurso{background:var(--cream);border-radius:var(--radius-sm);padding:.75rem;display:flex;gap:.6rem;align-items:flex-start;cursor:pointer;transition:all .15s;border:1px solid var(--cream3);}
+.recurso:hover{border-color:var(--corp);background:var(--white);}
+.recurso-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;}
+.ri-video{background:#FF0000;background:rgba(255,0,0,.1);}
+.ri-doc{background:rgba(25,100,200,.1);}
+.ri-meet{background:rgba(0,150,80,.1);}
+.ri-link{background:rgba(100,50,200,.1);}
+.recurso-info{}
+.recurso-tipo{font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);}
+.recurso-nombre{font-size:.78rem;font-weight:500;color:var(--dark);line-height:1.3;}
+.entrega-area{background:var(--cream);border:2px dashed var(--cream3);border-radius:var(--radius-sm);padding:1.5rem;text-align:center;}
+.ea-icon{font-size:2rem;margin-bottom:.5rem;}
+.ea-title{font-size:.88rem;font-weight:600;color:var(--dark);margin-bottom:.25rem;}
+.ea-sub{font-size:.75rem;color:var(--muted);}
+.ea-btns{display:flex;gap:.5rem;justify-content:center;margin-top:1rem;}
+.ea-btn{padding:.55rem 1.25rem;border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:.8rem;font-weight:600;cursor:pointer;border:none;}
+.ea-btn-primary{background:var(--corp);color:var(--white);}
+.ea-btn-secondary{background:var(--dark);color:var(--white);}
+.fnx-reward{background:linear-gradient(135deg,rgba(184,65,10,.08),rgba(232,101,26,.05));border:1px solid rgba(184,65,10,.2);border-radius:var(--radius-sm);padding:.85rem 1.1rem;display:flex;align-items:center;justify-content:space-between;}
+.fr-left{font-size:.78rem;color:var(--muted);}
+.fr-val{font-family:'DM Mono',monospace;font-size:1.2rem;font-weight:700;color:var(--corp);}
+
+/* LIBRO INTELIGENCIA FINANCIERA */
+.libros-hero{background:linear-gradient(135deg,var(--dark),var(--dark2));border-radius:var(--radius-lg);padding:2.5rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:2rem;overflow:hidden;position:relative;}
+.lh-bg{position:absolute;right:-2rem;top:-2rem;font-size:12rem;opacity:.04;font-family:'Fraunces',serif;font-weight:900;color:var(--gold);}
+.lh-content{position:relative;z-index:1;}
+.lh-eyebrow{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--gold2);margin-bottom:.4rem;}
+.lh-title{font-family:'Fraunces',serif;font-size:1.8rem;font-weight:900;color:var(--white);margin-bottom:.3rem;line-height:1.1;}
+.lh-sub{font-size:.82rem;color:rgba(255,255,255,.45);line-height:1.6;max-width:400px;}
+.libros-ciclos{display:flex;gap:.5rem;overflow-x:auto;padding-bottom:.5rem;margin-bottom:1.5rem;scrollbar-width:none;}
+.libros-ciclos::-webkit-scrollbar{display:none;}
+.ciclo-chip{background:var(--white);border:1px solid var(--cream3);border-radius:99px;padding:.5rem 1rem;font-size:.75rem;font-weight:500;color:var(--muted);cursor:pointer;white-space:nowrap;transition:all .2s;}
+.ciclo-chip:hover,.ciclo-chip.active{background:var(--gold);border-color:var(--gold);color:var(--dark);}
+.libro-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);overflow:hidden;margin-bottom:1.5rem;}
+.libro-header{background:linear-gradient(135deg,var(--dark),var(--dark2));padding:1.75rem;display:flex;gap:1.25rem;align-items:flex-start;}
+.libro-num{font-family:'Fraunces',serif;font-size:3rem;font-weight:900;color:rgba(255,255,255,.12);line-height:1;flex-shrink:0;}
+.libro-info{}
+.libro-ciclo{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--gold2);margin-bottom:.25rem;}
+.libro-titulo{font-family:'Fraunces',serif;font-size:1.4rem;font-weight:700;color:var(--white);margin-bottom:.2rem;line-height:1.2;}
+.libro-grados{font-size:.75rem;color:rgba(255,255,255,.4);}
+.libro-body{padding:1.5rem;}
+.libro-periodos{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:1.25rem;}
+.periodo-card{background:var(--cream);border-radius:var(--radius-sm);padding:1rem;}
+.periodo-num{font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--corp);margin-bottom:.3rem;}
+.periodo-pregunta{font-size:.78rem;font-weight:600;color:var(--dark);margin-bottom:.35rem;line-height:1.3;font-style:italic;}
+.periodo-proyecto{font-size:.7rem;color:var(--muted);line-height:1.4;}
+.periodo-proyecto strong{color:var(--corp);font-weight:600;}
+
+/* VIDEO PLAYER */
+.video-embed{position:relative;border-radius:var(--radius);overflow:hidden;background:var(--dark);aspect-ratio:16/9;margin-bottom:1rem;}
+.video-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:rgba(255,255,255,.5);}
+.vp-icon{font-size:3rem;margin-bottom:.5rem;}
+.vp-text{font-size:.85rem;}
+
+/* LIVES */
+.lives-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.75rem;margin-bottom:1.5rem;}
+.live-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);padding:1.1rem;transition:all .2s;cursor:pointer;}
+.live-card:hover{border-color:var(--corp);transform:translateY(-2px);}
+.lc-status{display:flex;align-items:center;gap:.4rem;margin-bottom:.6rem;}
+.lc-dot{width:7px;height:7px;border-radius:50%;}
+.lc-dot-live{background:#E53935;animation:pulse 1.5s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.7;transform:scale(1.2);}}
+.lc-dot-next{background:var(--gold);}
+.lc-dot-past{background:var(--hint);}
+.lc-status-txt{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);}
+.lc-title{font-family:'Fraunces',serif;font-size:1rem;font-weight:700;color:var(--dark);margin-bottom:.2rem;line-height:1.25;}
+.lc-docente{font-size:.72rem;color:var(--muted);margin-bottom:.65rem;}
+.lc-meta{display:flex;justify-content:space-between;align-items:center;}
+.lc-time{font-size:.72rem;font-family:'DM Mono',monospace;color:var(--muted);}
+.lc-btn-live{background:var(--corp);color:var(--white);border:none;border-radius:8px;padding:.4rem .9rem;font-family:'DM Sans',sans-serif;font-size:.72rem;font-weight:600;cursor:pointer;}
+.lc-btn-next{background:var(--dark);color:var(--white);border:none;border-radius:8px;padding:.4rem .9rem;font-family:'DM Sans',sans-serif;font-size:.72rem;font-weight:600;cursor:pointer;}
+.lc-btn-past{background:var(--cream);color:var(--muted);border:1px solid var(--cream3);border-radius:8px;padding:.4rem .9rem;font-family:'DM Sans',sans-serif;font-size:.72rem;font-weight:600;cursor:pointer;}
+
+/* DOCENTE PANEL */
+.doc-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;}
+.doc-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);padding:1.25rem;}
+.dc-title{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--corp);margin-bottom:.85rem;padding-bottom:.5rem;border-bottom:1px solid var(--cream3);}
+.estudiante-row{display:flex;align-items:center;gap:.75rem;padding:.55rem 0;border-bottom:1px solid var(--cream);cursor:pointer;transition:all .15s;}
+.estudiante-row:last-child{border-bottom:none;}
+.estudiante-row:hover{background:var(--cream);margin:0 -.5rem;padding-left:.5rem;padding-right:.5rem;border-radius:8px;border-bottom:none;}
+.er-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--corp),var(--corp3));display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:var(--white);flex-shrink:0;}
+.er-info{flex:1;}
+.er-name{font-size:.82rem;font-weight:500;color:var(--dark);}
+.er-prog{font-size:.68rem;color:var(--muted);}
+.er-fnx{font-family:'DM Mono',monospace;font-size:.75rem;font-weight:700;color:var(--corp);}
+
+/* FORM ELEMENTOS */
+.form-group{margin-bottom:.75rem;}
+.form-label{font-size:.62rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.35rem;display:block;}
+.form-input{width:100%;background:var(--cream);border:1px solid var(--cream3);border-radius:var(--radius-sm);padding:.6rem .85rem;color:var(--dark);font-family:'DM Sans',sans-serif;font-size:.85rem;outline:none;transition:border .2s;}
+.form-input:focus{border-color:var(--corp);background:var(--white);}
+.form-input::placeholder{color:var(--hint);}
+.form-select{width:100%;background:var(--cream);border:1px solid var(--cream3);border-radius:var(--radius-sm);padding:.6rem .85rem;color:var(--dark);font-family:'DM Sans',sans-serif;font-size:.85rem;outline:none;cursor:pointer;}
+.form-select:focus{border-color:var(--corp);}
+.btn-primary{background:linear-gradient(135deg,var(--corp),var(--corp3));border:none;border-radius:var(--radius-sm);padding:.7rem 1.5rem;color:var(--white);font-family:'DM Sans',sans-serif;font-size:.85rem;font-weight:600;cursor:pointer;}
+.btn-secondary{background:var(--dark);border:none;border-radius:var(--radius-sm);padding:.65rem 1.3rem;color:var(--white);font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:600;cursor:pointer;}
+.btn-outline{background:transparent;border:1px solid var(--cream3);border-radius:var(--radius-sm);padding:.65rem 1.3rem;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:500;cursor:pointer;}
+.btn-row{display:flex;gap:.5rem;flex-wrap:wrap;}
+
+/* MOVIMIENTOS */
+.mov-list{display:flex;flex-direction:column;gap:.4rem;}
+.mov-item{background:var(--white);border-radius:var(--radius-sm);padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem;border:1px solid var(--cream3);}
+.mi-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;}
+.mi-plus{background:rgba(74,103,65,.12);}
+.mi-minus{background:rgba(184,65,10,.1);}
+.mi-info{flex:1;}
+.mi-desc{font-size:.82rem;font-weight:500;color:var(--dark);}
+.mi-meta{font-size:.68rem;color:var(--muted);margin-top:.1rem;}
+.mi-amount{font-family:'DM Mono',monospace;font-size:.88rem;font-weight:700;}
+.mi-amount-plus{color:var(--sage);}
+.mi-amount-minus{color:var(--corp);}
+
+/* TOAST */
+.toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark);color:var(--white);padding:.55rem 1.25rem;border-radius:99px;font-size:.78rem;font-weight:500;opacity:0;transition:all .3s;pointer-events:none;z-index:9999;border-left:3px solid var(--corp);white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* GOOGLE MEET EMBED BUTTON */
+.meet-btn{background:linear-gradient(135deg,#00897B,#00BFA5);border:none;border-radius:var(--radius-sm);padding:.75rem 1.5rem;color:var(--white);font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:.5rem;}
+
+@media(max-width:768px){
+  .stats-strip{grid-template-columns:1fr 1fr;}
+  .bloques-grid{grid-template-columns:1fr;}
+  .doc-grid{grid-template-columns:1fr;}
+  .libro-periodos{grid-template-columns:1fr;}
+  .recursos-list{grid-template-columns:1fr;}
+  .tb-nav{display:none;}
+  .section{padding:1rem;}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div id="login-screen">
+  <div class="ls-wrap">
+    <div class="ls-brand">
+      <div class="ls-brand-name">CORPO<span style="color:var(--corp3)">SEPI</span></div>
+      <div class="ls-brand-sub">Plataforma de Aprendizaje<span class="ls-brand-dot"></span>aprende.corposepi.org</div>
+    </div>
+    <div class="ls-role-grid">
+      <div class="ls-role" onclick="selectRole('estudiante',this)"><div class="ls-role-icon">🎓</div><div class="ls-role-name">Estudiante</div></div>
+      <div class="ls-role" onclick="selectRole('docente',this)"><div class="ls-role-icon">👩‍🏫</div><div class="ls-role-name">Docente</div></div>
+      <div class="ls-role" onclick="selectRole('padre',this)"><div class="ls-role-icon">👨‍👩‍👧</div><div class="ls-role-name">Familia</div></div>
+      <div class="ls-role" onclick="selectRole('admin',this)"><div class="ls-role-icon">⚙️</div><div class="ls-role-name">Admin</div></div>
+    </div>
+    <div class="ls-card">
+      <div id="lf-default" style="text-align:center;color:rgba(255,255,255,.3);font-size:.85rem;padding:.5rem 0;">Selecciona tu rol para continuar</div>
+      <!-- ESTUDIANTE -->
+      <div id="lf-estudiante" style="display:none;">
+        <div class="ls-err" id="err-est">Correo o contraseña incorrectos.</div>
+        <label class="ls-label">Correo institucional</label>
+        <input class="ls-input" id="est-email" placeholder="juan10@corposepi.org" type="email"/>
+        <label class="ls-label">Contraseña</label>
+        <input class="ls-input" id="est-pass" type="password" placeholder="Tu contraseña Google" onkeydown="if(event.key==='Enter')doLogin()"/>
+        <button class="ls-btn" onclick="doLogin()">Entrar con mi cuenta CORPOSEPI</button>
+        <div class="ls-note">Usa tu correo @corposepi.org asignado por la institución.<br>Si olvidaste tu contraseña, contacta al administrador.</div>
+      </div>
+      <!-- DOCENTE -->
+      <div id="lf-docente" style="display:none;">
+        <div class="ls-err" id="err-doc">Credenciales incorrectas.</div>
+        <label class="ls-label">Correo docente</label>
+        <input class="ls-input" id="doc-email" placeholder="garcia@corposepi.org" type="email"/>
+        <label class="ls-label">Tu bloque / área</label>
+        <select class="ls-select" id="doc-bloque">
+          <option value="">— Selecciona tu área —</option>
+          <option value="B1-Lenguaje">Bloque 1 — Lenguaje y lenguajes audiovisuales</option>
+          <option value="B1-Ingles">Bloque 1 — Inglés</option>
+          <option value="B2-Ciencias">Bloque 2 — Ciencias Naturales</option>
+          <option value="B2-Matematicas">Bloque 2 — Matemáticas</option>
+          <option value="B3-Sociales">Bloque 3 — Ciencias Sociales</option>
+          <option value="B4-EdfFisica">Bloque 4 — Educación Física</option>
+          <option value="B4-Artes">Bloque 4 — Educación Artística</option>
+          <option value="Marketing">Marketing y Emprendimiento (Ciclo 5)</option>
+        </select>
+        <label class="ls-label">Contraseña</label>
+        <input class="ls-input" id="doc-pass" type="password" placeholder="Docente2025" onkeydown="if(event.key==='Enter')doLogin()"/>
+        <button class="ls-btn" onclick="doLogin()">Ingresar</button>
+      </div>
+      <!-- FAMILIA -->
+      <div id="lf-padre" style="display:none;">
+        <div class="ls-err" id="err-pad">Datos incorrectos.</div>
+        <label class="ls-label">Correo del estudiante</label>
+        <input class="ls-input" id="pad-email" placeholder="juan10@corposepi.org"/>
+        <label class="ls-label">Contraseña familiar</label>
+        <input class="ls-input" id="pad-pass" type="password" placeholder="Asignada por CORPOSEPI" onkeydown="if(event.key==='Enter')doLogin()"/>
+        <button class="ls-btn" onclick="doLogin()">Ver el progreso de mi hijo(a)</button>
+      </div>
+      <!-- ADMIN -->
+      <div id="lf-admin" style="display:none;">
+        <div class="ls-err" id="err-adm">Contraseña incorrecta.</div>
+        <input class="ls-input" id="adm-pass" type="password" placeholder="Contraseña admin" onkeydown="if(event.key==='Enter')doLogin()"/>
+        <button class="ls-btn" onclick="doLogin()">Ingresar como Admin</button>
+        <div class="ls-note">CorpAdmin2025 · BancoFenix2025</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="app">
+  <div class="topbar">
+    <div class="tb-inner">
+      <div class="tb-brand">
+        <div class="tb-logo">CORPO<span>SEPI</span></div>
+      </div>
+      <nav class="tb-nav" id="tb-nav"></nav>
+      <div class="tb-right">
+        <div class="tb-tokens" id="tb-tokens"></div>
+        <div class="tb-user" id="tb-user">—</div>
+        <button class="tb-logout" onclick="location.reload()">Salir</button>
+      </div>
+    </div>
+  </div>
+  <div class="app-content" id="app-content"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══ CONFIG ══
+const FB_CONFIG = {
+  apiKey:"AIzaSyARjZP37yHcNRtIFWXarSVvYJ4ZOChuZ54",
+  authDomain:"corposepi-carnets.firebaseapp.com",
+  databaseURL:"https://corposepi-carnets-default-rtdb.firebaseio.com",
+  projectId:"corposepi-carnets",
+  storageBucket:"corposepi-carnets.appspot.com"
+};
+const PASS_DOC='Docente2025';
+const PASS_ADMIN=['CorpAdmin2025','BancoFenix2025'];
+const BASE_CARNETS='https://beamish-squirrel-43c7b7.netlify.app';
+
+let db=null;
+let currentRole=null;
+let currentUser={};
+let selectedRole=null;
+
+// DATA
+const BLOQUES=[
+  {id:'B1',num:1,icon:'📖',name:'Bloque 1',title:'Habilidades Comunicativas',cls:'bc-1',color:'#4A6741'},
+  {id:'B2',num:2,icon:'🔬',name:'Bloque 2',title:'Ciencias, Matemáticas y TIC',cls:'bc-2',color:'#2A5A8A'},
+  {id:'B3',num:3,icon:'🌍',name:'Bloque 3',title:'Ciencias Sociales y Ética',cls:'bc-3',color:'#8A3A1A'},
+  {id:'B4',num:4,icon:'🎨',name:'Bloque 4',title:'Ed. Física, Artística y Cultural',cls:'bc-4',color:'#5A3A8A'},
+];
+
+const ACCIONES=[
+  {id:'leo',icon:'📚',name:'LEO'},
+  {id:'aula',icon:'🎨',name:'Aula Creativa'},
+  {id:'finanzas',icon:'💰',name:'Inteligencia Financiera',gold:true},
+  {id:'emocional',icon:'🧠',name:'Int. Emocional'},
+  {id:'ambiente',icon:'🌱',name:'Medio Ambiente'},
+  {id:'alimentacion',icon:'🥗',name:'Alimentación Saludable'},
+  {id:'marketing',icon:'📣',name:'Marketing y Emprendimiento'},
+];
+
+const LIBROS=[
+  {num:1,titulo:'Semillas de Riqueza',ciclo:'Ciclo 1 — Exploratorio',grados:'Transición, 1° y 2°',edades:'5 a 8 años',periodos:[
+    {num:'P1',pregunta:'¿De dónde viene el dinero y cómo lo usamos?',proyecto:'Mi tiendita del barrio',metodologia:'ABP comunitario'},
+    {num:'P2',pregunta:'¿Cómo puedo ahorrar para un sueño?',proyecto:'Mi alcancía con propósito',metodologia:'Aprendizaje en servicio'},
+    {num:'P3',pregunta:'¿Qué puedo crear que sea valioso para compartir?',proyecto:'Feria de pequeños emprendedores',metodologia:'ABP + Proyecto comunitario'},
+  ]},
+  {num:2,titulo:'Dinero con Cabeza',ciclo:'Ciclo 2 — Cognitivo',grados:'3° y 4°',edades:'8 a 10 años',periodos:[
+    {num:'P1',pregunta:'¿Cómo planifico mis ingresos y gastos?',proyecto:'Mi primer presupuesto real',metodologia:'ABProblemas'},
+    {num:'P2',pregunta:'¿Qué diferencia hay entre ahorrar e invertir?',proyecto:'Club de ahorro del aula',metodologia:'Indagación STEAM'},
+    {num:'P3',pregunta:'¿Cómo funciona un negocio con estructura?',proyecto:'Empresa del aula con costos y ganancias',metodologia:'ABP + Emprendimiento'},
+  ]},
+  {num:3,titulo:'Dinero en Contexto',ciclo:'Ciclo 3 — Contextual Básico',grados:'5°, 6° y 7°',edades:'10 a 13 años',periodos:[
+    {num:'P1',pregunta:'¿Cómo funciona la economía que me rodea?',proyecto:'Periódico económico del aula',metodologia:'Indagación STEAM'},
+    {num:'P2',pregunta:'¿Cómo funciona el sistema financiero colombiano?',proyecto:'Mi primera cuenta bancaria virtual',metodologia:'ABProblemas'},
+    {num:'P3',pregunta:'¿Cómo proyecto mi futuro financiero con impacto social?',proyecto:'Plan financiero personal a 5 años',metodologia:'Aprendizaje en servicio'},
+  ]},
+  {num:4,titulo:'Libertad Financiera',ciclo:'Ciclo 4 — Contextual Avanzado',grados:'8° y 9°',edades:'13 a 15 años',periodos:[
+    {num:'P1',pregunta:'¿Cómo funciona el sistema tributario y laboral colombiano?',proyecto:'Auditoría ciudadana del gasto público',metodologia:'ABProblemas'},
+    {num:'P2',pregunta:'¿Cómo se financia y analiza una empresa?',proyecto:'Plan de negocio con análisis financiero real',metodologia:'ABP + Indagación'},
+    {num:'P3',pregunta:'¿Cuál es mi hoja de ruta hacia la libertad financiera?',proyecto:'Mi arquitectura financiera personal',metodologia:'Design Thinking + Proyectos'},
+  ]},
+  {num:5,titulo:'Proyectar, Crear y Transformar',ciclo:'Ciclo 5 — Proyectivo',grados:'10° y 11°',edades:'15 a 17 años',periodos:[
+    {num:'P1',pregunta:'¿Cómo proyecto mi vida financiera adulta?',proyecto:'Mi proyecto de vida financiero completo',metodologia:'ABP + Investigación'},
+    {num:'P2',pregunta:'¿Cómo creo un emprendimiento de impacto real?',proyecto:'Empresa de impacto social con viabilidad',metodologia:'Design Thinking'},
+    {num:'P3',pregunta:'¿Cómo transformo mi comunidad con inteligencia financiera?',proyecto:'Presentación pública ante comunidad y empresarios',metodologia:'Aprendizaje en servicio'},
+  ]},
+];
+
+const PROYECTOS_DEMO=[
+  {id:'p1',titulo:'El agua en mi ciudad',pregunta:'¿Qué relación tiene el ciclo del agua con la vida en mi municipio y cómo puedo cuidarla?',bloques:['B2','B3','B1'],accion:'ambiente',ciclo:'Ciclo 3',periodo:'P1',semana:6,duracion:12,progreso:65,estado:'activo',docente:'Prof. Rodríguez · Ciencias',fnx:15,
+    reto:'Investiga el ciclo del agua en Madrid, Cundinamarca. Entrevista al operador del acueducto local, analiza los datos de consumo del municipio y propón una solución comunitaria de ahorro hídrico que puedas presentar ante el concejo municipal.',
+    etapas:[
+      {n:'Indagación',desc:'Lee los recursos, investiga el acueducto local, consulta fuentes oficiales del municipio.'},
+      {n:'Trabajo de campo',desc:'Entrevista a un funcionario del acueducto o a un vecino mayor de tu barrio sobre el agua.'},
+      {n:'Análisis',desc:'Organiza los datos de consumo. ¿Cuánto consume tu familia? ¿Tu barrio? ¿El municipio?'},
+      {n:'Propuesta',desc:'Diseña una solución de ahorro: campaña, dispositivo, rutina familiar o propuesta institucional.'},
+      {n:'Socialización',desc:'Presenta tu proyecto ante la clase y, si es posible, ante la junta de acción comunal.'},
+    ],
+    recursos:[
+      {tipo:'Video',nombre:'El ciclo del agua — CORPOSEPI',canal:'YouTube',icon:'ri-video'},
+      {tipo:'Lectura',nombre:'Informe acueducto Madrid 2024',icon:'ri-doc'},
+      {tipo:'Clase en vivo',nombre:'Ciencias — Martes 10am',icon:'ri-meet'},
+      {tipo:'Link',nombre:'Datos CAR Cundinamarca',icon:'ri-link'},
+    ]},
+  {id:'p2',titulo:'Mi primera empresa — Plan de negocio',pregunta:'¿Cómo creo una idea de negocio viable que resuelva un problema real de mi comunidad?',bloques:['B3','B1'],accion:'marketing',ciclo:'Ciclo 4',periodo:'P2',semana:10,duracion:12,progreso:100,estado:'revision',docente:'Prof. García · Sociales',fnx:20,
+    reto:'Diseña un plan de negocio completo para una empresa que resuelva un problema real en Madrid. Incluye: análisis del problema, propuesta de valor, costos, ingresos proyectados y presentación en video de 3 minutos.',
+    etapas:[
+      {n:'Identificación del problema',desc:'Sal a observar tu barrio. ¿Qué necesidad existe que nadie está satisfaciendo?'},
+      {n:'Investigación de mercado',desc:'Encuesta a 10 personas potenciales clientes. Analiza la competencia existente.'},
+      {n:'Diseño del modelo de negocio',desc:'Define tu propuesta de valor, clientes, canales y fuentes de ingreso.'},
+      {n:'Proyección financiera',desc:'Calcula costos iniciales, precio de venta, punto de equilibrio y ganancia proyectada.'},
+      {n:'Presentación',desc:'Graba un video de 3 minutos presentando tu empresa como si fuera a inversionistas reales.'},
+    ],
+    recursos:[
+      {tipo:'Video',nombre:'Cómo hacer un plan de negocio',canal:'YouTube',icon:'ri-video'},
+      {tipo:'Lectura',nombre:'Libro 4 — Libertad Financiera · P2',icon:'ri-doc'},
+      {tipo:'Clase en vivo',nombre:'Marketing — Jueves 2pm (Ciclo 5)',icon:'ri-meet'},
+    ]},
+  {id:'p3',titulo:'Inglés A2 — My neighborhood',pregunta:'How can I describe my community in English using place and transport vocabulary?',bloques:['B1'],accion:'leo',ciclo:'Ciclo 3',periodo:'P2',semana:12,duracion:12,progreso:100,estado:'completado',docente:'Prof. Mora · Inglés',fnx:10,
+    reto:'Record a 3-minute video describing your neighborhood in English. Use vocabulary for places, directions, and transportation. Upload to the CORPOSEPI YouTube channel.',
+    etapas:[
+      {n:'Vocabulary',desc:'Learn and practice 20 words about places and transport in your neighborhood.'},
+      {n:'Script',desc:'Write a script describing your neighborhood. At least 150 words.'},
+      {n:'Recording',desc:'Record your video. Show real places in your neighborhood if possible.'},
+      {n:'Upload',desc:'Upload to YouTube with title: "My Neighborhood — [Your Name] — CORPOSEPI"'},
+    ],
+    recursos:[
+      {tipo:'Video',nombre:'Neighborhood vocabulary — lesson',canal:'YouTube',icon:'ri-video'},
+      {tipo:'Lectura',nombre:'Vocabulary list A2 — Places',icon:'ri-doc'},
+    ]},
+];
+
+const LIVES_DEMO=[
+  {estado:'live',titulo:'Ciencias Naturales — El ecosistema colombiano',docente:'Prof. Rodríguez',bloque:'Bloque 2',hora:'Ahora · hasta las 10:15am',meetUrl:'https://meet.google.com/'},
+  {estado:'next',titulo:'Matemáticas — Estadística real con datos del DANE',docente:'Prof. Torres',bloque:'Bloque 2',hora:'Mañana · Martes 9:00am',meetUrl:'https://meet.google.com/'},
+  {estado:'next',titulo:'Inglés B1 — Speaking practice: My community',docente:'Prof. Mora',bloque:'Bloque 1',hora:'Miércoles · 11:00am',meetUrl:'https://meet.google.com/'},
+  {estado:'past',titulo:'Ciencias Sociales — Geografía económica de Colombia',docente:'Prof. García',bloque:'Bloque 3',hora:'Viernes pasado · grabación disponible',meetUrl:'https://meet.google.com/'},
+  {estado:'next',titulo:'Acción articuladora — Inteligencia Financiera Ciclo 4',docente:'Dir. Perdomo',bloque:'Inteligencia Financiera ★',hora:'Jueves · 8:00am',meetUrl:'https://meet.google.com/'},
+];
+
+// ══ INIT ══
+(function(){
+  try{if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);db=firebase.database();}catch(e){}
+})();
+
+// ══ LOGIN ══
+function selectRole(role,el){
+  selectedRole=role;
+  document.querySelectorAll('.ls-role').forEach(r=>r.classList.remove('active'));
+  el.classList.add('active');
+  ['estudiante','docente','padre','admin','default'].forEach(r=>document.getElementById('lf-'+r).style.display='none');
+  document.getElementById('lf-'+role).style.display='block';
+}
+
+async function doLogin(){
+  if(!selectedRole){showToast('⚠️ Selecciona tu rol');return;}
+  if(selectedRole==='estudiante'){
+    const email=document.getElementById('est-email').value.trim();
+    const pass=document.getElementById('est-pass').value;
+    if(!email||!pass){showToast('⚠️ Ingresa tu correo y contraseña');return;}
+    if(!email.endsWith('@corposepi.org')){showErr('est','Usa tu correo @corposepi.org');return;}
+    // Buscar en Firebase por email
+    let estudiante=null;
+    try{
+      const snap=await db.ref('corposepi').once('value');
+      const data=snap.val()||{};
+      const students=data.students||[];
+      const emailUser=email.split('@')[0];
+      estudiante=students.find(s=>s.id&&s.id.toLowerCase().includes(emailUser.toLowerCase().replace(/[^a-z0-9]/g,'')))||
+                 students.find(s=>s.nombres&&s.nombres.toLowerCase().split(' ')[0]===emailUser.replace(/[^a-z]/gi,'').toLowerCase())||
+                 students[0]; // demo fallback
+    }catch(e){}
+    currentRole='estudiante';
+    currentUser={nombre:estudiante?.nombres||email.split('@')[0],fnx:parseFloat(estudiante?.fnx||85).toFixed(0),cpi:parseFloat(estudiante?.cpi||12).toFixed(0),email,ciclo:'Ciclo 3',idx:0};
+    startApp();
+  } else if(selectedRole==='docente'){
+    const pass=document.getElementById('doc-pass').value;
+    const bloque=document.getElementById('doc-bloque').value;
+    if(!bloque){showToast('⚠️ Selecciona tu área');return;}
+    if(pass!==PASS_DOC&&!PASS_ADMIN.includes(pass)){showErr('doc','Contraseña incorrecta');return;}
+    currentRole='docente';
+    currentUser={nombre:document.getElementById('doc-email').value.split('@')[0]||'Docente',bloque,fnx:340,email:document.getElementById('doc-email').value};
+    startApp();
+  } else if(selectedRole==='padre'){
+    currentRole='padre';
+    currentUser={nombre:'Familia Pérez',estudiante:'Sofía Pérez',fnx:85,cpi:12};
+    startApp();
+  } else if(selectedRole==='admin'){
+    const pass=document.getElementById('adm-pass').value;
+    if(!PASS_ADMIN.includes(pass)){showErr('adm','Contraseña incorrecta');return;}
+    currentRole='admin';
+    currentUser={nombre:'Administrador',fnx:0,cpi:0};
+    startApp();
+  }
+}
+
+function showErr(ctx,msg){
+  const el=document.getElementById('err-'+ctx);
+  if(!el)return;
+  if(msg)el.textContent=msg;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+function startApp(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  document.getElementById('tb-user').textContent=currentUser.nombre;
+  // Tokens
+  const tokEl=document.getElementById('tb-tokens');
+  if(currentRole==='estudiante'||currentRole==='padre'){
+    tokEl.innerHTML=`<div class="tb-token tt-fnx">🔥 ${currentUser.fnx} FNX</div><div class="tb-token tt-cpi">★ ${currentUser.cpi} CPI</div>`;
+  } else if(currentRole==='docente'){
+    tokEl.innerHTML=`<div class="tb-token tt-fnx">🔥 ${currentUser.fnx} FNX disp.</div>`;
+  }
+  buildNav();
+}
+
+// ══ NAV BY ROLE ══
+const NAV_CONFIG={
+  estudiante:[
+    {id:'inicio',label:'Inicio',fn:buildInicio},
+    {id:'proyectos',label:'Mis proyectos',fn:buildProyectos},
+    {id:'libros',label:'Inteligencia Financiera',fn:buildLibros},
+    {id:'clases',label:'Clases en vivo',fn:buildClases},
+    {id:'movimientos',label:'Mis FNX',fn:buildMovimientos},
+  ],
+  docente:[
+    {id:'inicio',label:'Inicio',fn:buildInicio},
+    {id:'proyectos',label:'Proyectos',fn:buildProyectosDok},
+    {id:'libros',label:'Int. Financiera',fn:buildLibros},
+    {id:'clases',label:'Clases',fn:buildClases},
+    {id:'estudiantes',label:'Mis estudiantes',fn:buildEstudiantes},
+  ],
+  padre:[
+    {id:'inicio',label:'Inicio',fn:buildInicioPadre},
+    {id:'proyectos',label:'Proyectos',fn:buildProyectos},
+    {id:'clases',label:'Clases',fn:buildClases},
+  ],
+  admin:[
+    {id:'inicio',label:'Dashboard',fn:buildAdmin},
+    {id:'proyectos',label:'Proyectos',fn:buildProyectos},
+    {id:'libros',label:'Libros',fn:buildLibros},
+    {id:'clases',label:'Clases en vivo',fn:buildClases},
+  ],
+};
+
+function buildNav(){
+  const nav=NAV_CONFIG[currentRole]||[];
+  const navEl=document.getElementById('tb-nav');
+  const content=document.getElementById('app-content');
+  content.innerHTML='';
+  navEl.innerHTML=nav.map((n,i)=>`<button class="tb-nav-item${i===0?' active':''}" onclick="switchSection('${n.id}',this)" id="nav-${n.id}">${n.label}</button>`).join('');
+  nav.forEach((n,i)=>{
+    const sec=document.createElement('div');
+    sec.className=`section${i===0?' active':''}`;
+    sec.id='sec-'+n.id;
+    content.appendChild(sec);
+    if(i===0) n.fn(sec);
+  });
+  navEl.querySelectorAll('.tb-nav-item').forEach((btn,i)=>{
+    btn.onclick=()=>{
+      document.querySelectorAll('.tb-nav-item').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+      btn.classList.add('active');
+      const sec=document.getElementById('sec-'+nav[i].id);
+      if(!sec.innerHTML) nav[i].fn(sec);
+      sec.classList.add('active');
+    };
+  });
+}
+
+// ══ INICIO ESTUDIANTE ══
+function buildInicio(el){
+  const hora=new Date().getHours();
+  const saludo=hora<12?'Buenos días':hora<18?'Buenas tardes':'Buenas noches';
+  const sal=hora<12?'Buenos días ☀️':hora<18?'Buenas tardes 🌤️':'Buenas noches 🌙';
+  el.innerHTML=`
+  <div class="home-hero">
+    <div class="home-hero-bg"></div>
+    <div class="home-hero-content">
+      <div class="home-greeting">${sal}</div>
+      <div class="home-name">${currentUser.nombre.split(' ')[0]},<br>listo para <em>aprender hoy</em></div>
+      <div class="home-quote">"La educación no es la preparación para la vida; la educación es la vida misma." — John Dewey</div>
+    </div>
+  </div>
+
+  <div class="stats-strip">
+    <div class="stat"><div class="stat-val" style="color:var(--corp)">${currentUser.fnx}</div><div class="stat-lbl">FNX académicos</div><div class="stat-sub">+15 esta semana</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--gold)">${currentUser.cpi}</div><div class="stat-lbl">CPI disponibles</div><div class="stat-sub">Para cooperativa</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--sage)">3</div><div class="stat-lbl">Proyectos activos</div><div class="stat-sub">2 bloques, 1 integrador</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--dark)">94%</div><div class="stat-lbl">Asistencia</div><div class="stat-sub">Este trimestre</div></div>
+  </div>
+
+  <div class="page-eyebrow">Los 4 bloques temáticos</div>
+  <div class="bloques-grid" style="margin-bottom:1.5rem;">
+    ${BLOQUES.map(b=>`
+    <div class="bloque-card ${b.cls}" onclick="showToast('${b.title} — proyectos disponibles')">
+      <div class="bc-num">${b.num}</div>
+      <div class="bc-icon">${b.icon}</div>
+      <div class="bc-name">${b.name}</div>
+      <div class="bc-title">${b.title}</div>
+      <div class="bc-count">3 proyectos activos</div>
+    </div>`).join('')}
+  </div>
+
+  <div class="page-eyebrow">Acciones articuladoras — hoy</div>
+  <div class="acciones-strip">
+    ${ACCIONES.map(a=>`<div class="accion-chip ${a.gold?'active-gold':''}" onclick="showToast('${a.name} — contenidos disponibles')">${a.icon} ${a.name}</div>`).join('')}
+  </div>
+
+  <div class="page-eyebrow">Próxima clase en vivo</div>
+  <div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);padding:1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;">
+    <div>
+      <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--corp);margin-bottom:.2rem;">🔴 EN VIVO AHORA</div>
+      <div style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:700;color:var(--dark);">Ciencias Naturales — El ecosistema colombiano</div>
+      <div style="font-size:.75rem;color:var(--muted);margin-top:.2rem;">Prof. Rodríguez · Bloque 2 · hasta las 10:15am</div>
+    </div>
+    <button class="meet-btn" onclick="window.open('https://meet.google.com/','_blank')">
+      <span>📹</span> Unirse a Google Meet
+    </button>
+  </div>`;
+}
+
+// ══ PROYECTOS ══
+function buildProyectos(el){
+  el.innerHTML=`
+  <div class="page-hdr">
+    <div class="page-eyebrow">Mi aprendizaje activo</div>
+    <div class="page-title">Mis <em>proyectos</em></div>
+    <div class="page-sub">Todo el aprendizaje ocurre a través de proyectos reales. No hay guías que llenar — hay retos que resolver.</div>
+  </div>
+  <div class="acciones-strip" style="margin-bottom:1.25rem;">
+    <div class="accion-chip active" onclick="filtrarProyectos('todos',this)">Todos</div>
+    <div class="accion-chip" onclick="filtrarProyectos('activo',this)">Activos</div>
+    <div class="accion-chip" onclick="filtrarProyectos('revision',this)">En revisión</div>
+    <div class="accion-chip" onclick="filtrarProyectos('completado',this)">Completados</div>
+  </div>
+  <div class="proyectos-grid" id="proyectos-grid">
+    ${PROYECTOS_DEMO.map(p=>renderProyectoCard(p)).join('')}
+  </div>`;
+}
+
+function renderProyectoCard(p){
+  const estadoTag=p.estado==='activo'?'pt-activo Activo':p.estado==='revision'?'pt-revision En revisión':'pt-completado Completado';
+  const [estadoCls,estadoLbl]=estadoTag.split(' ');
+  return `<div class="proyecto-card" onclick="abrirProyecto('${p.id}')">
+    <div class="pc-header">
+      <div class="pc-tags">
+        ${p.bloques.length>1?`<span class="pc-tag pt-integrador">Integrador</span>`:p.bloques.map(b=>`<span class="pc-tag pt-bloque${b[1]}">${b}</span>`).join('')}
+        <span class="pc-tag ${estadoCls}">${estadoLbl}</span>
+        <span class="pc-tag" style="background:var(--cream2);color:var(--muted)">${p.accion}</span>
+      </div>
+      <div class="pc-title">${p.titulo}</div>
+      <div class="pc-desc">${p.pregunta}</div>
+    </div>
+    <div class="pc-body">
+      <div class="pc-progress-label"><span>Avance</span><span>${p.progreso}%</span></div>
+      <div class="pc-progress-bar"><div class="pc-progress-fill" style="width:${p.progreso}%"></div></div>
+      <div class="pc-meta">
+        <div class="pc-ciclo">${p.ciclo} · ${p.periodo}</div>
+        <div class="pc-reward">🔥 +${p.fnx} FNX</div>
+      </div>
+    </div>
+    <div class="pc-footer">
+      <div class="pc-docente">${p.docente}</div>
+      <button class="pc-btn">Ver proyecto →</button>
+    </div>
+  </div>`;
+}
+
+function filtrarProyectos(estado,el){
+  document.querySelectorAll('.acciones-strip .accion-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  const grid=document.getElementById('proyectos-grid');
+  const filtered=estado==='todos'?PROYECTOS_DEMO:PROYECTOS_DEMO.filter(p=>p.estado===estado);
+  grid.innerHTML=filtered.length?filtered.map(p=>renderProyectoCard(p)).join(''):'<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:3rem;">Sin proyectos en este estado</div>';
+}
+
+function abrirProyecto(id){
+  const p=PROYECTOS_DEMO.find(x=>x.id===id);
+  if(!p)return;
+  // Create modal
+  let modal=document.getElementById('proyecto-modal');
+  if(!modal){modal=document.createElement('div');modal.id='proyecto-modal';modal.className='proyecto-detalle';document.body.appendChild(modal);}
+  modal.style.display='block';
+  modal.innerHTML=`<div class="pd-card">
+    <div class="pd-header">
+      <button class="pd-close" onclick="document.getElementById('proyecto-modal').style.display='none'">✕</button>
+      <div class="pd-tags">
+        ${p.bloques.map(b=>`<span class="pc-tag pt-bloque${b[1]}">${b}</span>`).join('')}
+        ${p.bloques.length>1?'<span class="pc-tag pt-integrador">Integrador</span>':''}
+      </div>
+      <div class="pd-title">${p.titulo}</div>
+      <div class="pd-pregunta">${p.pregunta}</div>
+    </div>
+    <div class="pd-body">
+      <div class="pd-section">
+        <div class="pd-section-title">El reto</div>
+        <div class="pd-reto">${p.reto}</div>
+      </div>
+      <div class="pd-section">
+        <div class="pd-section-title">Etapas del proyecto (metodología NEM)</div>
+        <div class="etapas-list">
+          ${p.etapas.map((e,i)=>`<div class="etapa"><div class="etapa-num">${i+1}</div><div class="etapa-info"><div class="etapa-name">${e.n}</div><div class="etapa-desc">${e.desc}</div></div></div>`).join('')}
+        </div>
+      </div>
+      <div class="pd-section">
+        <div class="pd-section-title">Recursos</div>
+        <div class="recursos-list">
+          ${p.recursos.map(r=>`<div class="recurso" onclick="showToast('Abriendo: ${r.nombre}')">
+            <div class="recurso-icon ${r.icon}">
+              ${r.tipo==='Video'?'▶':r.tipo==='Lectura'?'📄':r.tipo==='Clase en vivo'?'📹':'🔗'}
+            </div>
+            <div class="recurso-info">
+              <div class="recurso-tipo">${r.tipo}</div>
+              <div class="recurso-nombre">${r.nombre}</div>
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>
+      <div class="pd-section">
+        <div class="pd-section-title">Mi entrega</div>
+        <div class="entrega-area">
+          <div class="ea-icon">${p.estado==='completado'?'✅':'📤'}</div>
+          <div class="ea-title">${p.estado==='completado'?'Proyecto entregado':'Sube tu producto aquí'}</div>
+          <div class="ea-sub">${p.estado==='completado'?'Retroalimentación disponible del docente':'Video, documento, presentación o enlace a YouTube'}</div>
+          ${p.estado!=='completado'?`<div class="ea-btns">
+            <button class="ea-btn ea-btn-secondary" onclick="window.open('https://drive.google.com','_blank')">📁 Drive Google</button>
+            <button class="ea-btn ea-btn-secondary" onclick="window.open('https://youtube.com','_blank')">▶ YouTube</button>
+          </div>`:''}
+        </div>
+      </div>
+      <div class="fnx-reward">
+        <div class="fr-left">FNX al completar este proyecto<br><span style="font-size:.68rem;color:var(--hint)">Se suman automáticamente al aprobarse</span></div>
+        <div class="fr-val">+${p.fnx} FNX 🔥</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ══ LIBROS INT. FINANCIERA ══
+function buildLibros(el){
+  let libroActivo=0;
+  function render(){
+    const l=LIBROS[libroActivo];
+    el.innerHTML=`
+    <div class="libros-hero">
+      <div class="lh-bg">₡</div>
+      <div class="lh-content">
+        <div class="lh-eyebrow">Acción articuladora ★ · Inteligencia Financiera para la Vida</div>
+        <div class="lh-title">Colección de 5 libros<br>por Desiderio Perdomo Ávila</div>
+        <div class="lh-sub">Cada ciclo educativo tiene su propio libro. Del explorar al proyectar — una progresión completa de pensamiento financiero crítico y responsable.</div>
+      </div>
+    </div>
+    <div class="libros-ciclos">
+      ${LIBROS.map((lb,i)=>`<div class="ciclo-chip${i===libroActivo?' active':''}" onclick="cambiarLibro(${i})">${lb.num}. ${lb.titulo}</div>`).join('')}
+    </div>
+    <div class="libro-card">
+      <div class="libro-header">
+        <div class="libro-num">${l.num}</div>
+        <div class="libro-info">
+          <div class="libro-ciclo">${l.ciclo} · ${l.edades}</div>
+          <div class="libro-titulo">${l.titulo}</div>
+          <div class="libro-grados">${l.grados}</div>
+        </div>
+      </div>
+      <div class="libro-body">
+        <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--corp);margin-bottom:.85rem;">3 Periodos · 12 semanas cada uno · 36 semanas totales</div>
+        <div class="libro-periodos">
+          ${l.periodos.map(p=>`<div class="periodo-card">
+            <div class="periodo-num">${p.num} · 12 semanas</div>
+            <div class="periodo-pregunta">"${p.pregunta}"</div>
+            <div class="periodo-proyecto">Proyecto integrador: <strong>${p.proyecto}</strong></div>
+            <div class="periodo-proyecto" style="margin-top:.25rem;color:var(--hint);">${p.metodologia}</div>
+          </div>`).join('')}
+        </div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem;">
+          <button class="btn-primary" onclick="window.open('https://drive.google.com','_blank')">📖 Abrir libro en Drive</button>
+          <button class="btn-secondary" onclick="window.open('https://youtube.com/@corposepi','_blank')">▶ Videos del ciclo</button>
+          <button class="btn-outline" onclick="showToast('Descargando guía docente...')">📥 Guía docente</button>
+        </div>
+      </div>
+    </div>`;
+    // Attach cambiarLibro
+    window.cambiarLibro=function(i){libroActivo=i;render();};
+  }
+  render();
+}
+
+// ══ CLASES EN VIVO ══
+function buildClases(el){
+  const estados={live:'lc-dot-live',next:'lc-dot-next',past:'lc-dot-past'};
+  const labels={live:'🔴 En vivo ahora',next:'Próximamente',past:'Grabación disponible'};
+  el.innerHTML=`
+  <div class="page-hdr">
+    <div class="page-eyebrow">Google Meet · CORPOSEPI</div>
+    <div class="page-title">Clases en <em>vivo</em></div>
+    <div class="page-sub">Todas las clases usan Google Meet con tu cuenta @corposepi.org. Las grabaciones quedan en Google Drive.</div>
+  </div>
+  <div class="lives-grid">
+    ${LIVES_DEMO.map(l=>`<div class="live-card">
+      <div class="lc-status"><div class="lc-dot ${estados[l.estado]}"></div><div class="lc-status-txt">${labels[l.estado]}</div></div>
+      <div class="lc-title">${l.titulo}</div>
+      <div class="lc-docente">${l.docente} · ${l.bloque}</div>
+      <div class="lc-meta">
+        <div class="lc-time">${l.hora}</div>
+        ${l.estado==='live'?`<button class="lc-btn-live" onclick="window.open('${l.meetUrl}','_blank')">Unirse ahora</button>`:
+          l.estado==='next'?`<button class="lc-btn-next" onclick="showToast('Recordatorio guardado')">Recordar</button>`:
+          `<button class="lc-btn-past" onclick="window.open('https://drive.google.com','_blank')">Ver grabación</button>`}
+      </div>
+    </div>`).join('')}
+  </div>
+  <div style="background:var(--dark);border-radius:var(--radius);padding:1.5rem;color:rgba(255,255,255,.6);font-size:.82rem;line-height:1.8;">
+    <div style="font-family:'Fraunces',serif;font-size:1rem;color:var(--white);margin-bottom:.5rem;">¿Cómo funciona?</div>
+    Las clases se programan en Google Calendar de CORPOSEPI. Al hacer clic en "Unirse", se abre Google Meet con tu cuenta @corposepi.org automáticamente. Las grabaciones quedan en Google Drive compartido y aparecen aquí como "Ver grabación".
+  </div>`;
+}
+
+// ══ MOVIMIENTOS FNX ══
+function buildMovimientos(el){
+  const movs=[
+    {tipo:'plus',icon:'🏆',desc:'Proyecto "Inglés A2 — My neighborhood" aprobado',meta:'Prof. Mora · hace 2 días',fnx:'+10 FNX',cpi:''},
+    {tipo:'minus',icon:'⏰',desc:'Tardanza — llegada 8:32am',meta:'Sistema automático · ayer',fnx:'-5 FNX',cpi:''},
+    {tipo:'plus',icon:'📚',desc:'Participación en clase — Ciencias Naturales',meta:'Prof. Rodríguez · hace 3 días',fnx:'+5 FNX',cpi:''},
+    {tipo:'plus',icon:'🌱',desc:'Premio acción articuladora Medio Ambiente',meta:'Dirección · hace 5 días',fnx:'+8 FNX',cpi:''},
+    {tipo:'minus',icon:'💳',desc:'Pago cooperativa — Almuerzo',meta:'Cooperativa escolar · hace 1 semana',fnx:'',cpi:'-3 CPI'},
+    {tipo:'plus',icon:'★',desc:'CPI emitido — Premio asistencia perfecta P1',meta:'Banco Fénix · hace 2 semanas',fnx:'',cpi:'+5 CPI'},
+  ];
+  el.innerHTML=`
+  <div class="page-hdr">
+    <div class="page-eyebrow">Mi economía académica</div>
+    <div class="page-title">Mis <em>FNX</em> y CPI</div>
+    <div class="page-sub">FNX para el día a día académico. CPI para la cooperativa y comercios asociados.</div>
+  </div>
+  <div class="stats-strip">
+    <div class="stat"><div class="stat-val" style="color:var(--corp)">${currentUser.fnx}</div><div class="stat-lbl">FNX disponibles</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--gold)">${currentUser.cpi}</div><div class="stat-lbl">CPI disponibles</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--sage)">94%</div><div class="stat-lbl">Asistencia</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--dark)">3</div><div class="stat-lbl">Proyectos completados</div></div>
+  </div>
+  <div style="margin-bottom:.75rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);">Últimos movimientos</div>
+  <div class="mov-list">
+    ${movs.map(m=>`<div class="mov-item">
+      <div class="mi-icon mi-${m.tipo}">${m.icon}</div>
+      <div class="mi-info">
+        <div class="mi-desc">${m.desc}</div>
+        <div class="mi-meta">${m.meta}</div>
+      </div>
+      ${m.fnx?`<div class="mi-amount mi-amount-${m.fnx.startsWith('+')?'plus':'minus'}">${m.fnx}</div>`:''}
+      ${m.cpi?`<div class="mi-amount" style="color:var(--gold)">${m.cpi}</div>`:''}
+    </div>`).join('')}
+  </div>`;
+}
+
+// ══ DOCENTE: PROYECTOS ══
+function buildProyectosDok(el){
+  el.innerHTML=`
+  <div class="page-hdr">
+    <div class="page-eyebrow">${currentUser.bloque}</div>
+    <div class="page-title">Gestión de <em>proyectos</em></div>
+  </div>
+  <div class="doc-grid">
+    <div class="doc-card">
+      <div class="dc-title">Crear nuevo proyecto</div>
+      <div class="form-group"><label class="form-label">Título del proyecto</label><input class="form-input" placeholder="Ej: El agua en mi ciudad"/></div>
+      <div class="form-group"><label class="form-label">Pregunta orientadora</label><input class="form-input" placeholder="¿Qué relación tiene...?"/></div>
+      <div class="form-group"><label class="form-label">Bloque(s) involucrado(s)</label>
+        <select class="form-select"><option>Solo mi bloque</option><option>Proyecto integrador — 2 bloques</option><option>Proyecto integrador — todos los bloques</option></select></div>
+      <div class="form-group"><label class="form-label">Acción articuladora</label>
+        <select class="form-select">${ACCIONES.map(a=>`<option>${a.name}</option>`).join('')}</select></div>
+      <div class="form-group"><label class="form-label">Ciclo educativo</label>
+        <select class="form-select"><option>Ciclo 1</option><option>Ciclo 2</option><option>Ciclo 3</option><option>Ciclo 4</option><option>Ciclo 5</option></select></div>
+      <div class="form-group"><label class="form-label">FNX al completar</label><input class="form-input" type="number" placeholder="15" value="15"/></div>
+      <div class="btn-row" style="margin-top:1rem;">
+        <button class="btn-primary" onclick="showToast('✅ Proyecto creado y publicado')">Crear proyecto</button>
+        <button class="btn-outline">Vista previa</button>
+      </div>
+    </div>
+    <div class="doc-card">
+      <div class="dc-title">Proyectos activos — entregas pendientes</div>
+      ${PROYECTOS_DEMO.map(p=>`<div style="padding:.65rem 0;border-bottom:1px solid var(--cream);display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:.82rem;font-weight:500;color:var(--dark);margin-bottom:.15rem;">${p.titulo}</div>
+          <div style="font-size:.68rem;color:var(--muted)">${p.ciclo} · ${p.progreso}% promedio</div>
+        </div>
+        <button class="btn-outline" style="font-size:.68rem;padding:.3rem .7rem;" onclick="showToast('Revisando entregas de ${p.titulo}')">Revisar</button>
+      </div>`).join('')}
+    </div>
+  </div>
+  <div class="doc-card" style="margin-top:.75rem;">
+    <div class="dc-title">Agregar recursos al proyecto</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;">
+      <div style="background:var(--cream);border-radius:var(--radius-sm);padding:1rem;text-align:center;cursor:pointer;" onclick="window.open('https://youtube.com','_blank')">
+        <div style="font-size:1.5rem;margin-bottom:.3rem;">▶</div>
+        <div style="font-size:.78rem;font-weight:600;color:var(--dark)">Video YouTube</div>
+        <div style="font-size:.68rem;color:var(--muted)">Canal CORPOSEPI</div>
+      </div>
+      <div style="background:var(--cream);border-radius:var(--radius-sm);padding:1rem;text-align:center;cursor:pointer;" onclick="window.open('https://drive.google.com','_blank')">
+        <div style="font-size:1.5rem;margin-bottom:.3rem;">📁</div>
+        <div style="font-size:.78rem;font-weight:600;color:var(--dark)">Google Drive</div>
+        <div style="font-size:.68rem;color:var(--muted)">Docs y archivos</div>
+      </div>
+      <div style="background:var(--cream);border-radius:var(--radius-sm);padding:1rem;text-align:center;cursor:pointer;" onclick="window.open('https://meet.google.com','_blank')">
+        <div style="font-size:1.5rem;margin-bottom:.3rem;">📹</div>
+        <div style="font-size:.78rem;font-weight:600;color:var(--dark)">Google Meet</div>
+        <div style="font-size:.68rem;color:var(--muted)">Clase en vivo</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ══ DOCENTE: ESTUDIANTES ══
+function buildEstudiantes(el){
+  const names=[['Ana Sofía','Pérez','C3'],['Carlos','López','C3'],['Valentina','Rodríguez','C4'],['Sebastián','Martínez','C2'],['Isabella','García','C3'],['Mateo','Hernández','C4']];
+  el.innerHTML=`
+  <div class="page-hdr">
+    <div class="page-eyebrow">Mi grupo</div>
+    <div class="page-title">Mis <em>estudiantes</em></div>
+  </div>
+  <div class="doc-grid">
+    <div class="doc-card">
+      <div class="dc-title">Asignar FNX</div>
+      <div class="form-group"><label class="form-label">Estudiante</label><input class="form-input" placeholder="Nombre o ID"/></div>
+      <div class="form-group"><label class="form-label">Cantidad FNX</label><input class="form-input" type="number" placeholder="10"/></div>
+      <div class="form-group"><label class="form-label">Tipo</label>
+        <select class="form-select"><option>Premio / Bonus</option><option>Capital de clase (100 FNX)</option><option>Descuento</option></select></div>
+      <div class="form-group"><label class="form-label">Motivo</label><input class="form-input" placeholder="Participación, proyecto, comportamiento..."/></div>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="showToast('✅ FNX asignados')">Asignar FNX</button>
+        <button class="btn-outline" onclick="showToast('100 FNX asignados a todos los estudiantes activos')">Capital de clase (100 a todos)</button>
+      </div>
+    </div>
+    <div class="doc-card">
+      <div class="dc-title">Lista de estudiantes — saldos FNX</div>
+      ${names.map(([n,a,c],i)=>`<div class="estudiante-row">
+        <div class="er-avatar">${n[0]}${a[0]}</div>
+        <div class="er-info"><div class="er-name">${n} ${a}</div><div class="er-prog">${c}</div></div>
+        <div class="er-fnx">${60+i*12} FNX</div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+// ══ INICIO PADRE ══
+function buildInicioPadre(el){
+  el.innerHTML=`
+  <div class="home-hero">
+    <div class="home-hero-bg"></div>
+    <div class="home-hero-content">
+      <div class="home-greeting">Portal familiar · CORPOSEPI</div>
+      <div class="home-name">Seguimiento de<br><em>Sofía Pérez</em></div>
+      <div class="home-quote">Ciclo 3 · 5°, 6° y 7° · Jornada mañana · Madrid, Cundinamarca</div>
+    </div>
+  </div>
+  <div class="stats-strip">
+    <div class="stat"><div class="stat-val" style="color:var(--corp)">85</div><div class="stat-lbl">FNX académicos</div><div class="stat-sub">+15 esta semana</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--gold)">12</div><div class="stat-lbl">CPI disponibles</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--sage)">3/5</div><div class="stat-lbl">Proyectos</div><div class="stat-sub">completados</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--dark)">94%</div><div class="stat-lbl">Asistencia</div></div>
+  </div>
+  <div class="doc-grid">
+    <div class="doc-card">
+      <div class="dc-title">Asistencia esta semana</div>
+      <div style="display:flex;gap:4px;margin-bottom:.5rem;">
+        ${['L','M','Mi','J','V','L','M','Mi','J','V'].map((d,i)=>`<div style="flex:1;height:36px;border-radius:6px;background:${i===2?'rgba(184,65,10,.12)':i>=5?'rgba(180,176,160,.15)':'rgba(74,103,65,.12)'};display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:600;color:${i===2?'var(--corp)':i>=5?'var(--hint)':'var(--sage)'}">${d}</div>`).join('')}
+      </div>
+      <div style="font-size:.72rem;color:var(--muted);">Miércoles pasado: tardanza (-5 FNX descontados automáticamente)</div>
+    </div>
+    <div class="doc-card">
+      <div class="dc-title">Estado de pago</div>
+      <div style="background:rgba(74,103,65,.06);border:1px solid rgba(74,103,65,.2);border-radius:var(--radius-sm);padding:.85rem;margin-bottom:.5rem;">
+        <div style="font-size:.82rem;font-weight:600;color:var(--sage)">Abril 2026 — Al día ✅</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:.15rem;">Pagado el 3 de abril · $375.000</div>
+      </div>
+      <div style="font-size:.72rem;color:var(--muted);line-height:1.7;">Próximo pago: 5 de mayo · $375.000<br>Medio de pago: Transferencia bancaria</div>
+    </div>
+  </div>`;
+}
+
+// ══ ADMIN ══
+function buildAdmin(el){
+  el.innerHTML=`
+  <div class="page-hdr">
+    <div class="page-eyebrow">CORPOSEPI · Panel de control</div>
+    <div class="page-title">Dashboard <em>administrativo</em></div>
+  </div>
+  <div class="stats-strip">
+    <div class="stat"><div class="stat-val" style="color:var(--corp)">32</div><div class="stat-lbl">Estudiantes activos</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--sage)">8</div><div class="stat-lbl">Docentes</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--gold)">$7.2M</div><div class="stat-lbl">Recaudo mes</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--corp3)">3.240</div><div class="stat-lbl">FNX circulante</div></div>
+  </div>
+  <div class="doc-grid">
+    ${[
+      {t:'Carnets digitales',d:'32 carnets con QR. Sistema de asistencia integrado.',link:'https://beamish-squirrel-43c7b7.netlify.app',lbl:'Abrir carnets'},
+      {t:'Sistema FNX / CPI',d:'Banco Fénix, emisión, datáfono, cooperativa.',link:'#',lbl:'Abrir sistema'},
+      {t:'Control de asistencia',d:'Registro QR con descuento automático por tardanza.',link:'#',lbl:'Ver asistencia'},
+      {t:'Cartera y pagos',d:'Estado de pago por familia. Carta de cobro.',link:'#',lbl:'Ver cartera'},
+    ].map(c=>`<div class="doc-card">
+      <div class="dc-title">${c.t}</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-bottom:.85rem;line-height:1.6;">${c.d}</div>
+      <button class="btn-primary" onclick="${c.link==='#'?`showToast('Módulo integrado')`:``}${c.link!=='#'?`window.open('${c.link}','_blank')`:''}">${c.lbl}</button>
+    </div>`).join('')}
+  </div>`;
+}
+
+// ══ UTILS ══
+function showToast(m){const t=document.getElementById('toast');if(!t)return;t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
+
+function switchSection(id,btn){
+  document.querySelectorAll('.tb-nav-item').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('sec-'+id).classList.add('active');
+}
+</script>
+</body>
+</html>
