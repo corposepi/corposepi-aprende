@@ -299,6 +299,80 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
   .tb-nav{display:none;}
   .section{padding:1rem;}
 }
+
+.lb-err.show{display:block;}
+
+
+/* ══ LOGIN ELEGANTE V2 ══ */
+#login{
+  position:fixed;inset:0;
+  background:linear-gradient(135deg,#0a0a0a 0%,#111827 50%,#0a0a0a 100%);
+  display:flex;align-items:center;justify-content:center;
+  z-index:999;padding:1rem;overflow:hidden;
+}
+#login::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 70% 50% at 50% 0%,rgba(184,65,10,0.15) 0%,transparent 70%),
+             radial-gradient(ellipse 50% 40% at 90% 100%,rgba(212,168,67,0.08) 0%,transparent 60%);
+  pointer-events:none;
+}
+.login-box{
+  position:relative;z-index:1;
+  background:rgba(255,255,255,0.03);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border:1px solid rgba(255,255,255,0.07);
+  border-radius:28px;
+  padding:2.5rem 2rem 2rem;
+  max-width:390px;width:100%;
+  text-align:center;
+  box-shadow:0 0 0 1px rgba(184,65,10,0.12),0 24px 64px rgba(0,0,0,0.6),inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.login-logo{
+  width:110px;height:110px;
+  margin:0 auto 1rem;
+  display:flex;align-items:center;justify-content:center;
+}
+.login-logo img{
+  width:100%;height:100%;
+  object-fit:contain;
+  filter:drop-shadow(0 4px 16px rgba(184,65,10,0.3));
+}
+.lb-icon{font-size:0;margin:0;}
+.lb-title{font-size:1.3rem;font-weight:800;color:#fff;margin-bottom:.25rem;letter-spacing:-.01em;}
+.lb-sub{font-size:.65rem;color:rgba(255,255,255,0.3);margin-bottom:1.75rem;letter-spacing:.08em;text-transform:uppercase;}
+.lb-input,.lb-select{
+  width:100%;box-sizing:border-box;
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.09);
+  border-radius:13px;
+  padding:.78rem 1rem;
+  color:#fff;
+  font-family:'Montserrat',sans-serif;font-size:.875rem;
+  outline:none;margin-bottom:.65rem;
+  transition:border .2s,background .2s;
+}
+.lb-input:focus,.lb-select:focus{border-color:rgba(184,65,10,0.55);background:rgba(184,65,10,0.05);}
+.lb-input::placeholder{color:rgba(255,255,255,0.18);}
+.lb-select option{background:#1a1a1a;color:#fff;}
+.lb-btn{
+  width:100%;
+  background:linear-gradient(135deg,#B8410A,#E8651A);
+  border:none;border-radius:13px;
+  padding:.9rem;color:#fff;
+  font-family:'Montserrat',sans-serif;font-size:.9rem;font-weight:700;
+  cursor:pointer;letter-spacing:.02em;
+  box-shadow:0 6px 24px rgba(184,65,10,0.4);
+  transition:opacity .2s,transform .1s;
+}
+.lb-btn:hover{opacity:.88;}
+.lb-btn:active{transform:scale(.98);}
+.lb-err{
+  background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);
+  border-radius:10px;padding:.55rem;font-size:.72rem;color:#f87171;
+  margin-bottom:.65rem;display:none;
+}
+.lb-err.show{display:block;}
+
 </style>
 </head>
 <body>
@@ -307,7 +381,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 <div id="login-screen">
   <div class="ls-wrap">
     <div class="ls-brand">
-      <div class="ls-brand-name">CORPO<span style="color:var(--corp3)">SEPI</span></div>
+      <img src="https://corposepi.github.io/corposepi-aprende/logo.png" alt="CORPOSEPI" style="width:110px;height:110px;object-fit:contain;display:block;margin:0 auto 1rem;filter:drop-shadow(0 4px 20px rgba(184,65,10,0.35));"/>
+      <div class="ls-brand-name" style="display:flex;align-items:center;justify-content:center;gap:.75rem;"><span>CORPO<span style="color:var(--corp3)">SEPI</span></span></div>
       <div class="ls-brand-sub">Plataforma de Aprendizaje<span class="ls-brand-dot"></span>aprende.corposepi.org</div>
     </div>
     <div class="ls-role-grid">
@@ -324,9 +399,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
         <label class="ls-label">Correo institucional</label>
         <input class="ls-input" id="est-email" placeholder="juan10@corposepi.org" type="email"/>
         <label class="ls-label">Contraseña</label>
-        <input class="ls-input" id="est-pass" type="password" placeholder="Tu contraseña Google" onkeydown="if(event.key==='Enter')doLogin()"/>
+        <input class="ls-input" id="est-pass" type="password" placeholder="Contraseña" onkeydown="if(event.key==='Enter')doLogin()"/>
         <button class="ls-btn" onclick="doLogin()">Entrar con mi cuenta CORPOSEPI</button>
-        <div class="ls-note">Usa tu correo @corposepi.org asignado por la institución.<br>Si olvidaste tu contraseña, contacta al administrador.</div>
+        
       </div>
       <!-- DOCENTE -->
       <div id="lf-docente" style="display:none;">
@@ -346,7 +421,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
           <option value="Marketing">Marketing y Emprendimiento (Ciclo 5)</option>
         </select>
         <label class="ls-label">Contraseña</label>
-        <input class="ls-input" id="doc-pass" type="password" placeholder="Docente2025" onkeydown="if(event.key==='Enter')doLogin()"/>
+        <input class="ls-input" id="doc-pass" type="password" placeholder="DocentesCorposepi@#@2026" onkeydown="if(event.key==='Enter')doLogin()"/>
         <button class="ls-btn" onclick="doLogin()">Ingresar</button>
       </div>
       <!-- FAMILIA -->
@@ -355,7 +430,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
         <label class="ls-label">Correo del estudiante</label>
         <input class="ls-input" id="pad-email" placeholder="juan10@corposepi.org"/>
         <label class="ls-label">Contraseña familiar</label>
-        <input class="ls-input" id="pad-pass" type="password" placeholder="Asignada por CORPOSEPI" onkeydown="if(event.key==='Enter')doLogin()"/>
+        <input class="ls-input" id="pad-pass" type="password" placeholder="Contraseña" onkeydown="if(event.key==='Enter')doLogin()"/>
         <button class="ls-btn" onclick="doLogin()">Ver el progreso de mi hijo(a)</button>
       </div>
       <!-- ADMIN -->
@@ -363,7 +438,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
         <div class="ls-err" id="err-adm">Contraseña incorrecta.</div>
         <input class="ls-input" id="adm-pass" type="password" placeholder="Contraseña admin" onkeydown="if(event.key==='Enter')doLogin()"/>
         <button class="ls-btn" onclick="doLogin()">Ingresar como Admin</button>
-        <div class="ls-note">CorpAdmin2025 · BancoFenix2025</div>
+        
       </div>
     </div>
   </div>
@@ -374,7 +449,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
   <div class="topbar">
     <div class="tb-inner">
       <div class="tb-brand">
-        <div class="tb-logo">CORPO<span>SEPI</span></div>
+        <div class="tb-logo" style="display:flex;align-items:center;gap:.5rem;"><span>CORPO<span style="color:var(--corp3,#E8651A)">SEPI</span></span></div>
       </div>
       <nav class="tb-nav" id="tb-nav"></nav>
       <div class="tb-right">
@@ -398,8 +473,8 @@ const FB_CONFIG = {
   projectId:"corposepi-carnets",
   storageBucket:"corposepi-carnets.appspot.com"
 };
-const PASS_DOC='Docente2025';
-const PASS_ADMIN=['CorpAdmin2025','BancoFenix2025'];
+const PASS_DOC='DocentesCorposepi@#@2026';
+const PASS_ADMIN=['Deperavi1973@#@2026','Deperavi1973@#@2026'];
 const BASE_CARNETS='https://beamish-squirrel-43c7b7.netlify.app';
 
 let db=null;
