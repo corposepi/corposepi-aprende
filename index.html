@@ -409,18 +409,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
         <input class="ls-input" id="doc-id" placeholder="STAFF-2026-001" type="text"/>
         <label class="ls-label">Número de documento</label>
         <input class="ls-input" id="doc-numdoc" type="text" placeholder="Número de documento" onkeydown="if(event.key==='Enter')doLogin()"/>
-        <label class="ls-label">Tu bloque / área</label>
-        <select class="ls-select" id="doc-bloque">
-          <option value="">— Selecciona tu área —</option>
-          <option value="B1-Lenguaje">Bloque 1 — Lenguaje y lenguajes audiovisuales</option>
-          <option value="B1-Ingles">Bloque 1 — Inglés</option>
-          <option value="B2-Ciencias">Bloque 2 — Ciencias Naturales</option>
-          <option value="B2-Matematicas">Bloque 2 — Matemáticas</option>
-          <option value="B3-Sociales">Bloque 3 — Ciencias Sociales</option>
-          <option value="B4-EdfFisica">Bloque 4 — Educación Física</option>
-          <option value="B4-Artes">Bloque 4 — Educación Artística</option>
-          <option value="Marketing">Marketing y Emprendimiento (Ciclo 5)</option>
-        </select>
+        <div style="font-size:.62rem;color:rgba(255,255,255,.25);margin-bottom:.65rem;line-height:1.6;">Tus bloques y acciones son asignados por el administrador.</div>
         <button class="ls-btn" onclick="doLogin()">Ingresar</button>
       </div>
       <!-- FAMILIA -->
@@ -624,28 +613,28 @@ async function doLogin(){
     startApp();
 
   } else if(selectedRole==='docente'){
-    const id=document.getElementById('doc-id').value.trim();
+    const id=document.getElementById('doc-id').value.trim().toUpperCase();
     const numdoc=document.getElementById('doc-numdoc').value.trim();
-    const bloque=document.getElementById('doc-bloque').value;
     if(!id||!numdoc){showToast('⚠️ Ingresa tu ID y número de documento');return;}
-    if(!bloque){showToast('⚠️ Selecciona tu área');return;}
-    let staffMember=null;
+    let staffMember=null, staffIdx=-1;
     try{
       const snap=await db.ref('corposepi').once('value');
       const data=snap.val()||{};
       const staff=Array.isArray(data.staff)?data.staff:Object.values(data.staff||{});
-      staffMember=staff.find(s=>s.id===id&&String(s.numdoc)===String(numdoc));
+      staffIdx=staff.findIndex(s=>s.id===id&&String(s.numdoc)===String(numdoc));
+      if(staffIdx>=0) staffMember=staff[staffIdx];
     }catch(e){showErr('doc','Error de conexión con Firebase');return;}
     if(!staffMember){showErr('doc','ID o número de documento incorrectos.');return;}
     if(staffMember.bloqueado){showErr('doc','Esta cuenta está bloqueada. Contacta a administración.');return;}
     currentRole='docente';
     currentUser={
-      idx:0,id:staffMember.id,
-      nombres:staffMember.nombres||'',apellidos:staffMember.apellidos||'',
+      idx:staffIdx, id:staffMember.id,
+      nombres:staffMember.nombres||'', apellidos:staffMember.apellidos||'',
       nombre:(staffMember.nombres||'')+(staffMember.apellidos?' '+staffMember.apellidos:''),
-      cargo:staffMember.cargo||'Docente',
-      bloque,numdoc:staffMember.numdoc,
-      fnx:parseFloat(staffMember.fnx||0).toFixed(0)
+      cargo:staffMember.cargo||'Docente', numdoc:staffMember.numdoc,
+      fnx:parseFloat(staffMember.fnx||0).toFixed(0),
+      bloques: staffMember.bloques||[],
+      acciones: staffMember.acciones||[]
     };
     startApp();
 
@@ -718,7 +707,7 @@ const NAV_CONFIG={
     {id:'movimientos',label:'Mis FNX',fn:buildMovimientos},
   ],
   docente:[
-    {id:'inicio',label:'Inicio',fn:buildInicio},
+    {id:'inicio',label:'Inicio',fn:buildInicioDocente},
     {id:'proyectos',label:'Proyectos',fn:buildProyectosDok},
     {id:'libros',label:'Int. Financiera',fn:buildLibros},
     {id:'clases',label:'Clases',fn:buildClases},
@@ -1251,6 +1240,73 @@ async function buildInicioPadre(el){
   </div>`;
 }
 
+// ══ INICIO DOCENTE ══
+async function buildInicioDocente(el){
+  const hora=new Date().getHours();
+  const sal=hora<12?'Buenos días ☀️':hora<18?'Buenas tardes 🌤️':'Buenas noches 🌙';
+  const nombre=currentUser.nombres||currentUser.nombre||'Docente';
+  const primerNombre=nombre.split(' ')[0];
+
+  // Leer asignaciones actualizadas de Firebase
+  const snapStaff=await db.ref('corposepi/staff/'+currentUser.idx).once('value');
+  const staffData=snapStaff.val()||{};
+  const bloquesAsig=staffData.bloques||currentUser.bloques||[];
+  const accionesAsig=staffData.acciones||currentUser.acciones||[];
+
+  const bloquesRender=BLOQUES.filter(b=>bloquesAsig.includes(b.id));
+  const accionesRender=ACCIONES.filter(a=>accionesAsig.includes(a.id));
+
+  el.innerHTML=`
+  <div class="home-hero">
+    <div class="home-hero-bg"></div>
+    <div class="home-hero-content">
+      <div class="home-greeting">${sal}</div>
+      <div class="home-name">${primerNombre},<br><em>${currentUser.cargo||'Docente'}</em></div>
+      <div class="home-quote">"La enseñanza es el arte de provocar el descubrimiento." — Mark van Doren</div>
+    </div>
+  </div>
+
+  <div class="stats-strip">
+    <div class="stat"><div class="stat-val" style="color:var(--corp)">${currentUser.fnx}</div><div class="stat-lbl">FNX disponibles</div><div class="stat-sub">Para asignar</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--sage)">${bloquesRender.length}</div><div class="stat-lbl">Bloques asignados</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--gold)">${accionesRender.length}</div><div class="stat-lbl">Acciones asignadas</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--dark)">${currentUser.id}</div><div class="stat-lbl">Mi ID</div></div>
+  </div>
+
+  ${bloquesRender.length>0?`
+  <div class="page-eyebrow">Mis bloques temáticos asignados</div>
+  <div class="bloques-grid" style="margin-bottom:1.5rem;">
+    ${bloquesRender.map(b=>`
+    <div class="bloque-card ${b.cls}">
+      <div class="bc-num">${b.num}</div>
+      <div class="bc-icon">${b.icon}</div>
+      <div class="bc-name">${b.name}</div>
+      <div class="bc-title">${b.title}</div>
+    </div>`).join('')}
+  </div>`:`
+  <div style="background:var(--cream);border-radius:var(--radius);padding:1.5rem;text-align:center;margin-bottom:1.5rem;color:var(--hint);font-size:.85rem;">
+    ⏳ Aún no tienes bloques asignados. El administrador debe asignarlos en el panel de admin.
+  </div>`}
+
+  ${accionesRender.length>0?`
+  <div class="page-eyebrow">Mis acciones articuladoras asignadas</div>
+  <div class="acciones-strip" style="margin-bottom:1.5rem;">
+    ${accionesRender.map(a=>`<div class="accion-chip ${a.gold?'active-gold':''}">${a.icon} ${a.name}</div>`).join('')}
+  </div>`:`
+  <div style="background:var(--cream);border-radius:var(--radius);padding:1rem;text-align:center;margin-bottom:1.5rem;color:var(--hint);font-size:.82rem;">
+    ⏳ Sin acciones articuladoras asignadas aún.
+  </div>`}
+
+  <div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);padding:1.25rem;">
+    <div class="dc-title">Acceso rápido</div>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem;">
+      <button class="btn-secondary" onclick="switchSection('estudiantes',document.getElementById('nav-estudiantes'))">👥 Mis estudiantes</button>
+      <button class="btn-outline" onclick="switchSection('proyectos',document.getElementById('nav-proyectos'))">📋 Proyectos</button>
+      <button class="btn-outline" onclick="switchSection('clases',document.getElementById('nav-clases'))">📹 Clases en vivo</button>
+    </div>
+  </div>`;
+}
+
 // ══ ADMIN ══
 async function buildAdmin(el){
   el.innerHTML=`<div class="page-hdr"><div class="page-eyebrow">CORPOSEPI · Panel de control</div><div class="page-title">Dashboard <em>administrativo</em></div></div><div id="admin-stats-strip" class="stats-strip"><div class="stat"><div class="stat-val" style="color:var(--muted)">…</div><div class="stat-lbl">Cargando</div></div></div><div id="admin-links-grid"></div>`;
@@ -1280,18 +1336,80 @@ async function buildAdmin(el){
     <div class="stat"><div class="stat-val" style="color:var(--corp3)">${Math.round(totalFNX).toLocaleString('es-CO')}</div><div class="stat-lbl">FNX en circulación</div></div>
   `;
 
-  document.getElementById('admin-links-grid').innerHTML=`<div class="doc-grid">
-    ${[
-      {t:'Carnets digitales',d:'Carnets con QR. Sistema de asistencia integrado.',link:BASE_CARNETS,lbl:'Abrir carnets'},
-      {t:'Sistema FNX / CPI',d:'Banco Fénix, emisión, datáfono, cooperativa.',link:'#',lbl:'Abrir sistema'},
-      {t:'Control de asistencia',d:'Registro QR con descuento automático por tardanza.',link:'#',lbl:'Ver asistencia'},
-      {t:'Cartera y pagos',d:'Estado de pago por familia. Carta de cobro.',link:'#',lbl:'Ver cartera'},
-    ].map(c=>`<div class="doc-card">
-      <div class="dc-title">${c.t}</div>
-      <div style="font-size:.8rem;color:var(--muted);margin-bottom:.85rem;line-height:1.6;">${c.d}</div>
-      <button class="btn-primary" onclick="${c.link==='#'?`showToast('Módulo integrado')`:``}${c.link!=='#'?`window.open('${c.link}','_blank')`:''}">${c.lbl}</button>
-    </div>`).join('')}
-  </div>`;
+  // Sección asignación docentes
+  document.getElementById('admin-links-grid').innerHTML=`
+    <div style="margin-bottom:1.5rem;">
+      <div class="page-eyebrow" style="margin-bottom:.75rem;">👩‍🏫 Asignar bloques y acciones a docentes</div>
+      <div id="admin-staff-list" style="display:flex;flex-direction:column;gap:.75rem;">
+        <div style="color:var(--hint);font-size:.82rem;">Cargando docentes...</div>
+      </div>
+    </div>
+    <div class="page-eyebrow" style="margin-bottom:.75rem;">🔗 Módulos del sistema</div>
+    <div class="doc-grid">
+      ${[
+        {t:'Carnets digitales',d:'Carnets con QR. Sistema de asistencia integrado.',link:BASE_CARNETS,lbl:'Abrir carnets'},
+        {t:'Sistema FNX / CPI',d:'Banco Fénix, emisión, datáfono, cooperativa.',link:'https://corposepi.github.io/corposepi-sistema/',lbl:'Abrir sistema'},
+        {t:'Control de asistencia',d:'Registro QR con descuento automático por tardanza.',link:'https://corposepi.github.io/corposepi-asistencia/',lbl:'Ver asistencia'},
+        {t:'Datáfono',d:'Pagos CPI en cooperativa y comercios asociados.',link:'https://corposepi.github.io/corposepi-datafono/',lbl:'Abrir datáfono'},
+      ].map(c=>`<div class="doc-card">
+        <div class="dc-title">${c.t}</div>
+        <div style="font-size:.8rem;color:var(--muted);margin-bottom:.85rem;line-height:1.6;">${c.d}</div>
+        <button class="btn-primary" onclick="window.open('${c.link}','_blank')">${c.lbl}</button>
+      </div>`).join('')}
+    </div>`;
+
+  // Cargar staff y renderizar asignador
+  cargarStaffAdmin();
+}
+}
+
+// ══ ADMIN: ASIGNAR DOCENTES ══
+async function cargarStaffAdmin(){
+  const el=document.getElementById('admin-staff-list'); if(!el)return;
+  const snap=await db.ref('corposepi/staff').once('value');
+  const staff=snap.val()||[];
+  const lista=staff.map((s,i)=>s?{...s,_idx:i}:null).filter(Boolean);
+  if(!lista.length){ el.innerHTML='<div style="color:var(--hint);font-size:.82rem;">Sin docentes registrados en Firebase.</div>'; return; }
+
+  el.innerHTML=lista.map(s=>{
+    const bl=s.bloques||[];
+    const ac=s.acciones||[];
+    return `<div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);padding:1.25rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem;flex-wrap:wrap;gap:.5rem;">
+        <div>
+          <div style="font-weight:700;font-size:.9rem;">${s.nombres||''} ${s.apellidos||''}</div>
+          <div style="font-size:.68rem;color:var(--muted);">${s.cargo||'Docente'} · ${s.id}</div>
+        </div>
+        <button class="btn-primary" style="font-size:.72rem;padding:.4rem .9rem" onclick="guardarAsignacion(${s._idx})">💾 Guardar asignación</button>
+      </div>
+      <div style="margin-bottom:.75rem;">
+        <div class="dc-title" style="margin-bottom:.5rem;">Bloques temáticos</div>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+          ${BLOQUES.map(b=>`<label style="display:flex;align-items:center;gap:.3rem;background:var(--cream);border:1px solid var(--cream3);border-radius:8px;padding:.35rem .7rem;font-size:.75rem;cursor:pointer;">
+            <input type="checkbox" id="chk-b-${s._idx}-${b.id}" value="${b.id}" ${bl.includes(b.id)?'checked':''} style="accent-color:var(--corp);">
+            ${b.icon} ${b.name}
+          </label>`).join('')}
+        </div>
+      </div>
+      <div>
+        <div class="dc-title" style="margin-bottom:.5rem;">Acciones articuladoras</div>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+          ${ACCIONES.map(a=>`<label style="display:flex;align-items:center;gap:.3rem;background:var(--cream);border:1px solid var(--cream3);border-radius:8px;padding:.35rem .7rem;font-size:.75rem;cursor:pointer;">
+            <input type="checkbox" id="chk-a-${s._idx}-${a.id}" value="${a.id}" ${ac.includes(a.id)?'checked':''} style="accent-color:var(--gold);">
+            ${a.icon} ${a.name}
+          </label>`).join('')}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function guardarAsignacion(idx){
+  const bloques=BLOQUES.map(b=>b.id).filter(id=>document.getElementById(`chk-b-${idx}-${id}`)?.checked);
+  const acciones=ACCIONES.map(a=>a.id).filter(id=>document.getElementById(`chk-a-${idx}-${id}`)?.checked);
+  await db.ref(`corposepi/staff/${idx}/bloques`).set(bloques);
+  await db.ref(`corposepi/staff/${idx}/acciones`).set(acciones);
+  showToast('✅ Asignación guardada correctamente');
 }
 
 // ══ UTILS ══
