@@ -395,19 +395,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
       <div id="lf-default" style="text-align:center;color:rgba(255,255,255,.3);font-size:.85rem;padding:.5rem 0;">Selecciona tu rol para continuar</div>
       <!-- ESTUDIANTE -->
       <div id="lf-estudiante" style="display:none;">
-        <div class="ls-err" id="err-est">Correo o contraseña incorrectos.</div>
-        <label class="ls-label">Correo institucional</label>
-        <input class="ls-input" id="est-email" placeholder="juan10@corposepi.org" type="email"/>
-        <label class="ls-label">Contraseña</label>
-        <input class="ls-input" id="est-pass" type="password" placeholder="Contraseña" onkeydown="if(event.key==='Enter')doLogin()"/>
+        <div class="ls-err" id="err-est">ID o número de documento incorrectos.</div>
+        <label class="ls-label">ID CORPOSEPI</label>
+        <input class="ls-input" id="est-id" placeholder="CORP-2026-0001" type="text"/>
+        <label class="ls-label">Número de documento</label>
+        <input class="ls-input" id="est-numdoc" type="text" placeholder="Número de documento" onkeydown="if(event.key==='Enter')doLogin()"/>
         <button class="ls-btn" onclick="doLogin()">Entrar con mi cuenta CORPOSEPI</button>
-        
       </div>
       <!-- DOCENTE -->
       <div id="lf-docente" style="display:none;">
-        <div class="ls-err" id="err-doc">Credenciales incorrectas.</div>
-        <label class="ls-label">Correo docente</label>
-        <input class="ls-input" id="doc-email" placeholder="garcia@corposepi.org" type="email"/>
+        <div class="ls-err" id="err-doc">ID o número de documento incorrectos.</div>
+        <label class="ls-label">ID Staff</label>
+        <input class="ls-input" id="doc-id" placeholder="STAFF-2026-001" type="text"/>
+        <label class="ls-label">Número de documento</label>
+        <input class="ls-input" id="doc-numdoc" type="text" placeholder="Número de documento" onkeydown="if(event.key==='Enter')doLogin()"/>
         <label class="ls-label">Tu bloque / área</label>
         <select class="ls-select" id="doc-bloque">
           <option value="">— Selecciona tu área —</option>
@@ -420,25 +421,24 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
           <option value="B4-Artes">Bloque 4 — Educación Artística</option>
           <option value="Marketing">Marketing y Emprendimiento (Ciclo 5)</option>
         </select>
-        <label class="ls-label">Contraseña</label>
-        <input class="ls-input" id="doc-pass" type="password" placeholder="DocentesCorposepi@#@2026" onkeydown="if(event.key==='Enter')doLogin()"/>
         <button class="ls-btn" onclick="doLogin()">Ingresar</button>
       </div>
       <!-- FAMILIA -->
       <div id="lf-padre" style="display:none;">
-        <div class="ls-err" id="err-pad">Datos incorrectos.</div>
-        <label class="ls-label">Correo del estudiante</label>
-        <input class="ls-input" id="pad-email" placeholder="juan10@corposepi.org"/>
-        <label class="ls-label">Contraseña familiar</label>
-        <input class="ls-input" id="pad-pass" type="password" placeholder="Contraseña" onkeydown="if(event.key==='Enter')doLogin()"/>
+        <div class="ls-err" id="err-pad">ID o número de documento incorrectos.</div>
+        <label class="ls-label">ID CORPOSEPI del estudiante</label>
+        <input class="ls-input" id="pad-id" placeholder="CORP-2026-0001" type="text"/>
+        <label class="ls-label">Número de documento del acudiente</label>
+        <input class="ls-input" id="pad-numdoc" type="text" placeholder="Número de documento" onkeydown="if(event.key==='Enter')doLogin()"/>
         <button class="ls-btn" onclick="doLogin()">Ver el progreso de mi hijo(a)</button>
       </div>
       <!-- ADMIN -->
       <div id="lf-admin" style="display:none;">
         <div class="ls-err" id="err-adm">Contraseña incorrecta.</div>
+        <label class="ls-label">Nombre / identificación visual</label>
+        <input class="ls-input" id="adm-nombre" type="text" placeholder="Ej: Desiderio Perdomo"/>
         <input class="ls-input" id="adm-pass" type="password" placeholder="Contraseña admin" onkeydown="if(event.key==='Enter')doLogin()"/>
         <button class="ls-btn" onclick="doLogin()">Ingresar como Admin</button>
-        
       </div>
     </div>
   </div>
@@ -475,7 +475,7 @@ const FB_CONFIG = {
 };
 const PASS_DOC='DocentesCorposepi@#@2026';
 const PASS_ADMIN=['Deperavi1973@#@2026','Deperavi1973@#@2026'];
-const BASE_CARNETS='https://beamish-squirrel-43c7b7.netlify.app';
+const BASE_CARNETS='https://corposepi.github.io/corposepi-carnets';
 
 let db=null;
 let currentRole=null;
@@ -596,42 +596,89 @@ function selectRole(role,el){
 
 async function doLogin(){
   if(!selectedRole){showToast('⚠️ Selecciona tu rol');return;}
+
   if(selectedRole==='estudiante'){
-    const email=document.getElementById('est-email').value.trim();
-    const pass=document.getElementById('est-pass').value;
-    if(!email||!pass){showToast('⚠️ Ingresa tu correo y contraseña');return;}
-    if(!email.endsWith('@corposepi.org')){showErr('est','Usa tu correo @corposepi.org');return;}
-    // Buscar en Firebase por email
+    const id=document.getElementById('est-id').value.trim();
+    const numdoc=document.getElementById('est-numdoc').value.trim();
+    if(!id||!numdoc){showToast('⚠️ Ingresa tu ID y número de documento');return;}
     let estudiante=null;
     try{
       const snap=await db.ref('corposepi').once('value');
       const data=snap.val()||{};
-      const students=data.students||[];
-      const emailUser=email.split('@')[0];
-      estudiante=students.find(s=>s.id&&s.id.toLowerCase().includes(emailUser.toLowerCase().replace(/[^a-z0-9]/g,'')))||
-                 students.find(s=>s.nombres&&s.nombres.toLowerCase().split(' ')[0]===emailUser.replace(/[^a-z]/gi,'').toLowerCase())||
-                 students[0]; // demo fallback
-    }catch(e){}
+      const students=Array.isArray(data.students)?data.students:Object.values(data.students||{});
+      estudiante=students.find(s=>s.id===id&&String(s.numdoc)===String(numdoc));
+    }catch(e){showErr('est','Error de conexión con Firebase');return;}
+    if(!estudiante){showErr('est','ID o número de documento incorrectos.');return;}
+    if(estudiante.bloqueado){showErr('est','Esta cuenta está bloqueada. Contacta a administración.');return;}
     currentRole='estudiante';
-    currentUser={nombre:estudiante?.nombres||email.split('@')[0],fnx:parseFloat(estudiante?.fnx||85).toFixed(0),cpi:parseFloat(estudiante?.cpi||12).toFixed(0),email,ciclo:'Ciclo 3',idx:0};
+    currentUser={
+      idx:0,id:estudiante.id,
+      nombres:estudiante.nombres||'',apellidos:estudiante.apellidos||'',
+      nombre:(estudiante.nombres||'')+(estudiante.apellidos?' '+estudiante.apellidos:''),
+      fnx:parseFloat(estudiante.fnx||0).toFixed(0),
+      cpi:parseFloat(estudiante.cpi||0).toFixed(0),
+      nivel:estudiante.nivel||'',grado:estudiante.grado||'',
+      numdoc:estudiante.numdoc,
+      ciclo:estudiante.ciclo||''
+    };
     startApp();
+
   } else if(selectedRole==='docente'){
-    const pass=document.getElementById('doc-pass').value;
+    const id=document.getElementById('doc-id').value.trim();
+    const numdoc=document.getElementById('doc-numdoc').value.trim();
     const bloque=document.getElementById('doc-bloque').value;
+    if(!id||!numdoc){showToast('⚠️ Ingresa tu ID y número de documento');return;}
     if(!bloque){showToast('⚠️ Selecciona tu área');return;}
-    if(pass!==PASS_DOC&&!PASS_ADMIN.includes(pass)){showErr('doc','Contraseña incorrecta');return;}
+    let staffMember=null;
+    try{
+      const snap=await db.ref('corposepi').once('value');
+      const data=snap.val()||{};
+      const staff=Array.isArray(data.staff)?data.staff:Object.values(data.staff||{});
+      staffMember=staff.find(s=>s.id===id&&String(s.numdoc)===String(numdoc));
+    }catch(e){showErr('doc','Error de conexión con Firebase');return;}
+    if(!staffMember){showErr('doc','ID o número de documento incorrectos.');return;}
+    if(staffMember.bloqueado){showErr('doc','Esta cuenta está bloqueada. Contacta a administración.');return;}
     currentRole='docente';
-    currentUser={nombre:document.getElementById('doc-email').value.split('@')[0]||'Docente',bloque,fnx:340,email:document.getElementById('doc-email').value};
+    currentUser={
+      idx:0,id:staffMember.id,
+      nombres:staffMember.nombres||'',apellidos:staffMember.apellidos||'',
+      nombre:(staffMember.nombres||'')+(staffMember.apellidos?' '+staffMember.apellidos:''),
+      cargo:staffMember.cargo||'Docente',
+      bloque,numdoc:staffMember.numdoc,
+      fnx:parseFloat(staffMember.fnx||0).toFixed(0)
+    };
     startApp();
+
   } else if(selectedRole==='padre'){
+    const id=document.getElementById('pad-id').value.trim();
+    const numdoc=document.getElementById('pad-numdoc').value.trim();
+    if(!id||!numdoc){showToast('⚠️ Ingresa el ID del estudiante y tu número de documento');return;}
+    let estudiante=null;
+    try{
+      const snap=await db.ref('corposepi').once('value');
+      const data=snap.val()||{};
+      const students=Array.isArray(data.students)?data.students:Object.values(data.students||{});
+      estudiante=students.find(s=>s.id===id&&String(s.numdoc)===String(numdoc));
+    }catch(e){showErr('pad','Error de conexión con Firebase');return;}
+    if(!estudiante){showErr('pad','ID o número de documento incorrectos.');return;}
     currentRole='padre';
-    currentUser={nombre:'Familia Pérez',estudiante:'Sofía Pérez',fnx:85,cpi:12};
+    currentUser={
+      idx:0,id:estudiante.id,
+      nombres:estudiante.nombres||'',apellidos:estudiante.apellidos||'',
+      nombre:(estudiante.nombres||'')+(estudiante.apellidos?' '+estudiante.apellidos:''),
+      fnx:parseFloat(estudiante.fnx||0).toFixed(0),
+      cpi:parseFloat(estudiante.cpi||0).toFixed(0),
+      nivel:estudiante.nivel||'',grado:estudiante.grado||'',
+      numdoc:estudiante.numdoc
+    };
     startApp();
+
   } else if(selectedRole==='admin'){
     const pass=document.getElementById('adm-pass').value;
+    const nombre=document.getElementById('adm-nombre').value.trim()||'Administrador';
     if(!PASS_ADMIN.includes(pass)){showErr('adm','Contraseña incorrecta');return;}
     currentRole='admin';
-    currentUser={nombre:'Administrador',fnx:0,cpi:0};
+    currentUser={nombre,fnx:0,cpi:0};
     startApp();
   }
 }
@@ -647,8 +694,11 @@ function showErr(ctx,msg){
 function startApp(){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='flex';
-  document.getElementById('tb-user').textContent=currentUser.nombre;
-  // Tokens
+  const displayName=currentUser.nombres&&currentUser.apellidos
+    ?(currentUser.nombres+' '+currentUser.apellidos)
+    :(currentUser.nombre||'Usuario');
+  document.getElementById('tb-user').textContent=displayName;
+  // Tokens — values come from Firebase-loaded currentUser
   const tokEl=document.getElementById('tb-tokens');
   if(currentRole==='estudiante'||currentRole==='padre'){
     tokEl.innerHTML=`<div class="tb-token tt-fnx">🔥 ${currentUser.fnx} FNX</div><div class="tb-token tt-cpi">★ ${currentUser.cpi} CPI</div>`;
@@ -713,25 +763,48 @@ function buildNav(){
 }
 
 // ══ INICIO ESTUDIANTE ══
-function buildInicio(el){
+async function buildInicio(el){
   const hora=new Date().getHours();
-  const saludo=hora<12?'Buenos días':hora<18?'Buenas tardes':'Buenas noches';
   const sal=hora<12?'Buenos días ☀️':hora<18?'Buenas tardes 🌤️':'Buenas noches 🌙';
+  const primerNombre=(currentUser.nombres||currentUser.nombre||'').split(' ')[0];
+
+  // Asistencia hoy
+  const hoy=new Date().toLocaleDateString('en-CA');
+  const safeId=currentUser.id?currentUser.id.replace(/[^a-z0-9]/gi,'-'):'';
+  let asistHoy=null;
+  let fnxAsist=0;
+  try{
+    const snap=await db.ref('asistencia/'+hoy+'/'+safeId).once('value');
+    asistHoy=snap.val();
+  }catch(e){}
+  let asistBadge='';
+  if(asistHoy){
+    const est=asistHoy.estado||'P';
+    fnxAsist=asistHoy.fnxDescontados||0;
+    const color=est==='P'?'var(--sage)':est==='T'||est==='TG'?'var(--corp)':'var(--muted)';
+    const label=est==='P'?'Presente ✅':est==='T'?`Tardanza ⚠️ (-${fnxAsist} FNX)`:est==='TG'?`Tardanza grave ⛔ (-${fnxAsist} FNX)`:'Registrado';
+    asistBadge=`<div style="background:rgba(0,0,0,.04);border-radius:var(--radius-sm);padding:.65rem 1rem;margin-bottom:1rem;font-size:.8rem;color:${color};font-weight:600;">Asistencia hoy: ${label}</div>`;
+  } else {
+    asistBadge=`<div style="background:rgba(0,0,0,.04);border-radius:var(--radius-sm);padding:.65rem 1rem;margin-bottom:1rem;font-size:.8rem;color:var(--hint);">Asistencia hoy: sin registro aún</div>`;
+  }
+
   el.innerHTML=`
   <div class="home-hero">
     <div class="home-hero-bg"></div>
     <div class="home-hero-content">
       <div class="home-greeting">${sal}</div>
-      <div class="home-name">${currentUser.nombre.split(' ')[0]},<br>listo para <em>aprender hoy</em></div>
+      <div class="home-name">${primerNombre},<br>listo para <em>aprender hoy</em></div>
       <div class="home-quote">"La educación no es la preparación para la vida; la educación es la vida misma." — John Dewey</div>
     </div>
   </div>
 
+  ${asistBadge}
+
   <div class="stats-strip">
-    <div class="stat"><div class="stat-val" style="color:var(--corp)">${currentUser.fnx}</div><div class="stat-lbl">FNX académicos</div><div class="stat-sub">+15 esta semana</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--corp)">${currentUser.fnx}</div><div class="stat-lbl">FNX académicos</div><div class="stat-sub">Saldo actual</div></div>
     <div class="stat"><div class="stat-val" style="color:var(--gold)">${currentUser.cpi}</div><div class="stat-lbl">CPI disponibles</div><div class="stat-sub">Para cooperativa</div></div>
     <div class="stat"><div class="stat-val" style="color:var(--sage)">3</div><div class="stat-lbl">Proyectos activos</div><div class="stat-sub">2 bloques, 1 integrador</div></div>
-    <div class="stat"><div class="stat-val" style="color:var(--dark)">94%</div><div class="stat-lbl">Asistencia</div><div class="stat-sub">Este trimestre</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--dark)">${currentUser.nivel||currentUser.grado||'—'}</div><div class="stat-lbl">Nivel / Grado</div><div class="stat-sub">${currentUser.ciclo||''}</div></div>
   </div>
 
   <div class="page-eyebrow">Los 4 bloques temáticos</div>
@@ -1053,8 +1126,7 @@ function buildProyectosDok(el){
 }
 
 // ══ DOCENTE: ESTUDIANTES ══
-function buildEstudiantes(el){
-  const names=[['Ana Sofía','Pérez','C3'],['Carlos','López','C3'],['Valentina','Rodríguez','C4'],['Sebastián','Martínez','C2'],['Isabella','García','C3'],['Mateo','Hernández','C4']];
+async function buildEstudiantes(el){
   el.innerHTML=`
   <div class="page-hdr">
     <div class="page-eyebrow">Mi grupo</div>
@@ -1063,79 +1135,154 @@ function buildEstudiantes(el){
   <div class="doc-grid">
     <div class="doc-card">
       <div class="dc-title">Asignar FNX</div>
-      <div class="form-group"><label class="form-label">Estudiante</label><input class="form-input" placeholder="Nombre o ID"/></div>
-      <div class="form-group"><label class="form-label">Cantidad FNX</label><input class="form-input" type="number" placeholder="10"/></div>
+      <div class="form-group"><label class="form-label">ID del estudiante</label><input class="form-input" id="asig-est-id" placeholder="CORP-2026-0001"/></div>
+      <div class="form-group"><label class="form-label">Cantidad FNX</label><input class="form-input" id="asig-fnx" type="number" placeholder="10"/></div>
       <div class="form-group"><label class="form-label">Tipo</label>
-        <select class="form-select"><option>Premio / Bonus</option><option>Capital de clase (100 FNX)</option><option>Descuento</option></select></div>
-      <div class="form-group"><label class="form-label">Motivo</label><input class="form-input" placeholder="Participación, proyecto, comportamiento..."/></div>
+        <select class="form-select" id="asig-tipo"><option>Premio / Bonus</option><option>Capital de clase (100 FNX)</option><option>Descuento</option></select></div>
+      <div class="form-group"><label class="form-label">Motivo</label><input class="form-input" id="asig-motivo" placeholder="Participación, proyecto, comportamiento..."/></div>
       <div class="btn-row">
-        <button class="btn-primary" onclick="showToast('✅ FNX asignados')">Asignar FNX</button>
-        <button class="btn-outline" onclick="showToast('100 FNX asignados a todos los estudiantes activos')">Capital de clase (100 a todos)</button>
+        <button class="btn-primary" onclick="asignarFNX()">Asignar FNX</button>
       </div>
     </div>
-    <div class="doc-card">
+    <div class="doc-card" id="lista-estudiantes-card">
       <div class="dc-title">Lista de estudiantes — saldos FNX</div>
-      ${names.map(([n,a,c],i)=>`<div class="estudiante-row">
-        <div class="er-avatar">${n[0]}${a[0]}</div>
-        <div class="er-info"><div class="er-name">${n} ${a}</div><div class="er-prog">${c}</div></div>
-        <div class="er-fnx">${60+i*12} FNX</div>
-      </div>`).join('')}
+      <div style="color:var(--muted);font-size:.8rem;">Cargando...</div>
     </div>
   </div>`;
+
+  // Cargar estudiantes reales
+  try{
+    const snap=await db.ref('corposepi/students').once('value');
+    let students=snap.val()||[];
+    if(!Array.isArray(students)) students=Object.values(students);
+    const card=document.getElementById('lista-estudiantes-card');
+    if(!students.length){card.innerHTML='<div class="dc-title">Lista de estudiantes</div><div style="color:var(--muted);font-size:.8rem;">Sin estudiantes registrados</div>';return;}
+    card.innerHTML=`<div class="dc-title">Lista de estudiantes — saldos FNX</div>`+
+      students.map(s=>`<div class="estudiante-row">
+        <div class="er-avatar">${(s.nombres||'?')[0]}${(s.apellidos||'?')[0]}</div>
+        <div class="er-info">
+          <div class="er-name">${s.nombres||''} ${s.apellidos||''}</div>
+          <div class="er-prog">${s.nivel||''} ${s.grado||''} · ${s.id||''}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+          <div class="er-fnx">${parseFloat(s.fnx||0).toFixed(0)} FNX</div>
+          <div style="font-size:.65rem;color:var(--gold);font-family:'DM Mono',monospace;">${parseFloat(s.cpi||0).toFixed(0)} CPI</div>
+        </div>
+      </div>`).join('');
+  }catch(e){
+    const card=document.getElementById('lista-estudiantes-card');
+    if(card) card.innerHTML='<div class="dc-title">Lista de estudiantes</div><div style="color:var(--corp);font-size:.8rem;">Error al cargar datos de Firebase</div>';
+  }
+}
+
+async function asignarFNX(){
+  const estId=document.getElementById('asig-est-id').value.trim();
+  const cantidad=parseFloat(document.getElementById('asig-fnx').value)||0;
+  const motivo=document.getElementById('asig-motivo').value.trim()||'Asignación docente';
+  if(!estId||!cantidad){showToast('⚠️ Ingresa ID y cantidad');return;}
+  try{
+    const snap=await db.ref('corposepi/students').once('value');
+    let students=snap.val()||[];
+    const isArr=Array.isArray(students);
+    if(!isArr) students=Object.values(students);
+    // Find student index in Firebase
+    const snapRaw=await db.ref('corposepi/students').once('value');
+    const raw=snapRaw.val();
+    let key=null;
+    let est=null;
+    if(Array.isArray(raw)){
+      const idx=raw.findIndex(s=>s&&s.id===estId);
+      if(idx>=0){key=idx;est=raw[idx];}
+    } else {
+      Object.entries(raw||{}).forEach(([k,v])=>{if(v&&v.id===estId){key=k;est=v;}});
+    }
+    if(!est){showToast('❌ Estudiante no encontrado');return;}
+    const nuevoFnx=parseFloat(est.fnx||0)+cantidad;
+    await db.ref('corposepi/students/'+key+'/fnx').set(nuevoFnx);
+    showToast(`✅ ${cantidad} FNX asignados a ${est.nombres||estId}`);
+  }catch(e){showToast('❌ Error al asignar FNX: '+e.message);}
 }
 
 // ══ INICIO PADRE ══
-function buildInicioPadre(el){
+async function buildInicioPadre(el){
+  const nombreEstudiante=(currentUser.nombres||'')+(currentUser.apellidos?' '+currentUser.apellidos:'');
+  const hoy=new Date().toLocaleDateString('en-CA');
+  const safeId=currentUser.id?currentUser.id.replace(/[^a-z0-9]/gi,'-'):'';
+  let asistHoy=null;
+  try{
+    const snap=await db.ref('asistencia/'+hoy+'/'+safeId).once('value');
+    asistHoy=snap.val();
+  }catch(e){}
+  let asistLabel='Sin registro hoy';
+  let asistColor='var(--hint)';
+  if(asistHoy){
+    const est=asistHoy.estado||'P';
+    const fnxDesc=asistHoy.fnxDescontados||0;
+    asistLabel=est==='P'?'Presente ✅':est==='T'?`Tardanza ⚠️ (-${fnxDesc} FNX)`:est==='TG'?`Tardanza grave ⛔ (-${fnxDesc} FNX)`:'Registrado';
+    asistColor=est==='P'?'var(--sage)':'var(--corp)';
+  }
+
   el.innerHTML=`
   <div class="home-hero">
     <div class="home-hero-bg"></div>
     <div class="home-hero-content">
       <div class="home-greeting">Portal familiar · CORPOSEPI</div>
-      <div class="home-name">Seguimiento de<br><em>Sofía Pérez</em></div>
-      <div class="home-quote">Ciclo 3 · 5°, 6° y 7° · Jornada mañana · Madrid, Cundinamarca</div>
+      <div class="home-name">Seguimiento de<br><em>${nombreEstudiante||'tu hijo(a)'}</em></div>
+      <div class="home-quote">${currentUser.ciclo||''} · ${currentUser.nivel||''} ${currentUser.grado||''} · Madrid, Cundinamarca</div>
     </div>
   </div>
   <div class="stats-strip">
-    <div class="stat"><div class="stat-val" style="color:var(--corp)">85</div><div class="stat-lbl">FNX académicos</div><div class="stat-sub">+15 esta semana</div></div>
-    <div class="stat"><div class="stat-val" style="color:var(--gold)">12</div><div class="stat-lbl">CPI disponibles</div></div>
-    <div class="stat"><div class="stat-val" style="color:var(--sage)">3/5</div><div class="stat-lbl">Proyectos</div><div class="stat-sub">completados</div></div>
-    <div class="stat"><div class="stat-val" style="color:var(--dark)">94%</div><div class="stat-lbl">Asistencia</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--corp)">${currentUser.fnx}</div><div class="stat-lbl">FNX académicos</div><div class="stat-sub">Saldo actual</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--gold)">${currentUser.cpi}</div><div class="stat-lbl">CPI disponibles</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--sage)">—</div><div class="stat-lbl">Proyectos</div><div class="stat-sub">completados</div></div>
+    <div class="stat"><div class="stat-val" style="color:${asistColor};font-size:1rem;">${asistLabel}</div><div class="stat-lbl">Asistencia hoy</div></div>
   </div>
   <div class="doc-grid">
     <div class="doc-card">
-      <div class="dc-title">Asistencia esta semana</div>
-      <div style="display:flex;gap:4px;margin-bottom:.5rem;">
-        ${['L','M','Mi','J','V','L','M','Mi','J','V'].map((d,i)=>`<div style="flex:1;height:36px;border-radius:6px;background:${i===2?'rgba(184,65,10,.12)':i>=5?'rgba(180,176,160,.15)':'rgba(74,103,65,.12)'};display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:600;color:${i===2?'var(--corp)':i>=5?'var(--hint)':'var(--sage)'}">${d}</div>`).join('')}
-      </div>
-      <div style="font-size:.72rem;color:var(--muted);">Miércoles pasado: tardanza (-5 FNX descontados automáticamente)</div>
+      <div class="dc-title">Asistencia hoy — ${hoy}</div>
+      <div style="padding:.85rem;border-radius:var(--radius-sm);background:rgba(0,0,0,.03);font-size:.85rem;font-weight:600;color:${asistColor};">${asistLabel}</div>
     </div>
     <div class="doc-card">
       <div class="dc-title">Estado de pago</div>
       <div style="background:rgba(74,103,65,.06);border:1px solid rgba(74,103,65,.2);border-radius:var(--radius-sm);padding:.85rem;margin-bottom:.5rem;">
-        <div style="font-size:.82rem;font-weight:600;color:var(--sage)">Abril 2026 — Al día ✅</div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:.15rem;">Pagado el 3 de abril · $375.000</div>
+        <div style="font-size:.82rem;font-weight:600;color:var(--sage)">Contacte a administración para ver estado</div>
       </div>
-      <div style="font-size:.72rem;color:var(--muted);line-height:1.7;">Próximo pago: 5 de mayo · $375.000<br>Medio de pago: Transferencia bancaria</div>
     </div>
   </div>`;
 }
 
 // ══ ADMIN ══
-function buildAdmin(el){
-  el.innerHTML=`
-  <div class="page-hdr">
-    <div class="page-eyebrow">CORPOSEPI · Panel de control</div>
-    <div class="page-title">Dashboard <em>administrativo</em></div>
-  </div>
-  <div class="stats-strip">
-    <div class="stat"><div class="stat-val" style="color:var(--corp)">32</div><div class="stat-lbl">Estudiantes activos</div></div>
-    <div class="stat"><div class="stat-val" style="color:var(--sage)">8</div><div class="stat-lbl">Docentes</div></div>
-    <div class="stat"><div class="stat-val" style="color:var(--gold)">$7.2M</div><div class="stat-lbl">Recaudo mes</div></div>
-    <div class="stat"><div class="stat-val" style="color:var(--corp3)">3.240</div><div class="stat-lbl">FNX circulante</div></div>
-  </div>
-  <div class="doc-grid">
+async function buildAdmin(el){
+  el.innerHTML=`<div class="page-hdr"><div class="page-eyebrow">CORPOSEPI · Panel de control</div><div class="page-title">Dashboard <em>administrativo</em></div></div><div id="admin-stats-strip" class="stats-strip"><div class="stat"><div class="stat-val" style="color:var(--muted)">…</div><div class="stat-lbl">Cargando</div></div></div><div id="admin-links-grid"></div>`;
+
+  // Cargar datos reales de Firebase
+  let totalEstudiantes=0,totalStaff=0,totalCPI=0,totalFNX=0;
+  try{
+    const snap=await db.ref('corposepi').once('value');
+    const data=snap.val()||{};
+    const students=Array.isArray(data.students)?data.students:Object.values(data.students||{});
+    const staff=Array.isArray(data.staff)?data.staff:Object.values(data.staff||{});
+    totalEstudiantes=students.filter(s=>!s.bloqueado).length;
+    totalStaff=staff.length;
+    totalCPI=students.reduce((a,s)=>a+parseFloat(s.cpi||0),0);
+    totalFNX=students.reduce((a,s)=>a+parseFloat(s.fnx||0),0);
+    // Comercios CPI si existen
+    if(data.comercios){
+      const comercios=Array.isArray(data.comercios)?data.comercios:Object.values(data.comercios);
+      totalCPI+=comercios.reduce((a,c)=>a+parseFloat(c.cpi||0),0);
+    }
+  }catch(e){}
+
+  document.getElementById('admin-stats-strip').innerHTML=`
+    <div class="stat"><div class="stat-val" style="color:var(--corp)">${totalEstudiantes}</div><div class="stat-lbl">Estudiantes activos</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--sage)">${totalStaff}</div><div class="stat-lbl">Docentes / Staff</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--gold)">${Math.round(totalCPI).toLocaleString('es-CO')}</div><div class="stat-lbl">CPI en circulación</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--corp3)">${Math.round(totalFNX).toLocaleString('es-CO')}</div><div class="stat-lbl">FNX en circulación</div></div>
+  `;
+
+  document.getElementById('admin-links-grid').innerHTML=`<div class="doc-grid">
     ${[
-      {t:'Carnets digitales',d:'32 carnets con QR. Sistema de asistencia integrado.',link:'https://beamish-squirrel-43c7b7.netlify.app',lbl:'Abrir carnets'},
+      {t:'Carnets digitales',d:'Carnets con QR. Sistema de asistencia integrado.',link:BASE_CARNETS,lbl:'Abrir carnets'},
       {t:'Sistema FNX / CPI',d:'Banco Fénix, emisión, datáfono, cooperativa.',link:'#',lbl:'Abrir sistema'},
       {t:'Control de asistencia',d:'Registro QR con descuento automático por tardanza.',link:'#',lbl:'Ver asistencia'},
       {t:'Cartera y pagos',d:'Estado de pago por familia. Carta de cobro.',link:'#',lbl:'Ver cartera'},
