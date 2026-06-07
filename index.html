@@ -1638,25 +1638,109 @@ async function cargarTalleresAdmin(){
   const snap=await db.ref('aprende_talleres').once('value');
   const talleres=[];snap.forEach(c=>talleres.push({...c.val(),_key:c.key}));
   if(!talleres.length){el.innerHTML='<div style="color:var(--hint);font-size:.82rem;padding:1rem;">Sin talleres creados aún.</div>';return;}
+
+  // Agrupar — incluir talleres con bloqueId desconocido en sección "Sin bloque"
   const porBloque={};
   BLOQUES.forEach(b=>{porBloque[b.id]=[];});
-  talleres.forEach(t=>{if(porBloque[t.bloqueId])porBloque[t.bloqueId].push(t);});
-  el.innerHTML=BLOQUES.map(b=>{
-    const list=porBloque[b.id];
+  porBloque['_sin']=[]; // para talleres con bloqueId inválido
+  talleres.forEach(t=>{
+    if(t.bloqueId&&porBloque[t.bloqueId]) porBloque[t.bloqueId].push(t);
+    else porBloque['_sin'].push(t);
+  });
+
+  const bloquesSecciones=[
+    ...BLOQUES.map(b=>({id:b.id,label:`${b.icon} ${b.name} — ${b.title}`})),
+    {id:'_sin',label:'⚠️ Sin bloque asignado'},
+  ];
+
+  el.innerHTML=bloquesSecciones.map(({id,label})=>{
+    const list=porBloque[id]||[];
     if(!list.length)return'';
     return`<div style="margin-bottom:1rem;">
-      <div class="dc-title">${b.icon} ${b.name} — ${b.title}</div>
+      <div class="dc-title">${label}</div>
       <div style="display:flex;flex-direction:column;gap:.4rem;">
-        ${list.map(t=>`<div style="background:var(--white);border-radius:var(--radius-sm);border:1px solid var(--cream3);padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;">
-          <div>
-            <div style="font-weight:600;font-size:.85rem;">${t.titulo}</div>
-            <div style="font-size:.68rem;color:var(--muted);">${t.materia} · ${(t.grupos||[]).map(gid=>GRUPOS.find(g=>g.id===gid)?.nombre||gid).join(', ')}</div>
+        ${list.map(t=>`
+        <div id="trow-${t._key}" style="background:var(--white);border-radius:var(--radius-sm);border:1px solid var(--cream3);padding:.75rem 1rem;">
+          <!-- Vista normal -->
+          <div id="tview-${t._key}" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;">
+            <div>
+              <div style="font-weight:600;font-size:.85rem;">${t.titulo}</div>
+              <div style="font-size:.68rem;color:var(--muted);">${t.materia||'—'} · ${(t.grupos||[]).map(gid=>GRUPOS.find(g=>g.id===gid)?.nombre||gid).join(', ')||'Sin grupo'}</div>
+              ${t.desc?`<div style="font-size:.68rem;color:var(--hint);margin-top:.1rem;">${t.desc}</div>`:''}
+            </div>
+            <div style="display:flex;gap:.35rem;">
+              <button onclick="editarTaller('${t._key}')" style="background:rgba(74,103,65,.1);border:1px solid rgba(74,103,65,.2);border-radius:7px;padding:3px 9px;font-size:.65rem;color:var(--sage);cursor:pointer;">✏️ Editar</button>
+              <button onclick="eliminarTaller('${t._key}')" style="background:rgba(184,65,10,.1);border:1px solid rgba(184,65,10,.2);border-radius:7px;padding:3px 9px;font-size:.65rem;color:var(--corp);cursor:pointer;">🗑️</button>
+            </div>
           </div>
-          <button onclick="eliminarTaller('${t._key}')" style="background:rgba(184,65,10,.1);border:1px solid rgba(184,65,10,.2);border-radius:7px;padding:3px 9px;font-size:.65rem;color:var(--corp);cursor:pointer;">🗑️ Eliminar</button>
+          <!-- Formulario edición (oculto) -->
+          <div id="tedit-${t._key}" style="display:none;margin-top:.75rem;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem;">
+              <div style="grid-column:1/-1;">
+                <label class="form-label">Título</label>
+                <input class="form-input" id="et-titulo-${t._key}" value="${(t.titulo||'').replace(/"/g,'&quot;')}"/>
+              </div>
+              <div>
+                <label class="form-label">Bloque</label>
+                <select class="form-select" id="et-bloque-${t._key}" onchange="editActualizarMaterias('${t._key}')">
+                  ${BLOQUES.map(b=>`<option value="${b.id}" ${t.bloqueId===b.id?'selected':''}>${b.name}</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="form-label">Materia</label>
+                <select class="form-select" id="et-materia-${t._key}">
+                  ${(()=>{const b=BLOQUES.find(x=>x.id===t.bloqueId);return b?b.materias.map(m=>`<option value="${m}" ${t.materia===m?'selected':''}>${m}</option>`).join(''):'<option>'+t.materia+'</option>';})()}
+                </select>
+              </div>
+              <div style="grid-column:1/-1;">
+                <label class="form-label">Grupos</label>
+                <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+                  ${GRUPOS.map(g=>`<label style="display:flex;align-items:center;gap:.25rem;font-size:.75rem;cursor:pointer;background:var(--cream);border:1px solid var(--cream3);border-radius:7px;padding:.3rem .6rem;">
+                    <input type="checkbox" id="et-g-${t._key}-${g.id}" value="${g.id}" ${(t.grupos||[]).includes(g.id)?'checked':''} style="accent-color:var(--corp);">
+                    ${g.nombre}
+                  </label>`).join('')}
+                </div>
+              </div>
+              <div style="grid-column:1/-1;">
+                <label class="form-label">Descripción</label>
+                <input class="form-input" id="et-desc-${t._key}" value="${(t.desc||'').replace(/"/g,'&quot;')}"/>
+              </div>
+            </div>
+            <div style="display:flex;gap:.4rem;">
+              <button class="btn-primary" style="font-size:.75rem;padding:.45rem 1rem;" onclick="guardarEdicionTaller('${t._key}')">💾 Guardar</button>
+              <button class="btn-outline" style="font-size:.75rem;padding:.45rem 1rem;" onclick="cancelarEdicion('${t._key}')">Cancelar</button>
+            </div>
+          </div>
         </div>`).join('')}
       </div>
     </div>`;
   }).join('');
+}
+
+function editarTaller(key){
+  document.getElementById('tview-'+key).style.display='none';
+  document.getElementById('tedit-'+key).style.display='block';
+}
+function cancelarEdicion(key){
+  document.getElementById('tview-'+key).style.display='flex';
+  document.getElementById('tedit-'+key).style.display='none';
+}
+function editActualizarMaterias(key){
+  const bid=document.getElementById('et-bloque-'+key).value;
+  const b=BLOQUES.find(x=>x.id===bid);
+  const sel=document.getElementById('et-materia-'+key);
+  if(b) sel.innerHTML=b.materias.map(m=>`<option value="${m}">${m}</option>`).join('');
+}
+async function guardarEdicionTaller(key){
+  const titulo=document.getElementById('et-titulo-'+key).value.trim();
+  const bloqueId=document.getElementById('et-bloque-'+key).value;
+  const materia=document.getElementById('et-materia-'+key).value;
+  const desc=document.getElementById('et-desc-'+key).value.trim();
+  const grupos=GRUPOS.map(g=>g.id).filter(id=>document.getElementById(`et-g-${key}-${id}`)?.checked);
+  if(!titulo||!bloqueId||!materia){showToast('⚠️ Completa título, bloque y materia');return;}
+  await db.ref('aprende_talleres/'+key).update({titulo,bloqueId,materia,desc,grupos});
+  showToast('✅ Taller actualizado');
+  cargarTalleresAdmin();
 }
 
 async function eliminarTaller(key){
