@@ -2272,18 +2272,6 @@ async function renderDiasPlan(semana, dias, horario, tMap){
           'Didáctica, Evidencias y Productos</label>';
         html+='<textarea id="plan-C-'+ida+'" rows="2" style="width:100%;background:var(--cream);border:1px solid var(--cream3);border-radius:8px;padding:.5rem .75rem;font-family:\'DM Sans\',sans-serif;font-size:.82rem;resize:vertical;outline:none;" placeholder="¿Cómo se desarrolla la clase? ¿Qué productos o evidencias se esperan?">'+escHtml(planSec.C||'')+'</textarea>';
         html+='</div>';
-        html+='<div>';
-        html+='<label style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#1565C0;display:flex;align-items:center;gap:.35rem;margin-bottom:.3rem;">'+
-          '<span style="background:#1565C0;color:#fff;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;flex-shrink:0;">D</span>'+
-          '¿Qué hace bien el estudiante? — Fortalezas y logros</label>';
-        html+='<textarea id="plan-D-'+ida+'" rows="2" style="width:100%;background:#E3F2FD;border:1px solid rgba(21,101,192,.2);border-radius:8px;padding:.5rem .75rem;font-family:\'DM Sans\',sans-serif;font-size:.82rem;resize:vertical;outline:none;" placeholder="Describe las fortalezas, participación y logros observados en el grupo...">'+escHtml(planSec.D||'')+'</textarea>';
-        html+='</div>';
-        html+='<div>';
-        html+='<label style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#6A1B9A;display:flex;align-items:center;gap:.35rem;margin-bottom:.3rem;">'+
-          '<span style="background:#6A1B9A;color:#fff;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;flex-shrink:0;">E</span>'+
-          '¿Qué debe mejorar? — Compromisos pendientes</label>';
-        html+='<textarea id="plan-E-'+ida+'" rows="2" style="width:100%;background:#F3E5F5;border:1px solid rgba(106,27,154,.2);border-radius:8px;padding:.5rem .75rem;font-family:\'DM Sans\',sans-serif;font-size:.82rem;resize:vertical;outline:none;" placeholder="Aspectos a fortalecer, compromisos y acciones de mejora para los estudiantes...">'+escHtml(planSec.E||'')+'</textarea>';
-        html+='</div>';
         html+='</div>';
         // Botón evaluación individual por estudiante (solo si hay grupos en esta sección)
         misClasesSec.forEach(function(mc){
@@ -2315,9 +2303,7 @@ async function guardarPlaneacionDia(fecha, semanaKey){
     const A=document.getElementById('plan-A-'+ida)?.value||'';
     const B=document.getElementById('plan-B-'+ida)?.value||'';
     const C=document.getElementById('plan-C-'+ida)?.value||'';
-    const D=document.getElementById('plan-D-'+ida)?.value||'';
-    const E=document.getElementById('plan-E-'+ida)?.value||'';
-    if(A||B||C||D||E) planDia['sec'+sec.n]={A,B,C,D,E,fecha,docenteId:currentUser.id};
+    if(A||B||C) planDia['sec'+sec.n]={A,B,C,fecha,docenteId:currentUser.id};
   });
   await db.ref('aprende_planeacion/'+currentUser.id+'/'+semanaKey+'/'+fecha).set(planDia);
   showToast('✅ Planeación del '+fecha+' guardada');
