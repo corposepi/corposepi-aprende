@@ -761,9 +761,9 @@ const NAV_CONFIG={
   estudiante:[
     {id:'inicio',label:'Inicio',fn:buildInicio},
     {id:'midiahoy',label:'📖 Mi clase',fn:buildMiClaseHoy},
+    {id:'mispendientes',label:'⚠️ Mis pendientes',fn:buildMisPendientes},
     {id:'proyectos',label:'Mis proyectos',fn:buildProyectos},
     {id:'libros',label:'Inteligencia Financiera',fn:buildLibros},
-    {id:'clases',label:'Clases en vivo',fn:buildClases},
     {id:'movimientos',label:'Mis FNX',fn:buildMovimientos},
   ],
   docente:[
@@ -2646,6 +2646,113 @@ async function cargarEntregasDocente(){
     html+='</div></div>';
   });
   el.innerHTML=html||'<div style="color:var(--hint);text-align:center;padding:2rem;">Sin clases asignadas para esta fecha.</div>';
+}
+
+// ══ MIS PENDIENTES (ESTUDIANTE) ══
+async function buildMisPendientes(el){
+  const snap=await db.ref('aprende_pendientes/'+currentUser.id).once('value');
+  const pendientes=[];
+  snap.forEach(p=>{pendientes.push({...p.val(),_key:p.key});});
+  pendientes.sort((a,b)=>a.fechaLimite>b.fechaLimite?1:-1);
+
+  const hoy=new Date().toLocaleDateString('en-CA');
+  const vencidos=pendientes.filter(p=>p.estado!=='cumplido'&&p.fechaLimite<hoy);
+  const activos=pendientes.filter(p=>p.estado!=='cumplido'&&p.fechaLimite>=hoy);
+  const cumplidos=pendientes.filter(p=>p.estado==='cumplido');
+
+  el.innerHTML=`<div class="page-hdr">
+    <div class="page-eyebrow">Mi aprendizaje</div>
+    <div class="page-title">⚠️ Mis <em>pendientes</em></div>
+    <div class="page-sub">Aquí aparecen las actividades que debes completar y entregar. Puedes subir tu trabajo directamente desde cada pendiente.</div>
+  </div>
+  <div id="mispend-content"></div>`;
+
+  const cont=document.getElementById('mispend-content');
+  if(!pendientes.length){
+    cont.innerHTML=`<div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);padding:2.5rem;text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:.5rem;">✅</div>
+      <div style="font-weight:700;color:var(--sage);font-size:1.1rem;">¡Sin pendientes!</div>
+      <div style="font-size:.85rem;color:var(--muted);margin-top:.3rem;">Estás al día con todos tus compromisos.</div>
+    </div>`;
+    return;
+  }
+
+  function renderGrupo(lista, titulo, colorBorde, colorBadge, bgBadge){
+    if(!lista.length) return '';
+    let h=`<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${colorBorde};margin-bottom:.5rem;margin-top:.75rem;">${titulo} (${lista.length})</div>`;
+    lista.forEach(p=>{
+      const entregas=p._entrega||null;
+      h+=`<div style="background:var(--white);border-radius:var(--radius);border-left:4px solid ${colorBorde};border:1px solid ${colorBorde}22;margin-bottom:.75rem;overflow:hidden;">
+        <div style="background:${colorBorde}11;padding:.75rem 1.1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;">
+          <div>
+            <div style="font-weight:700;font-size:.88rem;color:var(--dark);">📚 ${escHtml(p.tallerTitulo||'Pendiente')}${p.materia?' — '+p.materia:''}</div>
+            <div style="font-size:.65rem;color:var(--muted);margin-top:.15rem;">Fecha límite: <strong>${p.fechaLimite}</strong> · Asignado por: ${p.docenteNombre||'Docente'} · ${p.creadoEn}</div>
+          </div>
+          <span style="background:${bgBadge};color:${colorBadge};font-size:.6rem;font-weight:700;padding:2px 9px;border-radius:99px;">${titulo.split('(')[0].trim()}</span>
+        </div>
+        <div style="padding:1rem;">
+          <div style="background:var(--cream);border-radius:8px;padding:.65rem .9rem;font-size:.85rem;color:var(--text);line-height:1.65;margin-bottom:.85rem;border-left:3px solid ${colorBorde};">${escHtml(p.descripcion||'')}</div>
+          ${p.estado!=='cumplido'?`
+          <div style="background:rgba(74,103,65,.04);border:1px solid rgba(74,103,65,.15);border-radius:var(--radius-sm);padding:.9rem;">
+            <div style="font-size:.68rem;font-weight:700;color:var(--sage);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem;">📤 Subir mi trabajo</div>
+            <textarea id="mp-txt-${p._key}" rows="3" style="width:100%;background:var(--white);border:1px solid var(--cream3);border-radius:8px;padding:.55rem .8rem;font-family:'DM Sans',sans-serif;font-size:.82rem;resize:vertical;outline:none;margin-bottom:.4rem;" placeholder="Describe lo que realizaste, tus respuestas, proceso o reflexión...">${p._entregaTxt?escHtml(p._entregaTxt):''}</textarea>
+            <input class="form-input" id="mp-link-${p._key}" value="${p._entregaLink?escHtml(p._entregaLink):''}" placeholder="🔗 Link de Google Drive o Classroom (opcional)" style="margin-bottom:.5rem;"/>
+            <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+              <button onclick="enviarEntregaPendiente('${p._key}','${p.docenteId||''}','${p.tallerKey||''}')" class="btn-primary" style="font-size:.78rem;padding:.5rem 1.2rem;">📤 Enviar al docente</button>
+              ${p._entregaTxt||p._entregaLink?'<span style="font-size:.7rem;color:var(--sage);align-self:center;">✅ Ya enviaste una entrega anterior</span>':''}
+            </div>
+          </div>`:'<div style="background:rgba(74,103,65,.08);border-radius:8px;padding:.65rem .9rem;font-size:.82rem;color:var(--sage);font-weight:600;">✅ Cumplido — trabajo entregado</div>'}
+        </div>
+      </div>`;
+    });
+    return h;
+  }
+
+  // Cargar entregas previas para cada pendiente
+  const snapE=await db.ref('aprende_entregas').once('value');
+  const entregasMap={};
+  snapE.forEach(fechaSnap=>{
+    fechaSnap.forEach(secSnap=>{
+      const v=secSnap.val();
+      if(v&&v[currentUser.id]){
+        const e=v[currentUser.id];
+        if(e.tallerKey) entregasMap[e.tallerKey]={txt:e.texto||'',link:e.drive_link||''};
+      }
+    });
+  });
+  // Enriquecer pendientes con entrega previa si existe
+  pendientes.forEach(p=>{
+    if(p.tallerKey&&entregasMap[p.tallerKey]){
+      p._entregaTxt=entregasMap[p.tallerKey].txt;
+      p._entregaLink=entregasMap[p.tallerKey].link;
+    }
+  });
+
+  cont.innerHTML=
+    renderGrupo(vencidos,'🔴 Vencidos','#c62828','#c62828','rgba(198,40,40,.1)')+
+    renderGrupo(activos,'⏳ Por entregar','#f57f17','#e65100','rgba(245,127,23,.1)')+
+    renderGrupo(cumplidos,'✅ Cumplidos','var(--sage)','var(--sage)','rgba(74,103,65,.1)');
+}
+
+async function enviarEntregaPendiente(pendKey, docenteId, tallerKey){
+  const texto=document.getElementById('mp-txt-'+pendKey)?.value.trim()||'';
+  const link=document.getElementById('mp-link-'+pendKey)?.value.trim()||'';
+  if(!texto&&!link){showToast('⚠️ Escribe tu trabajo o agrega un link');return;}
+  const hoy=new Date().toLocaleDateString('en-CA');
+  const secKey='pend-'+pendKey;
+  await db.ref('aprende_entregas/'+hoy+'/'+secKey+'/'+currentUser.id).set({
+    texto, drive_link:link, fecha:hoy,
+    docenteId, tallerKey,
+    estudianteId:currentUser.id,
+    estudianteNombre:currentUser.nombres+' '+(currentUser.apellidos||''),
+    grupoId:detectarGrupoEstudiante(currentUser.nivel||currentUser.grado||''),
+    pendienteKey:pendKey,
+    timestamp:new Date().toISOString()
+  });
+  // Marcar pendiente como cumplido
+  await db.ref('aprende_pendientes/'+currentUser.id+'/'+pendKey+'/estado').set('cumplido');
+  showToast('✅ Trabajo enviado al docente');
+  buildMisPendientes(document.getElementById('sec-mispendientes'));
 }
 
 // ══ PENDIENTES ══
