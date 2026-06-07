@@ -302,6 +302,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 
 .lb-err.show{display:block;}
 
+/* ══ ADMIN TABS ══ */
+.admin-tab{background:transparent;border:1px solid var(--cream3);border-bottom:none;border-radius:var(--radius-sm) var(--radius-sm) 0 0;padding:.5rem 1rem;font-family:'DM Sans',sans-serif;font-size:.78rem;font-weight:500;color:var(--muted);cursor:pointer;transition:all .2s;}
+.admin-tab:hover{background:var(--cream2);color:var(--dark);}
+.admin-tab.active-tab{background:var(--white);color:var(--corp);font-weight:700;border-color:var(--cream3);border-bottom-color:var(--white);position:relative;z-index:1;}
 
 /* ══ LOGIN ELEGANTE V2 ══ */
 #login{
@@ -473,11 +477,54 @@ let selectedRole=null;
 
 // DATA
 const BLOQUES=[
-  {id:'B1',num:1,icon:'📖',name:'Bloque 1',title:'Habilidades Comunicativas',cls:'bc-1',color:'#4A6741'},
-  {id:'B2',num:2,icon:'🔬',name:'Bloque 2',title:'Ciencias, Matemáticas y TIC',cls:'bc-2',color:'#2A5A8A'},
-  {id:'B3',num:3,icon:'🌍',name:'Bloque 3',title:'Ciencias Sociales y Ética',cls:'bc-3',color:'#8A3A1A'},
-  {id:'B4',num:4,icon:'🎨',name:'Bloque 4',title:'Ed. Física, Artística y Cultural',cls:'bc-4',color:'#5A3A8A'},
+  {id:'B1',num:1,icon:'📖',name:'Bloque 1',title:'Habilidades Comunicativas',cls:'bc-1',color:'#4A6741',
+   materias:['Español','Lenguajes Audiovisuales y Artísticos','Lengua Extranjera Inglés']},
+  {id:'B2',num:2,icon:'🔬',name:'Bloque 2',title:'Investigación y Conocimiento',cls:'bc-2',color:'#2A5A8A',
+   materias:['Matemáticas','Ciencias Naturales']},
+  {id:'B3',num:3,icon:'🌍',name:'Bloque 3',title:'Ser Humano, Entorno y Convivencia',cls:'bc-3',color:'#8A3A1A',
+   materias:['Ciencias Sociales']},
+  {id:'B4',num:4,icon:'🎨',name:'Bloque 4',title:'Lo Personal y lo Comunitario',cls:'bc-4',color:'#5A3A8A',
+   materias:['Educación Física','Educación Artística y Cultural']},
 ];
+
+const GRUPOS=[
+  {id:'G1',nombre:'Grupo 1',grados:'6°, 7° y 8°'},
+  {id:'G2',nombre:'Grupo 2',grados:'Grado 10°'},
+  {id:'G3',nombre:'Grupo 3',grados:'Grado 11°'},
+  {id:'G4',nombre:'Grupo 4',grados:'Primaria'},
+];
+
+const HORARIO_BASE={
+  'lunes':   {nombre:'Lunes',   secciones:[
+    {n:1,inicio:'8:00', fin:'9:00',  descanso:null},
+    {n:2,inicio:'9:00', fin:'10:40', descanso:{inicio:'9:30',fin:'10:00'}},
+    {n:3,inicio:'10:40',fin:'12:00', descanso:null},
+    {n:4,inicio:'12:40',fin:'14:00', descanso:{inicio:'12:00',fin:'12:40',antes:true}},
+  ]},
+  'martes':  {nombre:'Martes',  tipo:'proyectos', secciones:[
+    {n:1,inicio:'8:00', fin:'9:00',  descanso:null},
+    {n:2,inicio:'9:00', fin:'11:20', descanso:{inicio:'9:30',fin:'10:00'}},
+    {n:3,inicio:'12:00',fin:'14:00', descanso:{inicio:'11:20',fin:'12:00',antes:true}},
+  ]},
+  'miercoles':{nombre:'Miércoles',secciones:[
+    {n:1,inicio:'8:00', fin:'9:00',  descanso:null},
+    {n:2,inicio:'9:00', fin:'10:40', descanso:{inicio:'9:30',fin:'10:00'}},
+    {n:3,inicio:'10:40',fin:'12:00', descanso:null},
+    {n:4,inicio:'12:40',fin:'14:00', descanso:{inicio:'12:00',fin:'12:40',antes:true}},
+  ]},
+  'jueves':  {nombre:'Jueves',  secciones:[
+    {n:1,inicio:'8:00', fin:'9:00',  descanso:null},
+    {n:2,inicio:'9:00', fin:'10:40', descanso:{inicio:'9:30',fin:'10:00'}},
+    {n:3,inicio:'10:40',fin:'12:00', descanso:null},
+    {n:4,inicio:'12:40',fin:'14:00', descanso:{inicio:'12:00',fin:'12:40',antes:true}},
+  ]},
+  'viernes': {nombre:'Viernes', secciones:[
+    {n:1,inicio:'8:00', fin:'9:00',  descanso:null},
+    {n:2,inicio:'9:00', fin:'10:40', descanso:{inicio:'9:30',fin:'10:00'}},
+    {n:3,inicio:'10:40',fin:'12:00', descanso:null},
+    {n:4,inicio:'12:40',fin:'14:00', descanso:{inicio:'12:00',fin:'12:40',antes:true}},
+  ]},
+};
 
 const ACCIONES=[
   {id:'leo',icon:'📚',name:'LEO'},
@@ -1282,6 +1329,7 @@ async function buildInicioDocente(el){
       <div class="bc-icon">${b.icon}</div>
       <div class="bc-name">${b.name}</div>
       <div class="bc-title">${b.title}</div>
+      <div class="bc-count">${b.materias.join(' · ')}</div>
     </div>`).join('')}
   </div>`:`
   <div style="background:var(--cream);border-radius:var(--radius);padding:1.5rem;text-align:center;margin-bottom:1.5rem;color:var(--hint);font-size:.85rem;">
@@ -1305,13 +1353,131 @@ async function buildInicioDocente(el){
       <button class="btn-outline" onclick="switchSection('clases',document.getElementById('nav-clases'))">📹 Clases en vivo</button>
     </div>
   </div>`;
+
+  // Horario de hoy para este docente
+  const diasSemana=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+  const diaHoy=diasSemana[new Date().getDay()];
+  const snapH=await db.ref('aprende_horario/'+diaHoy).once('value');
+  const horHoy=snapH.val()||{};
+  const configHoy=HORARIO_BASE[diaHoy];
+  let horarioHoyHtml='';
+  if(configHoy){
+    const misClases=[];
+    configHoy.secciones.forEach(sec=>{
+      const secData=horHoy[`sec${sec.n}`]||{};
+      GRUPOS.forEach(g=>{
+        const item=secData[g.id];
+        if(item&&item.docenteId===currentUser.id&&item.tallerKey){
+          misClases.push({sec,grupo:g,tallerKey:item.tallerKey});
+        }
+      });
+    });
+    if(misClases.length>0){
+      horarioHoyHtml=`<div class="page-eyebrow" style="margin-top:1.25rem;">📅 Mi horario de hoy — ${configHoy.nombre}</div>
+      <div style="display:flex;flex-direction:column;gap:.4rem;margin-top:.5rem;">
+        ${misClases.map(c=>`<div style="background:var(--white);border-radius:var(--radius-sm);border:1px solid var(--cream3);padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="font-size:.62rem;font-weight:700;color:var(--corp);text-transform:uppercase;">Sección ${c.sec.n} · ${c.sec.inicio}—${c.sec.fin}</div>
+            <div style="font-weight:600;font-size:.85rem;" id="hor-tal-${c.tallerKey}">Cargando...</div>
+            <div style="font-size:.7rem;color:var(--muted);">${c.grupo.nombre} (${c.grupo.grados})</div>
+          </div>
+          ${c.sec.descanso?`<div style="font-size:.65rem;color:#92400e;">☕ Descanso ${c.sec.descanso.inicio}-${c.sec.descanso.fin}</div>`:''}
+        </div>`).join('')}
+      </div>`;
+    }
+  }
+  el.innerHTML += horarioHoyHtml;
+  if(horarioHoyHtml) setTimeout(async()=>{
+    const snapT=await db.ref('aprende_talleres').once('value');
+    const tMap={};snapT.forEach(c=>{tMap[c.key]=c.val().titulo;});
+    document.querySelectorAll('[id^="hor-tal-"]').forEach(el=>{
+      const key=el.id.replace('hor-tal-','');
+      if(tMap[key])el.textContent=tMap[key];
+    });
+  },100);
 }
 
 // ══ ADMIN ══
 async function buildAdmin(el){
-  el.innerHTML=`<div class="page-hdr"><div class="page-eyebrow">CORPOSEPI · Panel de control</div><div class="page-title">Dashboard <em>administrativo</em></div></div><div id="admin-stats-strip" class="stats-strip"><div class="stat"><div class="stat-val" style="color:var(--muted)">…</div><div class="stat-lbl">Cargando</div></div></div><div id="admin-links-grid"></div>`;
+  el.innerHTML=`
+  <div class="page-hdr">
+    <div class="page-eyebrow">CORPOSEPI · Panel de control</div>
+    <div class="page-title">Dashboard <em>administrativo</em></div>
+  </div>
+  <!-- Tabs -->
+  <div style="display:flex;gap:.4rem;margin-bottom:1.25rem;border-bottom:2px solid var(--cream3);padding-bottom:0;">
+    <button onclick="adminTab('dash',this)" id="atab-dash" class="admin-tab active-tab">📊 Dashboard</button>
+    <button onclick="adminTab('talleres',this)" id="atab-talleres" class="admin-tab">📚 Talleres</button>
+    <button onclick="adminTab('docentes',this)" id="atab-docentes" class="admin-tab">👩‍🏫 Docentes</button>
+    <button onclick="adminTab('horario',this)" id="atab-horario" class="admin-tab">📅 Horario</button>
+    <button onclick="adminTab('modulos',this)" id="atab-modulos" class="admin-tab">🔗 Módulos</button>
+  </div>
+  <!-- Panel Dashboard -->
+  <div id="apanel-dash">
+    <div id="admin-stats-strip" class="stats-strip"><div class="stat"><div class="stat-val" style="color:var(--muted)">…</div><div class="stat-lbl">Cargando</div></div></div>
+  </div>
+  <!-- Panel Talleres -->
+  <div id="apanel-talleres" style="display:none">
+    <div>
+      <div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);padding:1.25rem;margin-bottom:1rem;">
+        <div class="dc-title">➕ Crear taller / proyecto</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
+          <div style="grid-column:1/-1;">
+            <label class="form-label">Título del taller</label>
+            <input class="form-input" id="tal-titulo" placeholder="Ej: Taller de escritura creativa"/>
+          </div>
+          <div>
+            <label class="form-label">Bloque</label>
+            <select class="form-select" id="tal-bloque" onchange="actualizarMaterias()">
+              <option value="">— Seleccionar bloque —</option>
+              ${BLOQUES.map(b=>`<option value="${b.id}">${b.name} — ${b.title}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Materia</label>
+            <select class="form-select" id="tal-materia"><option value="">— Primero elige bloque —</option></select>
+          </div>
+          <div>
+            <label class="form-label">Grupos</label>
+            <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.3rem;">
+              ${GRUPOS.map(g=>`<label style="display:flex;align-items:center;gap:.25rem;font-size:.75rem;cursor:pointer;"><input type="checkbox" id="tal-g-${g.id}" value="${g.id}" style="accent-color:var(--corp);"> ${g.nombre} (${g.grados})</label>`).join('')}
+            </div>
+          </div>
+          <div>
+            <label class="form-label">Descripción</label>
+            <input class="form-input" id="tal-desc" placeholder="Descripción breve"/>
+          </div>
+        </div>
+        <button class="btn-primary" style="margin-top:.75rem" onclick="crearTaller()">✅ Crear taller</button>
+      </div>
+      <div id="talleres-list"></div>
+    </div>
+  </div>
+  <!-- Panel Docentes -->
+  <div id="apanel-docentes" style="display:none">
+    <div id="admin-staff-list" style="display:flex;flex-direction:column;gap:.75rem;">
+      <div style="color:var(--hint);font-size:.82rem;">Cargando docentes...</div>
+    </div>
+  </div>
+  <!-- Panel Horario -->
+  <div id="apanel-horario" style="display:none"></div>
+  <!-- Panel Módulos -->
+  <div id="apanel-modulos" style="display:none">
+    <div class="doc-grid">
+      ${[
+        {t:'Carnets digitales',d:'Carnets con QR. Sistema de asistencia integrado.',link:BASE_CARNETS,lbl:'Abrir carnets'},
+        {t:'Sistema FNX / CPI',d:'Banco Fénix, emisión, datáfono, cooperativa.',link:'https://corposepi.github.io/corposepi-sistema/',lbl:'Abrir sistema'},
+        {t:'Control de asistencia',d:'Registro QR con descuento automático por tardanza.',link:'https://corposepi.github.io/corposepi-asistencia/',lbl:'Ver asistencia'},
+        {t:'Datáfono',d:'Pagos CPI en cooperativa y comercios asociados.',link:'https://corposepi.github.io/corposepi-datafono/',lbl:'Abrir datáfono'},
+      ].map(c=>`<div class="doc-card">
+        <div class="dc-title">${c.t}</div>
+        <div style="font-size:.8rem;color:var(--muted);margin-bottom:.85rem;line-height:1.6;">${c.d}</div>
+        <button class="btn-primary" onclick="window.open('${c.link}','_blank')">${c.lbl}</button>
+      </div>`).join('')}
+    </div>
+  </div>`;
 
-  // Cargar datos reales de Firebase
+  // Cargar datos reales de Firebase para el dashboard
   let totalEstudiantes=0,totalStaff=0,totalCPI=0,totalFNX=0;
   try{
     const snap=await db.ref('corposepi').once('value');
@@ -1322,7 +1488,6 @@ async function buildAdmin(el){
     totalStaff=staff.length;
     totalCPI=students.reduce((a,s)=>a+parseFloat(s.cpi||0),0);
     totalFNX=students.reduce((a,s)=>a+parseFloat(s.fnx||0),0);
-    // Comercios CPI si existen
     if(data.comercios){
       const comercios=Array.isArray(data.comercios)?data.comercios:Object.values(data.comercios);
       totalCPI+=comercios.reduce((a,c)=>a+parseFloat(c.cpi||0),0);
@@ -1335,31 +1500,74 @@ async function buildAdmin(el){
     <div class="stat"><div class="stat-val" style="color:var(--gold)">${Math.round(totalCPI).toLocaleString('es-CO')}</div><div class="stat-lbl">CPI en circulación</div></div>
     <div class="stat"><div class="stat-val" style="color:var(--corp3)">${Math.round(totalFNX).toLocaleString('es-CO')}</div><div class="stat-lbl">FNX en circulación</div></div>
   `;
+}
 
-  // Sección asignación docentes
-  document.getElementById('admin-links-grid').innerHTML=`
-    <div style="margin-bottom:1.5rem;">
-      <div class="page-eyebrow" style="margin-bottom:.75rem;">👩‍🏫 Asignar bloques y acciones a docentes</div>
-      <div id="admin-staff-list" style="display:flex;flex-direction:column;gap:.75rem;">
-        <div style="color:var(--hint);font-size:.82rem;">Cargando docentes...</div>
+function adminTab(id,btn){
+  document.querySelectorAll('.admin-tab').forEach(b=>b.classList.remove('active-tab'));
+  btn.classList.add('active-tab');
+  ['dash','talleres','docentes','horario','modulos'].forEach(p=>document.getElementById('apanel-'+p).style.display='none');
+  document.getElementById('apanel-'+id).style.display='block';
+  if(id==='talleres') cargarTalleresAdmin();
+  if(id==='docentes') cargarStaffAdmin();
+  if(id==='horario') renderHorarioEditor();
+}
+
+// ══ ADMIN: TALLERES ══
+function actualizarMaterias(){
+  const bid=document.getElementById('tal-bloque').value;
+  const b=BLOQUES.find(x=>x.id===bid);
+  const sel=document.getElementById('tal-materia');
+  if(!b){sel.innerHTML='<option value="">— Primero elige bloque —</option>';return;}
+  sel.innerHTML='<option value="">— Materia —</option>'+b.materias.map(m=>`<option value="${m}">${m}</option>`).join('');
+}
+
+async function crearTaller(){
+  const titulo=document.getElementById('tal-titulo').value.trim();
+  const bloqueId=document.getElementById('tal-bloque').value;
+  const materia=document.getElementById('tal-materia').value;
+  const desc=document.getElementById('tal-desc').value.trim();
+  const grupos=GRUPOS.map(g=>g.id).filter(id=>document.getElementById('tal-g-'+id)?.checked);
+  if(!titulo||!bloqueId||!materia){showToast('⚠️ Completa título, bloque y materia');return;}
+  const key='tal-'+Date.now();
+  await db.ref('aprende_talleres/'+key).set({key,titulo,bloqueId,materia,desc,grupos,creadoEn:new Date().toISOString().slice(0,10)});
+  showToast('✅ Taller creado: '+titulo);
+  document.getElementById('tal-titulo').value='';
+  document.getElementById('tal-desc').value='';
+  document.querySelectorAll('[id^="tal-g-"]').forEach(c=>c.checked=false);
+  cargarTalleresAdmin();
+}
+
+async function cargarTalleresAdmin(){
+  const el=document.getElementById('talleres-list');if(!el)return;
+  const snap=await db.ref('aprende_talleres').once('value');
+  const talleres=[];snap.forEach(c=>talleres.push({...c.val(),_key:c.key}));
+  if(!talleres.length){el.innerHTML='<div style="color:var(--hint);font-size:.82rem;padding:1rem;">Sin talleres creados aún.</div>';return;}
+  const porBloque={};
+  BLOQUES.forEach(b=>{porBloque[b.id]=[];});
+  talleres.forEach(t=>{if(porBloque[t.bloqueId])porBloque[t.bloqueId].push(t);});
+  el.innerHTML=BLOQUES.map(b=>{
+    const list=porBloque[b.id];
+    if(!list.length)return'';
+    return`<div style="margin-bottom:1rem;">
+      <div class="dc-title">${b.icon} ${b.name} — ${b.title}</div>
+      <div style="display:flex;flex-direction:column;gap:.4rem;">
+        ${list.map(t=>`<div style="background:var(--white);border-radius:var(--radius-sm);border:1px solid var(--cream3);padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;">
+          <div>
+            <div style="font-weight:600;font-size:.85rem;">${t.titulo}</div>
+            <div style="font-size:.68rem;color:var(--muted);">${t.materia} · ${(t.grupos||[]).map(gid=>GRUPOS.find(g=>g.id===gid)?.nombre||gid).join(', ')}</div>
+          </div>
+          <button onclick="eliminarTaller('${t._key}')" style="background:rgba(184,65,10,.1);border:1px solid rgba(184,65,10,.2);border-radius:7px;padding:3px 9px;font-size:.65rem;color:var(--corp);cursor:pointer;">🗑️ Eliminar</button>
+        </div>`).join('')}
       </div>
-    </div>
-    <div class="page-eyebrow" style="margin-bottom:.75rem;">🔗 Módulos del sistema</div>
-    <div class="doc-grid">
-      ${[
-        {t:'Carnets digitales',d:'Carnets con QR. Sistema de asistencia integrado.',link:BASE_CARNETS,lbl:'Abrir carnets'},
-        {t:'Sistema FNX / CPI',d:'Banco Fénix, emisión, datáfono, cooperativa.',link:'https://corposepi.github.io/corposepi-sistema/',lbl:'Abrir sistema'},
-        {t:'Control de asistencia',d:'Registro QR con descuento automático por tardanza.',link:'https://corposepi.github.io/corposepi-asistencia/',lbl:'Ver asistencia'},
-        {t:'Datáfono',d:'Pagos CPI en cooperativa y comercios asociados.',link:'https://corposepi.github.io/corposepi-datafono/',lbl:'Abrir datáfono'},
-      ].map(c=>`<div class="doc-card">
-        <div class="dc-title">${c.t}</div>
-        <div style="font-size:.8rem;color:var(--muted);margin-bottom:.85rem;line-height:1.6;">${c.d}</div>
-        <button class="btn-primary" onclick="window.open('${c.link}','_blank')">${c.lbl}</button>
-      </div>`).join('')}
     </div>`;
+  }).join('');
+}
 
-  // Cargar staff y renderizar asignador
-  cargarStaffAdmin();
+async function eliminarTaller(key){
+  if(!confirm('¿Eliminar este taller?'))return;
+  await db.ref('aprende_talleres/'+key).remove();
+  showToast('🗑️ Taller eliminado');
+  cargarTalleresAdmin();
 }
 
 // ══ ADMIN: ASIGNAR DOCENTES ══
@@ -1370,9 +1578,14 @@ async function cargarStaffAdmin(){
   const lista=staff.map((s,i)=>s?{...s,_idx:i}:null).filter(Boolean);
   if(!lista.length){ el.innerHTML='<div style="color:var(--hint);font-size:.82rem;">Sin docentes registrados en Firebase.</div>'; return; }
 
+  // Cargar talleres para poder mostrarlos
+  const snapT=await db.ref('aprende_talleres').once('value');
+  const talleres=[];snapT.forEach(c=>talleres.push({...c.val(),_key:c.key}));
+
   el.innerHTML=lista.map(s=>{
     const bl=s.bloques||[];
     const ac=s.acciones||[];
+    const talleresAsig=s.talleres||[];
     return `<div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);padding:1.25rem;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem;flex-wrap:wrap;gap:.5rem;">
         <div>
@@ -1390,7 +1603,7 @@ async function cargarStaffAdmin(){
           </label>`).join('')}
         </div>
       </div>
-      <div>
+      <div style="margin-bottom:.75rem;">
         <div class="dc-title" style="margin-bottom:.5rem;">Acciones articuladoras</div>
         <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
           ${ACCIONES.map(a=>`<label style="display:flex;align-items:center;gap:.3rem;background:var(--cream);border:1px solid var(--cream3);border-radius:8px;padding:.35rem .7rem;font-size:.75rem;cursor:pointer;">
@@ -1399,6 +1612,15 @@ async function cargarStaffAdmin(){
           </label>`).join('')}
         </div>
       </div>
+      ${talleres.length>0?`<div>
+        <div class="dc-title" style="margin-bottom:.5rem;">Talleres asignados</div>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+          ${talleres.map(t=>`<label style="display:flex;align-items:center;gap:.3rem;background:var(--cream);border:1px solid var(--cream3);border-radius:8px;padding:.35rem .7rem;font-size:.75rem;cursor:pointer;">
+            <input type="checkbox" id="chk-t-${s._idx}-${t._key}" value="${t._key}" ${talleresAsig.includes(t._key)?'checked':''} style="accent-color:var(--sage);">
+            ${t.titulo} <span style="color:var(--muted);font-size:.65rem;">(${t.materia})</span>
+          </label>`).join('')}
+        </div>
+      </div>`:''}
     </div>`;
   }).join('');
 }
@@ -1406,9 +1628,87 @@ async function cargarStaffAdmin(){
 async function guardarAsignacion(idx){
   const bloques=BLOQUES.map(b=>b.id).filter(id=>document.getElementById(`chk-b-${idx}-${id}`)?.checked);
   const acciones=ACCIONES.map(a=>a.id).filter(id=>document.getElementById(`chk-a-${idx}-${id}`)?.checked);
+  // Obtener talleres disponibles para poder iterar sus keys
+  const snapT=await db.ref('aprende_talleres').once('value');
+  const talleresKeys=[];snapT.forEach(c=>talleresKeys.push(c.key));
+  const talleres=talleresKeys.filter(key=>document.getElementById(`chk-t-${idx}-${key}`)?.checked);
   await db.ref(`corposepi/staff/${idx}/bloques`).set(bloques);
   await db.ref(`corposepi/staff/${idx}/acciones`).set(acciones);
+  await db.ref(`corposepi/staff/${idx}/talleres`).set(talleres);
   showToast('✅ Asignación guardada correctamente');
+}
+
+// ══ ADMIN: HORARIO ══
+async function renderHorarioEditor(){
+  const el=document.getElementById('apanel-horario'); if(!el)return;
+
+  const snap=await db.ref('aprende_horario').once('value');
+  const horarioGuardado=snap.val()||{};
+
+  const snapT=await db.ref('aprende_talleres').once('value');
+  const talleres=[];snapT.forEach(c=>talleres.push({...c.val(),_key:c.key}));
+
+  const snapS=await db.ref('corposepi/staff').once('value');
+  const staff=snapS.val()||[];
+  const staffActivos=(Array.isArray(staff)?staff:Object.values(staff)).filter(s=>s&&s.nombres);
+
+  el.innerHTML=`
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:1rem;line-height:1.7;">
+      Configura el horario semanal. Para cada sección indica qué taller se dicta, qué docente lo dirige y para qué grupo.<br>
+      <strong>Martes</strong> es día de proyectos con distribución diferente.
+    </div>
+    ${Object.entries(HORARIO_BASE).map(([dia,config])=>`
+      <div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);margin-bottom:1rem;overflow:hidden;">
+        <div style="background:var(--dark);padding:.75rem 1.25rem;display:flex;align-items:center;justify-content:space-between;">
+          <div style="color:var(--white);font-weight:700;font-size:.88rem;">${config.nombre}${config.tipo==='proyectos'?' <span style="background:var(--corp);color:#fff;font-size:.6rem;padding:2px 7px;border-radius:99px;margin-left:.4rem;">PROYECTOS</span>':''}</div>
+          <button onclick="guardarHorarioDia('${dia}')" class="btn-primary" style="font-size:.7rem;padding:.35rem .9rem;">💾 Guardar ${config.nombre}</button>
+        </div>
+        <div style="padding:1rem;">
+          ${config.secciones.map(sec=>{
+            const saved=(horarioGuardado[dia]||{})[`sec${sec.n}`]||{};
+            const descansoHtml=sec.descanso&&sec.descanso.antes?`<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.15);border-radius:8px;padding:.4rem .75rem;font-size:.68rem;color:#92400e;margin-bottom:.4rem;">☕ Descanso ${sec.descanso.inicio} — ${sec.descanso.fin}</div>`:'';
+            const descansoPost=sec.descanso&&!sec.descanso.antes?`<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.15);border-radius:8px;padding:.4rem .75rem;font-size:.68rem;color:#92400e;margin-top:.4rem;">☕ Descanso ${sec.descanso.inicio} — ${sec.descanso.fin}</div>`:'';
+            return`${descansoHtml}
+            <div style="border:1px solid var(--cream3);border-radius:var(--radius-sm);padding:.85rem;margin-bottom:.5rem;">
+              <div style="font-size:.68rem;font-weight:700;color:var(--corp);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.6rem;">
+                Sección ${sec.n} · ${sec.inicio} — ${sec.fin}
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.5rem;">
+                ${GRUPOS.map(g=>{
+                  const sg=(saved[g.id])||{};
+                  return`<div style="background:var(--cream);border-radius:8px;padding:.65rem;">
+                    <div style="font-size:.62rem;font-weight:700;color:var(--muted);margin-bottom:.35rem;">${g.nombre} (${g.grados})</div>
+                    <select id="hor-${dia}-s${sec.n}-${g.id}-tal" style="width:100%;background:var(--white);border:1px solid var(--cream3);border-radius:6px;padding:.35rem .6rem;font-size:.72rem;color:var(--dark);outline:none;margin-bottom:.3rem;">
+                      <option value="">— Sin clase —</option>
+                      ${talleres.map(t=>`<option value="${t._key}" ${sg.tallerKey===t._key?'selected':''}>${t.titulo} (${t.materia})</option>`).join('')}
+                    </select>
+                    <select id="hor-${dia}-s${sec.n}-${g.id}-doc" style="width:100%;background:var(--white);border:1px solid var(--cream3);border-radius:6px;padding:.35rem .6rem;font-size:.72rem;color:var(--dark);outline:none;">
+                      <option value="">— Sin docente —</option>
+                      ${staffActivos.map(s=>`<option value="${s.id}" ${sg.docenteId===s.id?'selected':''}>${s.nombres} ${s.apellidos||''}</option>`).join('')}
+                    </select>
+                  </div>`;
+                }).join('')}
+              </div>
+            </div>${descansoPost}`;
+          }).join('')}
+        </div>
+      </div>`).join('')}`;
+}
+
+async function guardarHorarioDia(dia){
+  const config=HORARIO_BASE[dia];
+  const diaData={};
+  config.secciones.forEach(sec=>{
+    const secData={};
+    GRUPOS.forEach(g=>{
+      const tallerKey=document.getElementById(`hor-${dia}-s${sec.n}-${g.id}-tal`)?.value||'';
+      const docenteId=document.getElementById(`hor-${dia}-s${sec.n}-${g.id}-doc`)?.value||'';
+      if(tallerKey||docenteId) secData[g.id]={tallerKey,docenteId};
+    });
+    diaData[`sec${sec.n}`]=secData;
+  });
+  await db.ref('aprende_horario/'+dia).set(diaData);
+  showToast('✅ Horario del '+HORARIO_BASE[dia].nombre+' guardado');
 }
 
 // ══ UTILS ══
