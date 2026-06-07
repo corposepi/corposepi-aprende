@@ -1634,87 +1634,83 @@ async function crearTaller(){
 }
 
 async function cargarTalleresAdmin(){
-  const el=document.getElementById('talleres-list');if(!el)return;
+  const el=document.getElementById('talleres-list'); if(!el)return;
   const snap=await db.ref('aprende_talleres').once('value');
-  const talleres=[];snap.forEach(c=>talleres.push({...c.val(),_key:c.key}));
-  if(!talleres.length){el.innerHTML='<div style="color:var(--hint);font-size:.82rem;padding:1rem;">Sin talleres creados aún.</div>';return;}
+  const talleres=[];
+  snap.forEach(c=>{
+    const v=c.val();
+    // Normalizar grupos: Firebase puede devolver objeto {0:'G1'} en vez de array
+    if(v.grupos&&!Array.isArray(v.grupos)) v.grupos=Object.values(v.grupos);
+    talleres.push({...v,_key:c.key});
+  });
 
-  // Agrupar — incluir talleres con bloqueId desconocido en sección "Sin bloque"
-  const porBloque={};
+  if(!talleres.length){
+    el.innerHTML='<div style="color:var(--hint);font-size:.82rem;padding:1rem;">Sin talleres creados aún.</div>';
+    return;
+  }
+
+  // Agrupar por bloque
+  const porBloque={_sin:[]};
   BLOQUES.forEach(b=>{porBloque[b.id]=[];});
-  porBloque['_sin']=[]; // para talleres con bloqueId inválido
   talleres.forEach(t=>{
     if(t.bloqueId&&porBloque[t.bloqueId]) porBloque[t.bloqueId].push(t);
     else porBloque['_sin'].push(t);
   });
 
-  const bloquesSecciones=[
-    ...BLOQUES.map(b=>({id:b.id,label:`${b.icon} ${b.name} — ${b.title}`})),
-    {id:'_sin',label:'⚠️ Sin bloque asignado'},
-  ];
+  // Construir HTML sin backticks anidados profundos
+  let html='';
+  const secciones=[...BLOQUES.map(b=>({id:b.id,label:b.icon+' '+b.name+' — '+b.title})),{id:'_sin',label:'⚠️ Sin bloque asignado'}];
 
-  el.innerHTML=bloquesSecciones.map(({id,label})=>{
-    const list=porBloque[id]||[];
-    if(!list.length)return'';
-    return`<div style="margin-bottom:1rem;">
-      <div class="dc-title">${label}</div>
-      <div style="display:flex;flex-direction:column;gap:.4rem;">
-        ${list.map(t=>`
-        <div id="trow-${t._key}" style="background:var(--white);border-radius:var(--radius-sm);border:1px solid var(--cream3);padding:.75rem 1rem;">
-          <!-- Vista normal -->
-          <div id="tview-${t._key}" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;">
-            <div>
-              <div style="font-weight:600;font-size:.85rem;">${t.titulo}</div>
-              <div style="font-size:.68rem;color:var(--muted);">${t.materia||'—'} · ${(t.grupos||[]).map(gid=>GRUPOS.find(g=>g.id===gid)?.nombre||gid).join(', ')||'Sin grupo'}</div>
-              ${t.desc?`<div style="font-size:.68rem;color:var(--hint);margin-top:.1rem;">${t.desc}</div>`:''}
-            </div>
-            <div style="display:flex;gap:.35rem;">
-              <button onclick="editarTaller('${t._key}')" style="background:rgba(74,103,65,.1);border:1px solid rgba(74,103,65,.2);border-radius:7px;padding:3px 9px;font-size:.65rem;color:var(--sage);cursor:pointer;">✏️ Editar</button>
-              <button onclick="eliminarTaller('${t._key}')" style="background:rgba(184,65,10,.1);border:1px solid rgba(184,65,10,.2);border-radius:7px;padding:3px 9px;font-size:.65rem;color:var(--corp);cursor:pointer;">🗑️</button>
-            </div>
-          </div>
-          <!-- Formulario edición (oculto) -->
-          <div id="tedit-${t._key}" style="display:none;margin-top:.75rem;">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem;">
-              <div style="grid-column:1/-1;">
-                <label class="form-label">Título</label>
-                <input class="form-input" id="et-titulo-${t._key}" value="${(t.titulo||'').replace(/"/g,'&quot;')}"/>
-              </div>
-              <div>
-                <label class="form-label">Bloque</label>
-                <select class="form-select" id="et-bloque-${t._key}" onchange="editActualizarMaterias('${t._key}')">
-                  ${BLOQUES.map(b=>`<option value="${b.id}" ${t.bloqueId===b.id?'selected':''}>${b.name}</option>`).join('')}
-                </select>
-              </div>
-              <div>
-                <label class="form-label">Materia</label>
-                <select class="form-select" id="et-materia-${t._key}">
-                  ${(()=>{const b=BLOQUES.find(x=>x.id===t.bloqueId);return b?b.materias.map(m=>`<option value="${m}" ${t.materia===m?'selected':''}>${m}</option>`).join(''):'<option>'+t.materia+'</option>';})()}
-                </select>
-              </div>
-              <div style="grid-column:1/-1;">
-                <label class="form-label">Grupos</label>
-                <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
-                  ${GRUPOS.map(g=>`<label style="display:flex;align-items:center;gap:.25rem;font-size:.75rem;cursor:pointer;background:var(--cream);border:1px solid var(--cream3);border-radius:7px;padding:.3rem .6rem;">
-                    <input type="checkbox" id="et-g-${t._key}-${g.id}" value="${g.id}" ${(t.grupos||[]).includes(g.id)?'checked':''} style="accent-color:var(--corp);">
-                    ${g.nombre}
-                  </label>`).join('')}
-                </div>
-              </div>
-              <div style="grid-column:1/-1;">
-                <label class="form-label">Descripción</label>
-                <input class="form-input" id="et-desc-${t._key}" value="${(t.desc||'').replace(/"/g,'&quot;')}"/>
-              </div>
-            </div>
-            <div style="display:flex;gap:.4rem;">
-              <button class="btn-primary" style="font-size:.75rem;padding:.45rem 1rem;" onclick="guardarEdicionTaller('${t._key}')">💾 Guardar</button>
-              <button class="btn-outline" style="font-size:.75rem;padding:.45rem 1rem;" onclick="cancelarEdicion('${t._key}')">Cancelar</button>
-            </div>
-          </div>
-        </div>`).join('')}
-      </div>
-    </div>`;
-  }).join('');
+  secciones.forEach(function(sec){
+    const list=porBloque[sec.id]||[];
+    if(!list.length)return;
+    html+='<div style="margin-bottom:1rem;">';
+    html+='<div class="dc-title">'+sec.label+'</div>';
+    html+='<div style="display:flex;flex-direction:column;gap:.4rem;">';
+    list.forEach(function(t){
+      const grupos=Array.isArray(t.grupos)?t.grupos:[];
+      const gruposNombres=grupos.map(function(gid){var g=GRUPOS.find(function(x){return x.id===gid;});return g?g.nombre:gid;}).join(', ')||'Sin grupo';
+      const bloque=BLOQUES.find(function(b){return b.id===t.bloqueId;});
+      const materiaOpts=(bloque?bloque.materias:t.materia?[t.materia]:[]).map(function(m){return '<option value="'+m+'"'+(t.materia===m?' selected':'')+'>'+m+'</option>';}).join('');
+      const bloqueOpts=BLOQUES.map(function(b){return '<option value="'+b.id+'"'+(t.bloqueId===b.id?' selected':'')+'>'+b.name+'</option>';}).join('');
+      const grupoChks=GRUPOS.map(function(g){return '<label style="display:flex;align-items:center;gap:.25rem;font-size:.75rem;cursor:pointer;background:var(--cream);border:1px solid var(--cream3);border-radius:7px;padding:.3rem .6rem;"><input type="checkbox" id="et-g-'+t._key+'-'+g.id+'" value="'+g.id+'"'+(grupos.includes(g.id)?' checked':'')+' style="accent-color:var(--corp);"> '+g.nombre+'</label>';}).join('');
+
+      html+='<div id="trow-'+t._key+'" style="background:var(--white);border-radius:var(--radius-sm);border:1px solid var(--cream3);padding:.75rem 1rem;">';
+      // Vista normal
+      html+='<div id="tview-'+t._key+'" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;">';
+      html+='<div>';
+      html+='<div style="font-weight:600;font-size:.85rem;">'+t.titulo+'</div>';
+      html+='<div style="font-size:.68rem;color:var(--muted);">'+(t.materia||'—')+' · '+gruposNombres+'</div>';
+      if(t.desc) html+='<div style="font-size:.68rem;color:var(--hint);margin-top:.1rem;">'+t.desc+'</div>';
+      html+='</div>';
+      html+='<div style="display:flex;gap:.35rem;">';
+      html+='<button onclick="editarTaller(\''+t._key+'\')" style="background:rgba(74,103,65,.1);border:1px solid rgba(74,103,65,.2);border-radius:7px;padding:3px 9px;font-size:.65rem;color:var(--sage);cursor:pointer;">✏️ Editar</button>';
+      html+='<button onclick="eliminarTaller(\''+t._key+'\')" style="background:rgba(184,65,10,.1);border:1px solid rgba(184,65,10,.2);border-radius:7px;padding:3px 9px;font-size:.65rem;color:var(--corp);cursor:pointer;">🗑️</button>';
+      html+='</div></div>';
+      // Formulario edición
+      html+='<div id="tedit-'+t._key+'" style="display:none;margin-top:.75rem;">';
+      html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem;">';
+      html+='<div style="grid-column:1/-1;"><label class="form-label">Título</label>';
+      html+='<input class="form-input" id="et-titulo-'+t._key+'" value="'+t.titulo.replace(/"/g,'&quot;')+'"/></div>';
+      html+='<div><label class="form-label">Bloque</label>';
+      html+='<select class="form-select" id="et-bloque-'+t._key+'" onchange="editActualizarMaterias(\''+t._key+'\')">'+bloqueOpts+'</select></div>';
+      html+='<div><label class="form-label">Materia</label>';
+      html+='<select class="form-select" id="et-materia-'+t._key+'">'+materiaOpts+'</select></div>';
+      html+='<div style="grid-column:1/-1;"><label class="form-label">Grupos</label>';
+      html+='<div style="display:flex;gap:.4rem;flex-wrap:wrap;">'+grupoChks+'</div></div>';
+      html+='<div style="grid-column:1/-1;"><label class="form-label">Descripción</label>';
+      html+='<input class="form-input" id="et-desc-'+t._key+'" value="'+(t.desc||'').replace(/"/g,'&quot;')+'"/></div>';
+      html+='</div>';
+      html+='<div style="display:flex;gap:.4rem;">';
+      html+='<button class="btn-primary" style="font-size:.75rem;padding:.45rem 1rem;" onclick="guardarEdicionTaller(\''+t._key+'\')">💾 Guardar</button>';
+      html+='<button class="btn-outline" style="font-size:.75rem;padding:.45rem 1rem;" onclick="cancelarEdicion(\''+t._key+'\')">Cancelar</button>';
+      html+='</div></div>';
+      html+='</div>';
+    });
+    html+='</div></div>';
+  });
+
+  el.innerHTML=html;
 }
 
 function editarTaller(key){
