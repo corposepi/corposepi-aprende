@@ -409,11 +409,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
       <!-- DOCENTE -->
       <div id="lf-docente" style="display:none;">
         <div class="ls-err" id="err-doc">ID o número de documento incorrectos.</div>
-        <label class="ls-label">ID Staff</label>
-        <input class="ls-input" id="doc-id" placeholder="STAFF-2026-001" type="text"/>
+        <label class="ls-label">ID o nombre</label>
+        <input class="ls-input" id="doc-id" placeholder="CORP-P-025 o tu nombre" type="text"/>
         <label class="ls-label">Número de documento</label>
         <input class="ls-input" id="doc-numdoc" type="text" placeholder="Número de documento" onkeydown="if(event.key==='Enter')doLogin()"/>
-        <div style="font-size:.62rem;color:rgba(255,255,255,.25);margin-bottom:.65rem;line-height:1.6;">Tus bloques y acciones son asignados por el administrador.</div>
+        <div style="font-size:.62rem;color:rgba(255,255,255,.25);margin-bottom:.65rem;line-height:1.6;">Usa el ID de tu carnet CORPOSEPI (ej: CORP-P-025) o tu nombre completo.</div>
         <button class="ls-btn" onclick="doLogin()">Ingresar</button>
       </div>
       <!-- FAMILIA -->
@@ -660,18 +660,26 @@ async function doLogin(){
     startApp();
 
   } else if(selectedRole==='docente'){
-    const id=document.getElementById('doc-id').value.trim().toUpperCase();
+    const idInput=document.getElementById('doc-id').value.trim();
     const numdoc=document.getElementById('doc-numdoc').value.trim();
-    if(!id||!numdoc){showToast('⚠️ Ingresa tu ID y número de documento');return;}
+    if(!idInput||!numdoc){showToast('⚠️ Ingresa tu ID o nombre y número de documento');return;}
     let staffMember=null, staffIdx=-1;
     try{
       const snap=await db.ref('corposepi').once('value');
       const data=snap.val()||{};
       const staff=Array.isArray(data.staff)?data.staff:Object.values(data.staff||{});
-      staffIdx=staff.findIndex(s=>s.id===id&&String(s.numdoc)===String(numdoc));
+      const idUp=idInput.toUpperCase();
+      const nomLow=idInput.toLowerCase();
+      // Buscar por ID exacto primero, luego por nombre
+      staffIdx=staff.findIndex(s=>s&&String(s.numdoc)===String(numdoc)&&(
+        s.id===idUp ||
+        (s.nombres+' '+s.apellidos).toLowerCase()===nomLow ||
+        (s.nombres||'').toLowerCase()===nomLow ||
+        s.id.toLowerCase()===idInput.toLowerCase()
+      ));
       if(staffIdx>=0) staffMember=staff[staffIdx];
     }catch(e){showErr('doc','Error de conexión con Firebase');return;}
-    if(!staffMember){showErr('doc','ID o número de documento incorrectos.');return;}
+    if(!staffMember){showErr('doc','ID/nombre o documento incorrecto. Ejemplo ID: CORP-P-025');return;}
     if(staffMember.bloqueado){showErr('doc','Esta cuenta está bloqueada. Contacta a administración.');return;}
     currentRole='docente';
     currentUser={
