@@ -1397,18 +1397,29 @@ async function buildInicioDocente(el){
     todosTalleres.push({...v,_key:c.key});
   });
 
-  // Recoger también talleres del horario donde este docente aparece
+  // Recoger talleres de 3 fuentes: perfil, horario y bloque asignado
+  const talleresSet=new Set(talleresAsigKeys);
+
+  // Fuente 2: horario (cualquier sección donde aparezca este docente)
   const horarioData=snapHorario.val()||{};
-  const talleresDelHorario=new Set(talleresAsigKeys);
-  Object.values(horarioData).forEach(diaData=>{
-    Object.values(diaData).forEach(secData=>{
-      if(typeof secData==='object') Object.values(secData).forEach(item=>{
-        if(item&&item.docenteId===currentUser.id&&item.tallerKey) talleresDelHorario.add(item.tallerKey);
+  try{
+    Object.values(horarioData).forEach(diaData=>{
+      if(!diaData||typeof diaData!=='object')return;
+      Object.values(diaData).forEach(secData=>{
+        if(!secData||typeof secData!=='object')return;
+        Object.values(secData).forEach(item=>{
+          if(item&&typeof item==='object'&&item.tallerKey&&
+             String(item.docenteId||'').trim()===String(currentUser.id||'').trim())
+            talleresSet.add(item.tallerKey);
+        });
       });
     });
-  });
+  }catch(e){}
 
-  const talleresAsig=todosTalleres.filter(t=>talleresDelHorario.has(t._key));
+  // Fuente 3: cualquier taller del bloque asignado al docente
+  todosTalleres.forEach(t=>{if(bloquesAsig.includes(t.bloqueId))talleresSet.add(t._key);});
+
+  const talleresAsig=todosTalleres.filter(t=>talleresSet.has(t._key));
 
   const bloquesRender=BLOQUES.filter(b=>bloquesAsig.includes(b.id));
   const accionesRender=ACCIONES.filter(a=>accionesAsig.includes(a.id));
