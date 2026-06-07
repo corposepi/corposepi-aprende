@@ -2285,6 +2285,15 @@ async function renderDiasPlan(semana, dias, horario, tMap){
         html+='<textarea id="plan-E-'+ida+'" rows="2" style="width:100%;background:#F3E5F5;border:1px solid rgba(106,27,154,.2);border-radius:8px;padding:.5rem .75rem;font-family:\'DM Sans\',sans-serif;font-size:.82rem;resize:vertical;outline:none;" placeholder="Aspectos a fortalecer, compromisos y acciones de mejora para los estudiantes...">'+escHtml(planSec.E||'')+'</textarea>';
         html+='</div>';
         html+='</div>';
+        // Botón evaluación individual por estudiante (solo si hay grupos en esta sección)
+        misClasesSec.forEach(function(mc){
+          if(!mc.grupo)return;
+          const idPanel='eval-ind-'+dia.fecha+'-'+planKey+'-'+mc.grupo.id;
+          html+='<div style="margin-top:.5rem;">';
+          html+='<button onclick="abrirEvalIndividual(\''+dia.fecha+'\',\''+sec.n+'\',\''+mc.grupo.id+'\',\''+(mc.tallerKey||'')+'\',\''+(mc.taller?mc.taller.titulo:'')+'\')" style="background:rgba(21,101,192,.08);border:1px solid rgba(21,101,192,.2);border-radius:8px;padding:.4rem .9rem;font-size:.7rem;color:#1565C0;cursor:pointer;font-weight:600;">📋 Evaluación individual — '+mc.grupo.nombre+'</button>';
+          html+='<div id="'+idPanel+'" style="display:none;"></div>';
+          html+='</div>';
+        });
       }
       html+='</div></div>';
     });
@@ -2582,41 +2591,72 @@ async function cargarEntregasDocente(){
   configDia.secciones.forEach(function(sec){
     const secKey='sec'+sec.n;
     const secData=diaHor[secKey]||{};
-    let tieneClase=false;
+    const misGruposSec=[];
     GRUPOS.forEach(function(g){
       const item=secData[g.id];
-      if(item&&String(item.docenteId||'').trim()===String(currentUser.id||'').trim()) tieneClase=true;
+      if(item&&String(item.docenteId||'').trim()===String(currentUser.id||'').trim())
+        misGruposSec.push({grupo:g,tallerKey:item.tallerKey});
     });
-    if(!tieneClase)return;
+    if(!misGruposSec.length)return;
 
     const secEntregas=entregas[secKey]||{};
     const items=Object.entries(secEntregas).filter(function(e){return e[1]&&e[1].docenteId===currentUser.id;});
+    const entregadosIds=new Set(items.map(function(e){return e[0];}));
+
+    // Calcular no entregados por grupo
+    const noEntregados=[];
+    misGruposSec.forEach(function(mg){
+      students.filter(function(s){return detectarGrupoEstudiante(s.nivel||s.grado||'')===mg.grupo.id&&s.status==='active';})
+        .forEach(function(s){if(!entregadosIds.has(s.id)) noEntregados.push({est:s,tallerKey:mg.tallerKey,taller:tMap[mg.tallerKey]});});
+    });
 
     html+='<div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);margin-bottom:1rem;overflow:hidden;">';
-    html+='<div style="background:var(--dark);padding:.65rem 1.25rem;">';
-    html+='<div style="color:var(--white);font-weight:700;font-size:.82rem;">Sección '+sec.n+' · '+sec.inicio+'–'+sec.fin+' · '+items.length+' entrega(s)</div>';
+    html+='<div style="background:var(--dark);padding:.65rem 1.25rem;display:flex;justify-content:space-between;align-items:center;">';
+    html+='<div style="color:var(--white);font-weight:700;font-size:.82rem;">Sección '+sec.n+' · '+sec.inicio+'–'+sec.fin+'</div>';
+    html+='<div style="font-size:.68rem;color:rgba(255,255,255,.45);">'+items.length+' entrega(s) · '+noEntregados.length+' sin entregar</div>';
     html+='</div><div style="padding:1rem;">';
-    if(!items.length){
-      html+='<div style="color:var(--hint);font-size:.78rem;text-align:center;padding:.75rem;">Sin entregas recibidas.</div>';
-    } else {
+
+    // ── ENTREGADOS ──
+    if(items.length){
+      html+='<div style="font-size:.68rem;font-weight:700;color:var(--sage);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem;">✅ Entregados ('+items.length+')</div>';
       items.forEach(function(entry){
         const estId=entry[0]; const data=entry[1];
-        html+='<div style="border:1px solid var(--cream3);border-radius:var(--radius-sm);padding:.85rem;margin-bottom:.5rem;">';
-        html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:.4rem;">';
-        html+='<div>';
-        html+='<div style="font-weight:600;font-size:.85rem;">'+(data.estudianteNombre||estId)+'</div>';
-        html+='<div style="font-size:.65rem;color:var(--muted);">'+estId+' · '+(tMap[data.tallerKey]?.titulo||'—')+'</div>';
-        html+='</div>';
-        html+='<div style="font-size:.62rem;color:var(--hint);">'+(data.timestamp||'').slice(0,16).replace('T',' ')+'</div>';
-        html+='</div>';
-        if(data.texto) html+='<div style="background:var(--cream);border-radius:8px;padding:.65rem .85rem;font-size:.82rem;line-height:1.6;white-space:pre-wrap;margin-bottom:.4rem;">'+escHtml(data.texto)+'</div>';
-        if(data.drive_link) html+='<a href="'+escHtml(data.drive_link)+'" target="_blank" style="font-size:.75rem;color:var(--corp);text-decoration:underline;">🔗 Ver en Drive</a>';
+        html+='<div style="border:1px solid rgba(74,103,65,.2);background:rgba(74,103,65,.03);border-radius:var(--radius-sm);padding:.75rem;margin-bottom:.4rem;">';
+        html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;flex-wrap:wrap;gap:.3rem;">';
+        html+='<div><div style="font-weight:600;font-size:.82rem;">'+(data.estudianteNombre||estId)+'</div>';
+        html+='<div style="font-size:.62rem;color:var(--muted);">'+estId+' · '+(tMap[data.tallerKey]?.titulo||'—')+' · '+(data.timestamp||'').slice(0,16).replace('T',' ')+'</div></div></div>';
+        if(data.texto) html+='<div style="background:var(--cream);border-radius:7px;padding:.5rem .75rem;font-size:.8rem;line-height:1.55;white-space:pre-wrap;margin-bottom:.3rem;">'+escHtml(data.texto)+'</div>';
+        if(data.drive_link) html+='<a href="'+escHtml(data.drive_link)+'" target="_blank" style="font-size:.72rem;color:var(--corp);text-decoration:underline;">🔗 Ver en Drive</a>';
         html+='</div>';
       });
     }
+
+    // ── NO ENTREGADOS ──
+    if(noEntregados.length){
+      html+='<div style="margin-top:'+(items.length?'.75rem':'0')+'">';
+      html+='<div style="font-size:.68rem;font-weight:700;color:var(--corp);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem;">❌ No entregaron ('+noEntregados.length+')</div>';
+      noEntregados.forEach(function(ne){
+        const s=ne.est;
+        html+='<div id="ne-'+secKey+'-'+s.id+'" style="border:1px solid rgba(184,65,10,.2);background:rgba(184,65,10,.03);border-radius:var(--radius-sm);padding:.65rem .85rem;margin-bottom:.4rem;">';
+        html+='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;">';
+        html+='<div><div style="font-weight:600;font-size:.82rem;">'+s.nombres+' '+(s.apellidos||'')+'</div>';
+        html+='<div style="font-size:.62rem;color:var(--muted);">'+s.id+'</div></div>';
+        html+='<button onclick="abrirPendienteRapido(\''+s.id+'\',\''+s.nombres+' '+(s.apellidos||'')+'\',\''+fecha+'\',\''+secKey+'\',\''+(ne.tallerKey||'')+'\',\''+(ne.taller?ne.taller.titulo:'')+'\',\''+(ne.taller?ne.taller.materia:'')+'\')" style="background:rgba(184,65,10,.1);border:1px solid rgba(184,65,10,.25);border-radius:8px;padding:4px 10px;font-size:.65rem;color:var(--corp);cursor:pointer;">⚠️ Asignar pendiente</button>';
+        html+='</div>';
+        // Mini form pendiente rápido (oculto)
+        html+='<div id="prf-'+secKey+'-'+s.id+'" style="display:none;margin-top:.5rem;">';
+        html+='<textarea id="prf-txt-'+secKey+'-'+s.id+'" rows="2" style="width:100%;background:var(--cream);border:1px solid var(--cream3);border-radius:7px;padding:.45rem .7rem;font-family:\'DM Sans\',sans-serif;font-size:.8rem;resize:vertical;outline:none;margin-bottom:.35rem;" placeholder="¿Qué debe hacer? Describe el pendiente o compromiso..."></textarea>';
+        html+='<div style="display:flex;gap:.35rem;align-items:center;">';
+        html+='<input type="date" id="prf-fecha-'+secKey+'-'+s.id+'" value="'+new Date(Date.now()+7*86400000).toLocaleDateString('en-CA')+'" style="background:var(--cream);border:1px solid var(--cream3);border-radius:7px;padding:.35rem .65rem;font-size:.75rem;outline:none;" />';
+        html+='<button onclick="guardarPendienteRapido(\''+s.id+'\',\''+s.nombres+' '+(s.apellidos||'')+'\',\''+secKey+'\',\''+(ne.tallerKey||'')+'\',\''+(ne.taller?ne.taller.titulo:'')+'\',\''+(ne.taller?ne.taller.materia:'')+'\')" style="background:var(--corp);border:none;border-radius:7px;padding:4px 10px;font-size:.65rem;color:#fff;cursor:pointer;">💾 Guardar</button>';
+        html+='<button onclick="document.getElementById(\'prf-'+secKey+'-'+s.id+'\').style.display=\'none\'" style="background:transparent;border:1px solid var(--cream3);border-radius:7px;padding:4px 8px;font-size:.65rem;color:var(--muted);cursor:pointer;">Cancelar</button>';
+        html+='</div></div></div>';
+      });
+      html+='</div>';
+    }
     html+='</div></div>';
   });
-  el.innerHTML=html||'<div style="color:var(--hint);text-align:center;padding:2rem;">Sin entregas para esta fecha.</div>';
+  el.innerHTML=html||'<div style="color:var(--hint);text-align:center;padding:2rem;">Sin clases asignadas para esta fecha.</div>';
 }
 
 // ══ PENDIENTES ══
@@ -2778,6 +2818,108 @@ async function buildPendientesPadre(el){
   ${vencidos.length?`<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#c62828;margin-bottom:.5rem;">🔴 Vencidos (${vencidos.length})</div>${renderPend(vencidos,'#c62828','rgba(198,40,40,.12)')}`:''}
   ${activos.length?`<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#f57f17;margin-bottom:.5rem;">⏳ Por entregar (${activos.length})</div>${renderPend(activos,'#f57f17','rgba(245,127,23,.12)')}`:''}
   ${cumplidos.length?`<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--sage);margin-bottom:.5rem;margin-top:.75rem;">✅ Cumplidos (${cumplidos.length})</div>${renderPend(cumplidos,'var(--sage)','rgba(74,103,65,.1)')}`:''} `;
+}
+
+// ══ PENDIENTE RÁPIDO DESDE ENTREGAS ══
+function abrirPendienteRapido(estId,nombre,fecha,secKey,tallerKey,tallerTitulo,materia){
+  const el=document.getElementById('prf-'+secKey+'-'+estId); if(!el)return;
+  el.style.display='block';
+  const txt=document.getElementById('prf-txt-'+secKey+'-'+estId);
+  if(txt&&!txt.value) txt.value='No entregó el trabajo solicitado el '+fecha+'. Debe entregar: ';
+}
+
+async function guardarPendienteRapido(estId,nombre,secKey,tallerKey,tallerTitulo,materia){
+  const txt=document.getElementById('prf-txt-'+secKey+'-'+estId)?.value.trim();
+  const fLim=document.getElementById('prf-fecha-'+secKey+'-'+estId)?.value;
+  if(!txt){showToast('⚠️ Escribe la descripción del pendiente');return;}
+  const key='pend-'+Date.now();
+  await db.ref('aprende_pendientes/'+estId+'/'+key).set({
+    key, estudianteId:estId,
+    tallerKey:tallerKey||'', tallerTitulo:tallerTitulo||'Sin taller', materia:materia||'',
+    fechaLimite:fLim||new Date(Date.now()+7*86400000).toLocaleDateString('en-CA'),
+    descripcion:txt,
+    docenteId:currentUser.id,
+    docenteNombre:(currentUser.nombres||'')+(currentUser.apellidos?' '+currentUser.apellidos:''),
+    creadoEn:new Date().toISOString().slice(0,10),
+    estado:'pendiente', origen:'no_entregado'
+  });
+  const el=document.getElementById('prf-'+secKey+'-'+estId);
+  if(el) el.innerHTML='<div style="font-size:.72rem;color:var(--sage);padding:.3rem 0;">✅ Pendiente asignado a '+nombre+'</div>';
+  showToast('✅ Pendiente asignado a '+nombre);
+}
+
+// ══ EVALUACIÓN INDIVIDUAL D — desde planeación ══
+async function abrirEvalIndividual(fecha, secN, grupoId, tallerKey, tallerTitulo){
+  const snap=await db.ref('corposepi/students').once('value');
+  const students=(snap.val()||[]).filter(s=>s&&s.id&&s.status==='active'&&detectarGrupoEstudiante(s.nivel||s.grado||'')===grupoId);
+  const snapPend=await db.ref('aprende_pendientes').once('value');
+  const pendMap={}; // estId -> tiene pendiente activo
+  snapPend.forEach(estSnap=>{
+    estSnap.forEach(p=>{const v=p.val();if(v.docenteId===currentUser.id&&v.estado==='pendiente')pendMap[estSnap.key]=true;});
+  });
+  const grupo=GRUPOS.find(g=>g.id===grupoId);
+  const secKey='sec'+secN;
+  const idPanel='eval-ind-'+fecha+'-'+secKey+'-'+grupoId;
+  const panel=document.getElementById(idPanel);
+  if(!panel)return;
+  if(panel.style.display!=='none'){panel.style.display='none';return;}
+
+  let html='<div style="margin-top:.65rem;background:rgba(21,101,192,.04);border:1px solid rgba(21,101,192,.15);border-radius:var(--radius-sm);padding:.85rem;">';
+  html+='<div style="font-size:.68rem;font-weight:700;color:#1565C0;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.65rem;">📋 Evaluación individual — '+grupo?.nombre+' ('+students.length+' estudiantes)</div>';
+  students.forEach(function(s){
+    const tienePend=pendMap[s.id];
+    html+='<div style="border-bottom:1px solid rgba(21,101,192,.1);padding:.55rem 0;display:grid;grid-template-columns:1fr auto;gap:.5rem;align-items:start;">';
+    html+='<div>';
+    html+='<div style="font-size:.8rem;font-weight:600;margin-bottom:.25rem;">'+s.nombres+' '+(s.apellidos||'')+' <span style="font-size:.62rem;color:var(--muted);font-weight:400;">'+s.id+'</span>'+
+      (tienePend?' <span style="background:rgba(184,65,10,.1);color:var(--corp);font-size:.6rem;padding:1px 6px;border-radius:99px;">Tiene pendiente</span>':'')+'</div>';
+    html+='<textarea id="evind-'+fecha+'-'+secKey+'-'+grupoId+'-'+s.id+'" rows="2" style="width:100%;background:var(--white);border:1px solid rgba(21,101,192,.2);border-radius:7px;padding:.4rem .65rem;font-size:.78rem;resize:vertical;outline:none;" placeholder="Fortalezas y/o aspectos a mejorar para este estudiante..."></textarea>';
+    html+='</div>';
+    html+='<label style="display:flex;flex-direction:column;align-items:center;gap:.25rem;cursor:pointer;padding-top:.25rem;">';
+    html+='<input type="checkbox" id="evpend-'+fecha+'-'+secKey+'-'+grupoId+'-'+s.id+'" style="width:18px;height:18px;accent-color:var(--corp);">';
+    html+='<span style="font-size:.55rem;color:var(--corp);text-align:center;font-weight:700;line-height:1.2;">⚠️<br>Pendiente</span>';
+    html+='</label>';
+    html+='</div>';
+  });
+  html+='<div style="display:flex;gap:.4rem;margin-top:.65rem;">';
+  html+='<button onclick="guardarEvalIndividual(\''+fecha+'\',\''+secKey+'\',\''+grupoId+'\',\''+tallerKey+'\',\''+tallerTitulo+'\')" class="btn-primary" style="font-size:.72rem;padding:.4rem 1rem;">💾 Guardar evaluaciones y pendientes</button>';
+  html+='<button onclick="document.getElementById(\''+idPanel+'\').style.display=\'none\'" class="btn-outline" style="font-size:.72rem;padding:.4rem .8rem;">Cerrar</button>';
+  html+='</div></div>';
+  panel.innerHTML=html;
+  panel.style.display='block';
+}
+
+async function guardarEvalIndividual(fecha, secKey, grupoId, tallerKey, tallerTitulo){
+  const snap=await db.ref('corposepi/students').once('value');
+  const students=(snap.val()||[]).filter(s=>s&&s.id&&s.status==='active'&&detectarGrupoEstudiante(s.nivel||s.grado||'')===grupoId);
+  let creados=0;
+  for(const s of students){
+    const nota=document.getElementById('evind-'+fecha+'-'+secKey+'-'+grupoId+'-'+s.id)?.value.trim();
+    const tienePend=document.getElementById('evpend-'+fecha+'-'+secKey+'-'+grupoId+'-'+s.id)?.checked;
+    // Guardar nota individual en planeación
+    if(nota){
+      await db.ref('aprende_eval_individual/'+currentUser.id+'/'+fecha+'/'+secKey+'/'+grupoId+'/'+s.id).set({
+        nota, docenteId:currentUser.id, estudianteId:s.id,
+        estudianteNombre:s.nombres+' '+(s.apellidos||''),
+        fecha, tallerKey:tallerKey||''
+      });
+    }
+    // Crear pendiente si está marcado
+    if(tienePend&&nota){
+      const key='pend-'+Date.now()+'-'+s.id;
+      await db.ref('aprende_pendientes/'+s.id+'/'+key).set({
+        key, estudianteId:s.id,
+        tallerKey:tallerKey||'', tallerTitulo:tallerTitulo||'Sin taller', materia:'',
+        fechaLimite:new Date(Date.now()+7*86400000).toLocaleDateString('en-CA'),
+        descripcion:nota,
+        docenteId:currentUser.id,
+        docenteNombre:(currentUser.nombres||'')+(currentUser.apellidos?' '+currentUser.apellidos:''),
+        creadoEn:new Date().toISOString().slice(0,10),
+        estado:'pendiente', origen:'evaluacion_clase'
+      });
+      creados++;
+    }
+  }
+  showToast('✅ Evaluaciones guardadas'+(creados?' · '+creados+' pendiente(s) asignado(s)':''));
 }
 
 // ══ UTILS ══
