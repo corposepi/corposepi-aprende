@@ -1377,16 +1377,38 @@ async function buildInicioDocente(el){
   const primerNombre=nombre.split(' ')[0];
 
   // Leer asignaciones actualizadas de Firebase
-  const [snapStaff, snapTodos]=await Promise.all([
+  const [snapStaff, snapTodos, snapHorario]=await Promise.all([
     db.ref('corposepi/staff/'+currentUser.idx).once('value'),
     db.ref('aprende_talleres').once('value'),
+    db.ref('aprende_horario').once('value'),
   ]);
   const staffData=snapStaff.val()||{};
   const bloquesAsig=staffData.bloques||currentUser.bloques||[];
   const accionesAsig=staffData.acciones||currentUser.acciones||[];
-  const talleresAsigKeys=staffData.talleres||currentUser.talleres||[];
-  const todosTalleres=[];snapTodos.forEach(c=>todosTalleres.push({...c.val(),_key:c.key}));
-  const talleresAsig=todosTalleres.filter(t=>talleresAsigKeys.includes(t._key));
+
+  // Normalizar talleres del perfil (puede ser objeto Firebase)
+  let talleresAsigKeys=staffData.talleres||currentUser.talleres||[];
+  if(talleresAsigKeys&&!Array.isArray(talleresAsigKeys)) talleresAsigKeys=Object.values(talleresAsigKeys);
+
+  const todosTalleres=[];
+  snapTodos.forEach(c=>{
+    const v=c.val();
+    if(v.grupos&&!Array.isArray(v.grupos)) v.grupos=Object.values(v.grupos);
+    todosTalleres.push({...v,_key:c.key});
+  });
+
+  // Recoger también talleres del horario donde este docente aparece
+  const horarioData=snapHorario.val()||{};
+  const talleresDelHorario=new Set(talleresAsigKeys);
+  Object.values(horarioData).forEach(diaData=>{
+    Object.values(diaData).forEach(secData=>{
+      if(typeof secData==='object') Object.values(secData).forEach(item=>{
+        if(item&&item.docenteId===currentUser.id&&item.tallerKey) talleresDelHorario.add(item.tallerKey);
+      });
+    });
+  });
+
+  const talleresAsig=todosTalleres.filter(t=>talleresDelHorario.has(t._key));
 
   const bloquesRender=BLOQUES.filter(b=>bloquesAsig.includes(b.id));
   const accionesRender=ACCIONES.filter(a=>accionesAsig.includes(a.id));
