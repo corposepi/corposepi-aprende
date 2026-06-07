@@ -300,6 +300,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
   .section{padding:1rem;}
 }
 
+/* PLANEACION */
+.plan-section{border:1px solid var(--cream3);border-radius:var(--radius-sm);margin-bottom:.75rem;overflow:hidden;}
+textarea:focus{border-color:var(--corp)!important;outline:none;background:var(--white)!important;}
+
 .lb-err.show{display:block;}
 
 /* ══ ADMIN TABS ══ */
@@ -763,6 +767,7 @@ const NAV_CONFIG={
   ],
   docente:[
     {id:'inicio',label:'Inicio',fn:buildInicioDocente},
+    {id:'planeacion',label:'📝 Planeación',fn:buildPlaneacion},
     {id:'proyectos',label:'Proyectos',fn:buildProyectosDok},
     {id:'libros',label:'Int. Financiera',fn:buildLibros},
     {id:'clases',label:'Clases',fn:buildClases},
@@ -1547,6 +1552,7 @@ async function buildAdmin(el){
     <button onclick="adminTab('talleres',this)" id="atab-talleres" class="admin-tab">📚 Talleres</button>
     <button onclick="adminTab('docentes',this)" id="atab-docentes" class="admin-tab">👩‍🏫 Docentes</button>
     <button onclick="adminTab('horario',this)" id="atab-horario" class="admin-tab">📅 Horario</button>
+    <button onclick="adminTab('semanas',this)" id="atab-semanas" class="admin-tab">📅 Semanas</button>
     <button onclick="adminTab('modulos',this)" id="atab-modulos" class="admin-tab">🔗 Módulos</button>
   </div>
   <!-- Panel Dashboard -->
@@ -1598,6 +1604,32 @@ async function buildAdmin(el){
   </div>
   <!-- Panel Horario -->
   <div id="apanel-horario" style="display:none"></div>
+  <!-- Panel Semanas -->
+  <div id="apanel-semanas" style="display:none">
+    <div style="margin-bottom:1rem;">
+      <div style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem;line-height:1.7;">
+        Activa las semanas de trabajo de junio a noviembre 2026. Desactiva semanas de receso o vacaciones.
+        Los días feriados se marcan por separado.
+      </div>
+      <!-- Feriados -->
+      <div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);padding:1.25rem;margin-bottom:1rem;">
+        <div class="dc-title">🏖️ Días feriados / sin clase</div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.65rem;">
+          <input class="form-input" id="fer-fecha" type="date" style="max-width:160px"/>
+          <input class="form-input" id="fer-nombre" placeholder="Nombre del feriado" style="flex:1;min-width:160px"/>
+          <button class="btn-primary" onclick="agregarFeriado()">➕ Agregar</button>
+        </div>
+        <div id="feriados-list" style="display:flex;flex-wrap:wrap;gap:.4rem;"></div>
+      </div>
+      <!-- Semanas -->
+      <div id="semanas-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.6rem;"></div>
+      <div style="display:flex;gap:.5rem;margin-top:.75rem;">
+        <button class="btn-primary" onclick="guardarSemanas()">💾 Guardar semanas</button>
+        <button class="btn-outline" onclick="toggleTodasSemanas(true)">✅ Activar todas</button>
+        <button class="btn-outline" onclick="toggleTodasSemanas(false)">⬜ Desactivar todas</button>
+      </div>
+    </div>
+  </div>
   <!-- Panel Módulos -->
   <div id="apanel-modulos" style="display:none">
     <div class="doc-grid">
@@ -1642,11 +1674,12 @@ async function buildAdmin(el){
 function adminTab(id,btn){
   document.querySelectorAll('.admin-tab').forEach(b=>b.classList.remove('active-tab'));
   btn.classList.add('active-tab');
-  ['dash','talleres','docentes','horario','modulos'].forEach(p=>document.getElementById('apanel-'+p).style.display='none');
+  ['dash','talleres','docentes','horario','semanas','modulos'].forEach(p=>document.getElementById('apanel-'+p).style.display='none');
   document.getElementById('apanel-'+id).style.display='block';
   if(id==='talleres') cargarTalleresAdmin();
   if(id==='docentes') cargarStaffAdmin();
   if(id==='horario') renderHorarioEditor();
+  if(id==='semanas') cargarSemanasAdmin();
 }
 
 // ══ ADMIN: TALLERES ══
@@ -1991,6 +2024,279 @@ async function guardarHorarioDia(dia){
   await db.ref('aprende_horario/'+dia).set(diaData);
   showToast('✅ Horario del '+HORARIO_BASE[dia].nombre+' guardado');
 }
+
+// ══ SEMANAS ══
+function generarSemanas(){
+  const semanas=[];
+  const inicio=new Date('2026-06-01');
+  const fin=new Date('2026-11-30');
+  let d=new Date(inicio);
+  while(d.getDay()!==1) d.setDate(d.getDate()+1);
+  let n=1;
+  while(d<=fin){
+    const lunes=new Date(d);
+    const viernes=new Date(d); viernes.setDate(viernes.getDate()+4);
+    const mesNombres=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    const label='Semana '+n+' · '+lunes.getDate()+' '+mesNombres[lunes.getMonth()+1]+' — '+viernes.getDate()+' '+mesNombres[viernes.getMonth()+1];
+    semanas.push({n, fechaInicio:lunes.toLocaleDateString('en-CA'), fechaFin:viernes.toLocaleDateString('en-CA'), label});
+    d.setDate(d.getDate()+7);
+    n++;
+  }
+  return semanas;
+}
+
+let semanasEstado={};
+
+async function cargarSemanasAdmin(){
+  const el=document.getElementById('semanas-grid'); if(!el)return;
+  const snap=await db.ref('aprende_semanas').once('value');
+  semanasEstado=snap.val()||{};
+  const snapF=await db.ref('aprende_feriados').once('value');
+  const feriados=snapF.val()||{};
+  renderFeriados(feriados);
+  const semanas=generarSemanas();
+  el.innerHTML=semanas.map(s=>{
+    const activa=semanasEstado[s.fechaInicio]!==false;
+    return '<div style="background:var(--white);border-radius:var(--radius-sm);border:2px solid '+(activa?'var(--sage)':'var(--cream3)')+';padding:.85rem;cursor:pointer;" id="sw-'+s.fechaInicio+'" onclick="toggleSemana(\''+s.fechaInicio+'\')">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;">'+
+      '<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:'+(activa?'var(--sage)':'var(--hint)')+';">'+(activa?'✅ Activa':'⬜ Inactiva')+'</div>'+
+      '</div>'+
+      '<div style="font-size:.78rem;font-weight:600;color:var(--dark);line-height:1.3;">'+s.label+'</div>'+
+      '</div>';
+  }).join('');
+}
+
+function toggleSemana(fecha){
+  const actual=semanasEstado[fecha]!==false;
+  semanasEstado[fecha]=!actual;
+  const el=document.getElementById('sw-'+fecha); if(!el)return;
+  const activa=!actual;
+  el.style.borderColor=activa?'var(--sage)':'var(--cream3)';
+  el.querySelector('div>div').style.color=activa?'var(--sage)':'var(--hint)';
+  el.querySelector('div>div').textContent=activa?'✅ Activa':'⬜ Inactiva';
+}
+
+function toggleTodasSemanas(activa){
+  generarSemanas().forEach(s=>{
+    semanasEstado[s.fechaInicio]=activa;
+    const el=document.getElementById('sw-'+s.fechaInicio); if(!el)return;
+    el.style.borderColor=activa?'var(--sage)':'var(--cream3)';
+    el.querySelector('div>div').style.color=activa?'var(--sage)':'var(--hint)';
+    el.querySelector('div>div').textContent=activa?'✅ Activa':'⬜ Inactiva';
+  });
+}
+
+async function guardarSemanas(){
+  await db.ref('aprende_semanas').set(semanasEstado);
+  showToast('✅ Semanas guardadas correctamente');
+}
+
+function renderFeriados(feriados){
+  const el=document.getElementById('feriados-list'); if(!el)return;
+  const items=Object.entries(feriados||{});
+  if(!items.length){el.innerHTML='<div style="font-size:.72rem;color:var(--hint);">Sin feriados registrados</div>';return;}
+  el.innerHTML=items.map(([key,f])=>'<div style="display:flex;align-items:center;gap:.35rem;background:var(--cream);border:1px solid var(--cream3);border-radius:99px;padding:.3rem .75rem;font-size:.72rem;">'+
+    '<span>'+f.fecha+'</span><span style="color:var(--muted);">'+f.nombre+'</span>'+
+    '<button onclick="eliminarFeriado(\''+key+'\')" style="background:none;border:none;color:var(--corp);cursor:pointer;font-size:.7rem;padding:0 0 0 .25rem;">✕</button>'+
+    '</div>').join('');
+}
+
+async function agregarFeriado(){
+  const fecha=document.getElementById('fer-fecha').value;
+  const nombre=document.getElementById('fer-nombre').value.trim();
+  if(!fecha||!nombre){showToast('⚠️ Ingresa fecha y nombre');return;}
+  const key='fer-'+fecha.replace(/-/g,'');
+  await db.ref('aprende_feriados/'+key).set({fecha,nombre});
+  document.getElementById('fer-fecha').value='';
+  document.getElementById('fer-nombre').value='';
+  const snapF=await db.ref('aprende_feriados').once('value');
+  renderFeriados(snapF.val()||{});
+  showToast('✅ Feriado agregado');
+}
+
+async function eliminarFeriado(key){
+  await db.ref('aprende_feriados/'+key).remove();
+  const snapF=await db.ref('aprende_feriados').once('value');
+  renderFeriados(snapF.val()||{});
+}
+
+// ══ PLANEACIÓN DOCENTE ══
+async function buildPlaneacion(el){
+  const hoy=new Date();
+
+  const [snapSem, snapFer, snapHor, snapTal]=await Promise.all([
+    db.ref('aprende_semanas').once('value'),
+    db.ref('aprende_feriados').once('value'),
+    db.ref('aprende_horario').once('value'),
+    db.ref('aprende_talleres').once('value'),
+  ]);
+  const semanasActivas=snapSem.val()||{};
+  const feriadosFechas=Object.values(snapFer.val()||{}).map(f=>f.fecha);
+  const horario=snapHor.val()||{};
+  const tMap={};snapTal.forEach(c=>{tMap[c.key]=c.val();});
+
+  const todasSemanas=generarSemanas();
+  const hoyStr=hoy.toLocaleDateString('en-CA');
+  let semanaSelec=todasSemanas.find(s=>s.fechaInicio<=hoyStr&&s.fechaFin>=hoyStr)||todasSemanas.find(s=>semanasActivas[s.fechaInicio]!==false)||todasSemanas[0];
+
+  function diasDeSemana(semana){
+    const dias=[];
+    const d=new Date(semana.fechaInicio+'T12:00:00');
+    const nombresEs=['lunes','martes','miercoles','jueves','viernes'];
+    for(let i=0;i<5;i++){
+      const fecha=new Date(d);fecha.setDate(d.getDate()+i);
+      const fechaStr=fecha.toLocaleDateString('en-CA');
+      const diaKey=nombresEs[i];
+      const esFeriado=feriadosFechas.includes(fechaStr);
+      dias.push({fecha:fechaStr,diaKey,nombre:HORARIO_BASE[diaKey]?.nombre||nombresEs[i],esFeriado});
+    }
+    return dias;
+  }
+
+  const semanasOpts=todasSemanas.filter(s=>semanasActivas[s.fechaInicio]!==false);
+
+  el.innerHTML='<div style="padding-bottom:4rem;">' +
+    '<div class="page-hdr"><div class="page-eyebrow">Docente · '+currentUser.nombre+'</div>'+
+    '<div class="page-title">📝 <em>Planeación</em> diaria</div></div>'+
+    '<div style="display:flex;gap:.5rem;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;">'+
+    '<label class="form-label" style="margin:0;">Semana:</label>'+
+    '<select class="form-select" id="plan-semana-sel" style="flex:1;max-width:340px;" onchange="cambiarSemanaPlan()">'+
+    semanasOpts.map(s=>'<option value="'+s.fechaInicio+'" '+(s.fechaInicio===semanaSelec.fechaInicio?'selected':'')+'>'+s.label+'</option>').join('')+
+    '</select></div>'+
+    '<div id="plan-dias-content">Cargando...</div></div>';
+
+  renderDiasPlan(semanaSelec, diasDeSemana(semanaSelec), horario, tMap);
+}
+
+async function cambiarSemanaPlan(){
+  const sel=document.getElementById('plan-semana-sel'); if(!sel)return;
+  const fechaIni=sel.value;
+  const [snapFer,snapHor,snapTal]=await Promise.all([
+    db.ref('aprende_feriados').once('value'),
+    db.ref('aprende_horario').once('value'),
+    db.ref('aprende_talleres').once('value'),
+  ]);
+  const feriadosFechas=Object.values(snapFer.val()||{}).map(f=>f.fecha);
+  const horario=snapHor.val()||{};
+  const tMap={};snapTal.forEach(c=>{tMap[c.key]=c.val();});
+  const semana=generarSemanas().find(s=>s.fechaInicio===fechaIni);
+  if(!semana)return;
+  const nombresEs=['lunes','martes','miercoles','jueves','viernes'];
+  const dias=[];
+  const d=new Date(fechaIni+'T12:00:00');
+  for(let i=0;i<5;i++){
+    const fecha=new Date(d);fecha.setDate(d.getDate()+i);
+    const fechaStr=fecha.toLocaleDateString('en-CA');
+    dias.push({fecha:fechaStr,diaKey:nombresEs[i],nombre:HORARIO_BASE[nombresEs[i]]?.nombre||nombresEs[i],esFeriado:feriadosFechas.includes(fechaStr)});
+  }
+  renderDiasPlan(semana,dias,horario,tMap);
+}
+
+async function renderDiasPlan(semana, dias, horario, tMap){
+  const el=document.getElementById('plan-dias-content'); if(!el)return;
+  const hoyStr=new Date().toLocaleDateString('en-CA');
+
+  const snapPlan=await db.ref('aprende_planeacion/'+currentUser.id+'/'+semana.fechaInicio).once('value');
+  const planGuardada=snapPlan.val()||{};
+
+  let html='';
+  dias.forEach(function(dia){
+    const config=HORARIO_BASE[dia.diaKey];
+    if(!config){return;}
+    const esHoy=dia.fecha===hoyStr;
+
+    html+='<div style="background:var(--white);border-radius:var(--radius);border:2px solid '+(esHoy?'var(--corp)':dia.esFeriado?'var(--cream3)':'var(--cream3)')+';margin-bottom:1rem;overflow:hidden;">';
+    html+='<div style="background:'+(esHoy?'var(--dark)':dia.esFeriado?'#f5f5f5':'var(--cream2)')+';padding:.75rem 1.25rem;display:flex;align-items:center;justify-content:space-between;">';
+    html+='<div>';
+    html+='<div style="font-size:.75rem;font-weight:800;color:'+(esHoy?'var(--corp3)':dia.esFeriado?'var(--hint)':'var(--corp)')+';">'+dia.nombre+(config.tipo==='proyectos'?' 📋':'')+'</div>';
+    html+='<div style="font-size:.65rem;color:'+(esHoy?'rgba(255,255,255,.4)':'var(--muted)')+';">'+dia.fecha+(dia.esFeriado?' — 🏖️ Feriado / sin clase':'')+(esHoy?' — HOY':'')+'</div>';
+    html+='</div>';
+    if(!dia.esFeriado){
+      html+='<button class="btn-primary" style="font-size:.68rem;padding:.35rem .85rem;" onclick="guardarPlaneacionDia(\''+dia.fecha+'\',\''+semana.fechaInicio+'\')">💾 Guardar día</button>';
+    }
+    html+='</div>';
+
+    if(dia.esFeriado){html+='</div>';return;}
+
+    html+='<div style="padding:1rem;">';
+
+    const diaHor=horario[dia.diaKey]||{};
+    config.secciones.forEach(function(sec){
+      const secData=diaHor['sec'+sec.n]||{};
+      let misClasesSec=[];
+      GRUPOS.forEach(function(g){
+        const item=secData[g.id];
+        if(item&&String(item.docenteId||'').trim()===String(currentUser.id||'').trim()&&item.tallerKey){
+          const taller=tMap[item.tallerKey];
+          misClasesSec.push({grupo:g,taller,tallerKey:item.tallerKey});
+        }
+      });
+
+      const planKey='sec'+sec.n;
+      const planSec=planGuardada[planKey]||{};
+      const descansoTxt=sec.descanso?(' ☕ descanso '+sec.descanso.inicio+'-'+sec.descanso.fin):'';
+
+      html+='<div style="border:1px solid var(--cream3);border-radius:var(--radius-sm);margin-bottom:.75rem;overflow:hidden;">';
+      html+='<div style="background:var(--cream);padding:.55rem .85rem;display:flex;align-items:center;justify-content:space-between;">';
+      html+='<div style="font-size:.7rem;font-weight:700;color:var(--corp);">Sección '+sec.n+' · '+sec.inicio+' — '+sec.fin+descansoTxt+'</div>';
+      if(misClasesSec.length){
+        html+='<div style="font-size:.65rem;color:var(--muted);">'+misClasesSec.map(function(c){return c.taller?c.taller.titulo+' ('+c.grupo.nombre+')':'—';}).join(' · ')+'</div>';
+      }
+      html+='</div>';
+
+      html+='<div style="padding:.85rem;">';
+      if(!misClasesSec.length){
+        html+='<div style="font-size:.75rem;color:var(--hint);text-align:center;padding:.5rem;">Sin clase asignada en esta sección según el horario</div>';
+      } else {
+        var ida=dia.fecha+'_'+planKey;
+        html+='<div style="display:grid;gap:.5rem;">';
+        html+='<div>';
+        html+='<label style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--corp);display:flex;align-items:center;gap:.35rem;margin-bottom:.3rem;">'+
+          '<span style="background:var(--corp);color:#fff;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;flex-shrink:0;">A</span>'+
+          '¿Qué debo aprender? — Metas, temas y conceptos</label>';
+        html+='<textarea id="plan-A-'+ida+'" rows="2" style="width:100%;background:var(--cream);border:1px solid var(--cream3);border-radius:8px;padding:.5rem .75rem;font-family:\'DM Sans\',sans-serif;font-size:.82rem;resize:vertical;outline:none;" placeholder="Escribe las metas de aprendizaje, temas y conceptos de la sesión...">'+escHtml(planSec.A||'')+'</textarea>';
+        html+='</div>';
+        html+='<div>';
+        html+='<label style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--sage);display:flex;align-items:center;gap:.35rem;margin-bottom:.3rem;">'+
+          '<span style="background:var(--sage);color:#fff;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;flex-shrink:0;">B</span>'+
+          '¿Cómo aprendo? — Talleres y/o Proyectos</label>';
+        html+='<textarea id="plan-B-'+ida+'" rows="2" style="width:100%;background:var(--cream);border:1px solid var(--cream3);border-radius:8px;padding:.5rem .75rem;font-family:\'DM Sans\',sans-serif;font-size:.82rem;resize:vertical;outline:none;" placeholder="Describe las actividades, talleres y proyectos a desarrollar...">'+escHtml(planSec.B||'')+'</textarea>';
+        html+='</div>';
+        html+='<div>';
+        html+='<label style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);display:flex;align-items:center;gap:.35rem;margin-bottom:.3rem;">'+
+          '<span style="background:var(--gold);color:#fff;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;flex-shrink:0;">C</span>'+
+          'Didáctica, Evidencias y Productos</label>';
+        html+='<textarea id="plan-C-'+ida+'" rows="2" style="width:100%;background:var(--cream);border:1px solid var(--cream3);border-radius:8px;padding:.5rem .75rem;font-family:\'DM Sans\',sans-serif;font-size:.82rem;resize:vertical;outline:none;" placeholder="¿Cómo se desarrolla la clase? ¿Qué productos o evidencias se esperan?">'+escHtml(planSec.C||'')+'</textarea>';
+        html+='</div>';
+        html+='</div>';
+      }
+      html+='</div></div>';
+    });
+    html+='</div></div>';
+  });
+
+  el.innerHTML=html||'<div style="color:var(--hint);text-align:center;padding:2rem;">No hay días disponibles esta semana.</div>';
+}
+
+async function guardarPlaneacionDia(fecha, semanaKey){
+  const nombresEs=['lunes','martes','miercoles','jueves','viernes'];
+  const d=new Date(fecha+'T12:00:00');
+  const diaKey=nombresEs[d.getDay()-1];
+  const config=HORARIO_BASE[diaKey];
+  if(!config)return;
+  const planDia={};
+  config.secciones.forEach(function(sec){
+    const ida=fecha+'_sec'+sec.n;
+    const A=document.getElementById('plan-A-'+ida)?document.getElementById('plan-A-'+ida).value:'';
+    const B=document.getElementById('plan-B-'+ida)?document.getElementById('plan-B-'+ida).value:'';
+    const C=document.getElementById('plan-C-'+ida)?document.getElementById('plan-C-'+ida).value:'';
+    if(A||B||C) planDia['sec'+sec.n]={A,B,C,fecha,docenteId:currentUser.id};
+  });
+  await db.ref('aprende_planeacion/'+currentUser.id+'/'+semanaKey+'/'+fecha).set(planDia);
+  showToast('✅ Planeación del '+fecha+' guardada');
+}
+
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ══ UTILS ══
 function showToast(m){const t=document.getElementById('toast');if(!t)return;t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
