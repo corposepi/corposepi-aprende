@@ -760,6 +760,7 @@ function startApp(){
 const NAV_CONFIG={
   estudiante:[
     {id:'inicio',label:'Inicio',fn:buildInicio},
+    {id:'midiahoy',label:'📖 Mi clase',fn:buildMiClaseHoy},
     {id:'proyectos',label:'Mis proyectos',fn:buildProyectos},
     {id:'libros',label:'Inteligencia Financiera',fn:buildLibros},
     {id:'clases',label:'Clases en vivo',fn:buildClases},
@@ -768,6 +769,8 @@ const NAV_CONFIG={
   docente:[
     {id:'inicio',label:'Inicio',fn:buildInicioDocente},
     {id:'planeacion',label:'📝 Planeación',fn:buildPlaneacion},
+    {id:'asistencia',label:'✅ Asistencia',fn:buildAsistenciaDocente},
+    {id:'entregas',label:'📥 Entregas',fn:buildEntregasDocente},
     {id:'proyectos',label:'Proyectos',fn:buildProyectosDok},
     {id:'libros',label:'Int. Financiera',fn:buildLibros},
     {id:'clases',label:'Clases',fn:buildClases},
@@ -2268,6 +2271,18 @@ async function renderDiasPlan(semana, dias, horario, tMap){
           'Didáctica, Evidencias y Productos</label>';
         html+='<textarea id="plan-C-'+ida+'" rows="2" style="width:100%;background:var(--cream);border:1px solid var(--cream3);border-radius:8px;padding:.5rem .75rem;font-family:\'DM Sans\',sans-serif;font-size:.82rem;resize:vertical;outline:none;" placeholder="¿Cómo se desarrolla la clase? ¿Qué productos o evidencias se esperan?">'+escHtml(planSec.C||'')+'</textarea>';
         html+='</div>';
+        html+='<div>';
+        html+='<label style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#1565C0;display:flex;align-items:center;gap:.35rem;margin-bottom:.3rem;">'+
+          '<span style="background:#1565C0;color:#fff;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;flex-shrink:0;">D</span>'+
+          '¿Qué hace bien el estudiante? — Fortalezas y logros</label>';
+        html+='<textarea id="plan-D-'+ida+'" rows="2" style="width:100%;background:#E3F2FD;border:1px solid rgba(21,101,192,.2);border-radius:8px;padding:.5rem .75rem;font-family:\'DM Sans\',sans-serif;font-size:.82rem;resize:vertical;outline:none;" placeholder="Describe las fortalezas, participación y logros observados en el grupo...">'+escHtml(planSec.D||'')+'</textarea>';
+        html+='</div>';
+        html+='<div>';
+        html+='<label style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#6A1B9A;display:flex;align-items:center;gap:.35rem;margin-bottom:.3rem;">'+
+          '<span style="background:#6A1B9A;color:#fff;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;flex-shrink:0;">E</span>'+
+          '¿Qué debe mejorar? — Compromisos pendientes</label>';
+        html+='<textarea id="plan-E-'+ida+'" rows="2" style="width:100%;background:#F3E5F5;border:1px solid rgba(106,27,154,.2);border-radius:8px;padding:.5rem .75rem;font-family:\'DM Sans\',sans-serif;font-size:.82rem;resize:vertical;outline:none;" placeholder="Aspectos a fortalecer, compromisos y acciones de mejora para los estudiantes...">'+escHtml(planSec.E||'')+'</textarea>';
+        html+='</div>';
         html+='</div>';
       }
       html+='</div></div>';
@@ -2287,16 +2302,321 @@ async function guardarPlaneacionDia(fecha, semanaKey){
   const planDia={};
   config.secciones.forEach(function(sec){
     const ida=fecha+'_sec'+sec.n;
-    const A=document.getElementById('plan-A-'+ida)?document.getElementById('plan-A-'+ida).value:'';
-    const B=document.getElementById('plan-B-'+ida)?document.getElementById('plan-B-'+ida).value:'';
-    const C=document.getElementById('plan-C-'+ida)?document.getElementById('plan-C-'+ida).value:'';
-    if(A||B||C) planDia['sec'+sec.n]={A,B,C,fecha,docenteId:currentUser.id};
+    const A=document.getElementById('plan-A-'+ida)?.value||'';
+    const B=document.getElementById('plan-B-'+ida)?.value||'';
+    const C=document.getElementById('plan-C-'+ida)?.value||'';
+    const D=document.getElementById('plan-D-'+ida)?.value||'';
+    const E=document.getElementById('plan-E-'+ida)?.value||'';
+    if(A||B||C||D||E) planDia['sec'+sec.n]={A,B,C,D,E,fecha,docenteId:currentUser.id};
   });
   await db.ref('aprende_planeacion/'+currentUser.id+'/'+semanaKey+'/'+fecha).set(planDia);
   showToast('✅ Planeación del '+fecha+' guardada');
 }
 
 function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ══ ASISTENCIA DOCENTE ══
+async function buildAsistenciaDocente(el){
+  el.innerHTML='<div class="page-hdr"><div class="page-eyebrow">Control de asistencia</div>'+
+    '<div class="page-title">✅ <em>Asistencia</em></div></div>'+
+    '<div style="display:flex;gap:.5rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">'+
+    '<label class="form-label" style="margin:0;">Fecha:</label>'+
+    '<input type="date" class="form-input" id="asist-fecha" value="'+new Date().toLocaleDateString('en-CA')+'" style="max-width:160px;" onchange="cargarAsistenciaFecha()"/>'+
+    '</div><div id="asist-content">Cargando...</div>';
+  cargarAsistenciaFecha();
+}
+
+async function cargarAsistenciaFecha(){
+  const el=document.getElementById('asist-content'); if(!el)return;
+  const fechaEl=document.getElementById('asist-fecha'); if(!fechaEl)return;
+  const fecha=fechaEl.value;
+  if(!fecha)return;
+
+  const diasSemana=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+  const diaKey=diasSemana[new Date(fecha+'T12:00:00').getDay()];
+  const configDia=HORARIO_BASE[diaKey];
+  if(!configDia){el.innerHTML='<div style="color:var(--hint);text-align:center;padding:2rem;">No hay clases este día.</div>';return;}
+
+  const [snapHor,snapStu,snapAsist]=await Promise.all([
+    db.ref('aprende_horario').once('value'),
+    db.ref('corposepi/students').once('value'),
+    db.ref('aprende_asistencia/'+currentUser.id+'/'+fecha).once('value'),
+  ]);
+  const horario=snapHor.val()||{};
+  const students=(snapStu.val()||[]).filter(function(s){return s&&s.id;});
+  const asistGuardada=snapAsist.val()||{};
+  const diaHor=horario[diaKey]||{};
+
+  let html='';
+  configDia.secciones.forEach(function(sec){
+    const secData=diaHor['sec'+sec.n]||{};
+    let misGrupos=[];
+    GRUPOS.forEach(function(g){
+      const item=secData[g.id];
+      if(item&&String(item.docenteId||'').trim()===String(currentUser.id||'').trim()){
+        misGrupos.push({grupo:g,tallerKey:item.tallerKey});
+      }
+    });
+    if(!misGrupos.length)return;
+
+    html+='<div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);margin-bottom:1rem;overflow:hidden;">';
+    html+='<div style="background:var(--dark);padding:.7rem 1.25rem;display:flex;align-items:center;justify-content:space-between;">';
+    html+='<div style="color:var(--white);font-weight:700;font-size:.85rem;">Sección '+sec.n+' · '+sec.inicio+'–'+sec.fin+'</div>';
+    html+='<button class="btn-primary" style="font-size:.68rem;padding:.3rem .8rem;" onclick="guardarAsistenciaSec(\''+fecha+'\',\'sec'+sec.n+'\')">💾 Guardar sección</button>';
+    html+='</div>';
+    html+='<div style="padding:1rem;">';
+
+    misGrupos.forEach(function(mg){
+      const grupoStudents=students.filter(function(s){return detectarGrupoEstudiante(s.nivel||s.grado||'')===mg.grupo.id&&s.status==='active';});
+      if(!grupoStudents.length){
+        html+='<div style="color:var(--hint);font-size:.78rem;padding:.5rem;">'+mg.grupo.nombre+': sin estudiantes activos.</div>';
+        return;
+      }
+      const secAsist=asistGuardada['sec'+sec.n]||{};
+      html+='<div style="margin-bottom:.75rem;">';
+      html+='<div style="font-size:.68rem;font-weight:700;color:var(--corp);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem;">'+mg.grupo.nombre+' ('+mg.grupo.grados+') — '+grupoStudents.length+' estudiantes</div>';
+      html+='<div style="display:flex;gap:.35rem;margin-bottom:.5rem;">';
+      html+='<button onclick="marcarTodos(\''+fecha+'\',\'sec'+sec.n+'\',\''+mg.grupo.id+'\',true)" style="background:rgba(74,103,65,.1);border:1px solid rgba(74,103,65,.2);border-radius:7px;padding:3px 9px;font-size:.62rem;color:var(--sage);cursor:pointer;">✅ Todos presentes</button>';
+      html+='<button onclick="marcarTodos(\''+fecha+'\',\'sec'+sec.n+'\',\''+mg.grupo.id+'\',false)" style="background:rgba(184,65,10,.1);border:1px solid rgba(184,65,10,.2);border-radius:7px;padding:3px 9px;font-size:.62rem;color:var(--corp);cursor:pointer;">❌ Todos ausentes</button>';
+      html+='</div>';
+      html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.35rem;">';
+      grupoStudents.forEach(function(s){
+        const k='asist-'+fecha+'-sec'+sec.n+'-'+s.id;
+        const presente=secAsist[s.id]!==false;
+        html+='<label id="lbl-'+k+'" style="display:flex;align-items:center;gap:.5rem;background:'+(presente?'rgba(74,103,65,.06)':'rgba(184,65,10,.06)')+';border:1px solid '+(presente?'rgba(74,103,65,.2)':'rgba(184,65,10,.2)')+';border-radius:8px;padding:.45rem .7rem;cursor:pointer;transition:all .15s;">';
+        html+='<input type="checkbox" id="'+k+'" '+(presente?'checked':'')+' style="accent-color:var(--sage);" onchange="actualizarLblAsist(\''+k+'\')">';
+        html+='<span style="font-size:.78rem;font-weight:500;">'+s.nombres+' '+(s.apellidos||'')+'</span>';
+        html+='</label>';
+      });
+      html+='</div></div>';
+    });
+    html+='</div></div>';
+  });
+
+  el.innerHTML=html||'<div style="color:var(--hint);text-align:center;padding:2rem;">Sin clases asignadas para esta fecha.</div>';
+}
+
+function actualizarLblAsist(k){
+  const chk=document.getElementById(k);
+  const lbl=document.getElementById('lbl-'+k);
+  if(!chk||!lbl)return;
+  const presente=chk.checked;
+  lbl.style.background=presente?'rgba(74,103,65,.06)':'rgba(184,65,10,.06)';
+  lbl.style.borderColor=presente?'rgba(74,103,65,.2)':'rgba(184,65,10,.2)';
+}
+
+function marcarTodos(fecha, secKey, grupoId, presente){
+  document.querySelectorAll('[id^="asist-'+fecha+'-'+secKey+'-"]').forEach(function(chk){
+    chk.checked=presente;
+    actualizarLblAsist(chk.id);
+  });
+}
+
+async function guardarAsistenciaSec(fecha, secKey){
+  const prefijo='asist-'+fecha+'-'+secKey+'-';
+  const secAsist={};
+  document.querySelectorAll('[id^="'+prefijo+'"]').forEach(function(chk){
+    const estId=chk.id.replace(prefijo,'');
+    secAsist[estId]=chk.checked;
+  });
+  await db.ref('aprende_asistencia/'+currentUser.id+'/'+fecha+'/'+secKey).set(secAsist);
+  showToast('✅ Asistencia guardada — '+secKey);
+}
+
+// ══ ESTUDIANTE: MI CLASE DE HOY ══
+async function buildMiClaseHoy(el){
+  el.innerHTML='<div class="page-hdr">'+
+    '<div class="page-eyebrow">Mi aprendizaje autónomo</div>'+
+    '<div class="page-title">📖 <em>Mi clase</em> de hoy</div>'+
+    '<div class="page-sub">Aunque no hayas podido asistir, aquí encuentras lo que se trabajó en clase para que puedas desarrollarlo y enviar tus productos.</div></div>'+
+    '<div style="display:flex;gap:.5rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">'+
+    '<label class="form-label" style="margin:0;">Fecha:</label>'+
+    '<input type="date" class="form-input" id="mdc-fecha" value="'+new Date().toLocaleDateString('en-CA')+'" style="max-width:160px;" onchange="cargarMiClaseFecha()"/>'+
+    '</div><div id="mdc-content">Cargando...</div>';
+  cargarMiClaseFecha();
+}
+
+async function cargarMiClaseFecha(){
+  const el=document.getElementById('mdc-content'); if(!el)return;
+  const fecha=document.getElementById('mdc-fecha')?.value;
+  if(!fecha)return;
+
+  const diasSemana=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+  const diaKey=diasSemana[new Date(fecha+'T12:00:00').getDay()];
+  const configDia=HORARIO_BASE[diaKey];
+  if(!configDia){el.innerHTML='<div style="color:var(--muted);text-align:center;padding:2rem;">Sin clases este día.</div>';return;}
+
+  const miGrupo=detectarGrupoEstudiante(currentUser.nivel||currentUser.grado||'');
+
+  const [snapHor,snapTal,snapSems]=await Promise.all([
+    db.ref('aprende_horario').once('value'),
+    db.ref('aprende_talleres').once('value'),
+    db.ref('aprende_semanas').once('value'),
+  ]);
+  const horario=snapHor.val()||{};
+  const tMap={};snapTal.forEach(function(c){tMap[c.key]=c.val();});
+  const diaHor=horario[diaKey]||{};
+
+  const promesas=[];
+
+  configDia.secciones.forEach(function(sec){
+    const secData=diaHor['sec'+sec.n]||{};
+    const itemGrupo=secData[miGrupo];
+    if(!itemGrupo||!itemGrupo.docenteId)return;
+
+    const taller=tMap[itemGrupo.tallerKey]||{};
+    promesas.push(
+      Promise.all([
+        db.ref('aprende_planeacion/'+itemGrupo.docenteId+'/').orderByKey().once('value'),
+        db.ref('aprende_asistencia/'+itemGrupo.docenteId+'/'+fecha+'/sec'+sec.n+'/'+currentUser.id).once('value'),
+        db.ref('aprende_entregas/'+fecha+'/sec'+sec.n+'/'+currentUser.id).once('value'),
+      ]).then(function(results){
+        const planSnap=results[0]; const asistSnap=results[1]; const entregaSnap=results[2];
+        let planSec={};
+        planSnap.forEach(function(semSnap){
+          const diaData=semSnap.val()||{};
+          if(diaData[fecha]&&diaData[fecha]['sec'+sec.n]) planSec=diaData[fecha]['sec'+sec.n];
+        });
+        const asistente=asistSnap.val()!==false;
+        const entrega=entregaSnap.val()||null;
+
+        let secHtml='<div style="background:var(--white);border-radius:var(--radius);border:1px solid '+(asistente?'var(--cream3)':'rgba(184,65,10,.3)')+';margin-bottom:1rem;overflow:hidden;">';
+        secHtml+='<div style="background:'+(asistente?'var(--cream)':'rgba(184,65,10,.08)')+';padding:.7rem 1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;">';
+        secHtml+='<div>';
+        secHtml+='<div style="font-size:.7rem;font-weight:700;color:var(--corp);">Sección '+sec.n+' · '+sec.inicio+'–'+sec.fin+'</div>';
+        secHtml+='<div style="font-size:.8rem;font-weight:600;color:var(--dark);">'+(taller.titulo||'Clase')+'</div>';
+        secHtml+='</div>';
+        secHtml+='<span style="font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:99px;background:'+(asistente?'rgba(74,103,65,.12)':'rgba(184,65,10,.12)')+';color:'+(asistente?'var(--sage)':'var(--corp)')+';">'+(asistente?'✅ Asististe':'⚠️ No asististe')+'</span>';
+        secHtml+='</div>';
+        secHtml+='<div style="padding:1rem;">';
+
+        if(planSec.A||planSec.B||planSec.C||planSec.D||planSec.E){
+          ['A','B','C'].forEach(function(letra){
+            const colores={A:'var(--corp)',B:'var(--sage)',C:'var(--gold)'};
+            const labels={A:'¿Qué debo aprender?',B:'¿Cómo aprendo?',C:'Didáctica, Evidencias y Productos'};
+            if(!planSec[letra])return;
+            secHtml+='<div style="margin-bottom:.6rem;">';
+            secHtml+='<div style="display:flex;align-items:center;gap:.35rem;margin-bottom:.25rem;">';
+            secHtml+='<span style="background:'+colores[letra]+';color:#fff;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;flex-shrink:0;">'+letra+'</span>';
+            secHtml+='<span style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:'+colores[letra]+';">'+labels[letra]+'</span>';
+            secHtml+='</div>';
+            secHtml+='<div style="background:var(--cream);border-radius:8px;padding:.6rem .85rem;font-size:.82rem;color:var(--text);line-height:1.6;white-space:pre-wrap;">'+escHtml(planSec[letra])+'</div>';
+            secHtml+='</div>';
+          });
+        } else {
+          secHtml+='<div style="color:var(--hint);font-size:.8rem;text-align:center;padding:.75rem;">El docente aún no ha publicado la planeación de esta sección.</div>';
+        }
+
+        secHtml+='<div style="background:var(--cream);border-radius:var(--radius-sm);padding:1rem;margin-top:.75rem;">';
+        secHtml+='<div style="font-size:.68rem;font-weight:700;color:var(--dark);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.6rem;">📤 Entregar mi trabajo</div>';
+        if(entrega){
+          secHtml+='<div style="background:rgba(74,103,65,.08);border:1px solid rgba(74,103,65,.2);border-radius:8px;padding:.6rem .85rem;font-size:.78rem;color:var(--sage);margin-bottom:.5rem;">✅ Entregado el '+entrega.fecha+'</div>';
+        }
+        secHtml+='<textarea id="entr-txt-'+fecha+'-sec'+sec.n+'" rows="3" style="width:100%;background:var(--white);border:1px solid var(--cream3);border-radius:8px;padding:.5rem .75rem;font-family:\'DM Sans\',sans-serif;font-size:.82rem;resize:vertical;outline:none;margin-bottom:.4rem;" placeholder="Describe tu trabajo, reflexiones, respuestas o proceso realizado...">'+(entrega?escHtml(entrega.texto||''):'')+'</textarea>';
+        secHtml+='<input class="form-input" id="entr-link-'+fecha+'-sec'+sec.n+'" value="'+(entrega?escHtml(entrega.drive_link||''):'')+'" placeholder="🔗 Link de Google Drive (opcional)" style="margin-bottom:.5rem;"/>';
+        secHtml+='<button class="btn-primary" style="font-size:.75rem;padding:.45rem 1.1rem;" onclick="enviarEntrega(\''+fecha+'\',\'sec'+sec.n+'\',\''+itemGrupo.docenteId+'\',\''+itemGrupo.tallerKey+'\')">📤 Enviar entrega</button>';
+        secHtml+='</div>';
+        secHtml+='</div></div>';
+        return secHtml;
+      })
+    );
+  });
+
+  const resultados=await Promise.all(promesas);
+  const html=resultados.filter(Boolean).join('');
+  el.innerHTML=html||'<div style="color:var(--muted);text-align:center;padding:2rem;background:var(--white);border-radius:var(--radius);">Sin clases programadas para este día en tu grupo.</div>';
+}
+
+async function enviarEntrega(fecha, secKey, docenteId, tallerKey){
+  const texto=document.getElementById('entr-txt-'+fecha+'-'+secKey)?.value.trim()||'';
+  const link=document.getElementById('entr-link-'+fecha+'-'+secKey)?.value.trim()||'';
+  if(!texto&&!link){showToast('⚠️ Escribe tu trabajo o agrega un link de Drive');return;}
+  await db.ref('aprende_entregas/'+fecha+'/'+secKey+'/'+currentUser.id).set({
+    texto, drive_link:link, fecha,
+    docenteId, tallerKey,
+    estudianteId:currentUser.id,
+    estudianteNombre:currentUser.nombres+' '+(currentUser.apellidos||''),
+    grupoId:detectarGrupoEstudiante(currentUser.nivel||currentUser.grado||''),
+    timestamp:new Date().toISOString()
+  });
+  showToast('✅ Entrega enviada correctamente');
+  cargarMiClaseFecha();
+}
+
+// ══ DOCENTE: ENTREGAS ══
+async function buildEntregasDocente(el){
+  el.innerHTML='<div class="page-hdr"><div class="page-eyebrow">Revisión de trabajos</div>'+
+    '<div class="page-title">📥 <em>Entregas</em> recibidas</div></div>'+
+    '<div style="display:flex;gap:.5rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">'+
+    '<label class="form-label" style="margin:0;">Fecha:</label>'+
+    '<input type="date" class="form-input" id="entr-doc-fecha" value="'+new Date().toLocaleDateString('en-CA')+'" style="max-width:160px;" onchange="cargarEntregasDocente()"/>'+
+    '</div><div id="entregas-doc-content">Cargando...</div>';
+  cargarEntregasDocente();
+}
+
+async function cargarEntregasDocente(){
+  const el=document.getElementById('entregas-doc-content'); if(!el)return;
+  const fecha=document.getElementById('entr-doc-fecha')?.value;
+  if(!fecha)return;
+
+  const diasSemana=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+  const diaKey=diasSemana[new Date(fecha+'T12:00:00').getDay()];
+  const configDia=HORARIO_BASE[diaKey];
+
+  const [snapHor,snapTal,snapEntregas,snapStu]=await Promise.all([
+    db.ref('aprende_horario').once('value'),
+    db.ref('aprende_talleres').once('value'),
+    db.ref('aprende_entregas/'+fecha).once('value'),
+    db.ref('corposepi/students').once('value'),
+  ]);
+  const horario=snapHor.val()||{};
+  const tMap={};snapTal.forEach(function(c){tMap[c.key]=c.val();});
+  const entregas=snapEntregas.val()||{};
+  const students=(snapStu.val()||[]).filter(function(s){return s&&s.id;});
+
+  if(!configDia){el.innerHTML='<div style="color:var(--hint);text-align:center;padding:2rem;">Sin clases este día.</div>';return;}
+
+  const diaHor=horario[diaKey]||{};
+  let html='';
+  configDia.secciones.forEach(function(sec){
+    const secKey='sec'+sec.n;
+    const secData=diaHor[secKey]||{};
+    let tieneClase=false;
+    GRUPOS.forEach(function(g){
+      const item=secData[g.id];
+      if(item&&String(item.docenteId||'').trim()===String(currentUser.id||'').trim()) tieneClase=true;
+    });
+    if(!tieneClase)return;
+
+    const secEntregas=entregas[secKey]||{};
+    const items=Object.entries(secEntregas).filter(function(e){return e[1]&&e[1].docenteId===currentUser.id;});
+
+    html+='<div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);margin-bottom:1rem;overflow:hidden;">';
+    html+='<div style="background:var(--dark);padding:.65rem 1.25rem;">';
+    html+='<div style="color:var(--white);font-weight:700;font-size:.82rem;">Sección '+sec.n+' · '+sec.inicio+'–'+sec.fin+' · '+items.length+' entrega(s)</div>';
+    html+='</div><div style="padding:1rem;">';
+    if(!items.length){
+      html+='<div style="color:var(--hint);font-size:.78rem;text-align:center;padding:.75rem;">Sin entregas recibidas.</div>';
+    } else {
+      items.forEach(function(entry){
+        const estId=entry[0]; const data=entry[1];
+        html+='<div style="border:1px solid var(--cream3);border-radius:var(--radius-sm);padding:.85rem;margin-bottom:.5rem;">';
+        html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:.4rem;">';
+        html+='<div>';
+        html+='<div style="font-weight:600;font-size:.85rem;">'+(data.estudianteNombre||estId)+'</div>';
+        html+='<div style="font-size:.65rem;color:var(--muted);">'+estId+' · '+(tMap[data.tallerKey]?.titulo||'—')+'</div>';
+        html+='</div>';
+        html+='<div style="font-size:.62rem;color:var(--hint);">'+(data.timestamp||'').slice(0,16).replace('T',' ')+'</div>';
+        html+='</div>';
+        if(data.texto) html+='<div style="background:var(--cream);border-radius:8px;padding:.65rem .85rem;font-size:.82rem;line-height:1.6;white-space:pre-wrap;margin-bottom:.4rem;">'+escHtml(data.texto)+'</div>';
+        if(data.drive_link) html+='<a href="'+escHtml(data.drive_link)+'" target="_blank" style="font-size:.75rem;color:var(--corp);text-decoration:underline;">🔗 Ver en Drive</a>';
+        html+='</div>';
+      });
+    }
+    html+='</div></div>';
+  });
+  el.innerHTML=html||'<div style="color:var(--hint);text-align:center;padding:2rem;">Sin entregas para esta fecha.</div>';
+}
 
 // ══ UTILS ══
 function showToast(m){const t=document.getElementById('toast');if(!t)return;t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
