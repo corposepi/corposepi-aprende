@@ -1137,7 +1137,13 @@ async function buildClases(el){
         if(item&&item.tallerKey&&filtrarItem(item.tallerKey,item.docenteId,g.id)){
           const taller=tMap[item.tallerKey];
           if(taller){
-            const liveData=(((livesMap[item.docenteId]||{})[fechaReal]||{})['sec'+sec.n]||{})[g.id]||null;
+            // Buscar live activo en cualquier fecha para este docente/sec/grupo
+            const docLives=livesMap[item.docenteId]||{};
+            let liveData=null;
+            Object.values(docLives).forEach(function(fechaData){
+              const d=(fechaData['sec'+sec.n]||{})[g.id];
+              if(d&&d.activa)liveData=d;
+            });
             clasesDelDia.push({sec,grupo:g,taller,docenteId:item.docenteId,estado:estadoSec(sec,esDiaHoy),liveData});
           }
         }
