@@ -1666,13 +1666,12 @@ async function buildAdmin(el){
       <div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);padding:1.25rem;margin-bottom:1rem;">
         <div class="dc-title">➕ Crear acción articuladora</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
-          <div>
-            <label class="form-label">Ícono (emoji)</label>
-            <input class="form-input" id="acc-icon" placeholder="📚" maxlength="4"/>
-          </div>
-          <div>
-            <label class="form-label">Nombre de la acción</label>
-            <input class="form-input" id="acc-name" placeholder="Ej: LEO, Aula Creativa…"/>
+          <div style="grid-column:1/-1;">
+            <label class="form-label">Acción articuladora</label>
+            <select class="form-select" id="acc-name" onchange="autoIconAccion()">
+              <option value="">— Seleccionar acción —</option>
+              ${ACCIONES.map(a=>`<option value="${a.name}" data-icon="${a.icon}" data-gold="${a.gold?'1':'0'}">${a.icon} ${a.name}</option>`).join('')}
+            </select>
           </div>
           <div style="grid-column:1/-1;">
             <label class="form-label">Grupos</label>
@@ -2003,9 +2002,19 @@ async function _cargarStaffSelectAcciones(selId){
   });
 }
 
+function autoIconAccion(){
+  const sel=document.getElementById('acc-name');
+  const opt=sel?.options[sel.selectedIndex];
+  // auto-set gold checkbox if the selected accion is gold
+  if(opt&&opt.dataset.gold==='1') document.getElementById('acc-gold').checked=true;
+  else if(opt) document.getElementById('acc-gold').checked=false;
+}
+
 async function crearAccionArt(){
-  const icon=(document.getElementById('acc-icon').value.trim()||'🔗');
-  const name=document.getElementById('acc-name').value.trim();
+  const selAcc=document.getElementById('acc-name');
+  const selOpt=selAcc?.options[selAcc.selectedIndex];
+  const name=selAcc?.value?.trim()||'';
+  const icon=(selOpt?.dataset?.icon)||'🔗';
   const desc=document.getElementById('acc-desc').value.trim();
   const gold=document.getElementById('acc-gold').checked;
   const grupos=GRUPOS.map(g=>g.id).filter(id=>document.getElementById('acc-g-'+id)?.checked);
@@ -2068,9 +2077,12 @@ async function cargarAccionesAdmin(){
     html+='</div></div>';
     // Formulario edición
     html+='<div id="aedit-'+a._key+'" style="display:none;margin-top:.75rem;">';
+    const accionOptsEdit=ACCIONES.map(function(ac){
+      const sel=(ac.name===a.name)?' selected':'';
+      return '<option value="'+ac.name+'" data-icon="'+ac.icon+'" data-gold="'+(ac.gold?'1':'0')+'"'+sel+'>'+ac.icon+' '+ac.name+'</option>';
+    }).join('');
     html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem;">';
-    html+='<div><label class="form-label">Ícono</label><input class="form-input" id="aei-'+a._key+'" value="'+(a.icon||'🔗')+'" maxlength="4"/></div>';
-    html+='<div><label class="form-label">Nombre</label><input class="form-input" id="aen-'+a._key+'" value="'+a.name.replace(/"/g,'&quot;')+'"/></div>';
+    html+='<div style="grid-column:1/-1;"><label class="form-label">Acción articuladora</label><select class="form-select" id="aen-'+a._key+'"><option value="">— Seleccionar —</option>'+accionOptsEdit+'</select></div>';
     html+='<div style="grid-column:1/-1;"><label class="form-label">Descripción</label><input class="form-input" id="aed-'+a._key+'" value="'+(a.desc||'').replace(/"/g,'&quot;')+'"/></div>';
     html+='<div style="grid-column:1/-1;"><label class="form-label">Grupos</label><div style="display:flex;gap:.4rem;flex-wrap:wrap;">';
     GRUPOS.forEach(function(g){html+='<label style="display:flex;align-items:center;gap:.25rem;font-size:.75rem;cursor:pointer;background:var(--cream);border:1px solid var(--cream3);border-radius:7px;padding:.3rem .6rem;"><input type="checkbox" id="aeg-'+a._key+'-'+g.id+'" value="'+g.id+'"'+(grupos.includes(g.id)?' checked':'')+' style="accent-color:var(--corp);"> '+g.nombre+'</label>';});
@@ -2092,8 +2104,10 @@ function editarAccion(key){document.getElementById('aview-'+key).style.display='
 function cancelarEdicionAccion(key){document.getElementById('aview-'+key).style.display='flex';document.getElementById('aedit-'+key).style.display='none';}
 
 async function guardarEdicionAccion(key){
-  const icon=document.getElementById('aei-'+key).value.trim()||'🔗';
-  const name=document.getElementById('aen-'+key).value.trim();
+  const selAcc=document.getElementById('aen-'+key);
+  const selOpt=selAcc?.options[selAcc.selectedIndex];
+  const name=selAcc?.value?.trim()||'';
+  const icon=selOpt?.dataset?.icon||'🔗';
   const desc=document.getElementById('aed-'+key).value.trim();
   const gold=document.getElementById('aeg2-'+key).checked;
   const grupos=GRUPOS.map(g=>g.id).filter(id=>document.getElementById('aeg-'+key+'-'+id)?.checked);
