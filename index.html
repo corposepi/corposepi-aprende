@@ -1438,8 +1438,14 @@ async function buildInicioDocente(el){
     todosTalleres.push({...v,_key:c.key});
   });
 
-  // Recoger talleres de 3 fuentes: perfil, horario y bloque asignado
+  // Recoger talleres de 3 fuentes: perfil, horario y docenteId directo
   const talleresSet=new Set(talleresAsigKeys);
+
+  // Fuente 1b: taller tiene docenteId que coincide con currentUser.id
+  const myId=String(currentUser.id||'').trim().toLowerCase();
+  todosTalleres.forEach(t=>{
+    if(t.docenteId&&String(t.docenteId).trim().toLowerCase()===myId) talleresSet.add(t._key);
+  });
 
   // Fuente 2: horario (cualquier sección donde aparezca este docente)
   const horarioData=snapHorario.val()||{};
@@ -1732,6 +1738,8 @@ function adminTab(id,btn){
 }
 
 // ══ ADMIN: TALLERES ══
+let _adminStaff=[];  // cache global del staff para formularios de talleres
+
 function actualizarMaterias(){
   const bid=document.getElementById('tal-bloque').value;
   const b=BLOQUES.find(x=>x.id===bid);
@@ -1748,10 +1756,14 @@ async function crearTaller(){
   const grupos=GRUPOS.map(g=>g.id).filter(id=>document.getElementById('tal-g-'+id)?.checked);
   const docenteEl=document.getElementById('tal-docente');
   const docenteIdx=(docenteEl&&docenteEl.value!=='')?docenteEl.value:null;
+  const selectedOpt=docenteEl?.options[docenteEl.selectedIndex];
+  const docenteId=(selectedOpt&&selectedOpt.value!=='')?selectedOpt.dataset.staffId||null:null;
+  const docenteNombre=selectedOpt&&selectedOpt.value!==''?selectedOpt.text.split('—')[0].trim():null;
   if(!titulo||!bloqueId||!materia){showToast('⚠️ Completa título, bloque y materia');return;}
   const key='tal-'+Date.now();
-  await db.ref('aprende_talleres/'+key).set({key,titulo,bloqueId,materia,desc,grupos,creadoEn:new Date().toISOString().slice(0,10)});
-  // Auto-asignar al docente si se seleccionó uno
+  // Guardar taller con docenteId para búsqueda robusta
+  await db.ref('aprende_talleres/'+key).set({key,titulo,bloqueId,materia,desc,grupos,docenteId:docenteId||null,creadoEn:new Date().toISOString().slice(0,10)});
+  // Auto-asignar al docente: guardar key en su arreglo de talleres (doble seguridad)
   if(docenteIdx!==null){
     const snapS=await db.ref('corposepi/staff/'+docenteIdx+'/talleres').once('value');
     let tals=snapS.val();
@@ -1760,7 +1772,7 @@ async function crearTaller(){
     else if(tals&&typeof tals==='object') arr=Object.values(tals);
     if(!arr.includes(key)) arr.push(key);
     await db.ref('corposepi/staff/'+docenteIdx+'/talleres').set(arr);
-    showToast('✅ Taller creado y asignado a '+(docenteEl.options[docenteEl.selectedIndex]?.text.split('—')[0].trim()||'docente'));
+    showToast('✅ Taller creado y asignado a '+(docenteNombre||'docente'));
   } else {
     showToast('✅ Taller creado (sin asignar)');
   }
@@ -1778,13 +1790,18 @@ async function cargarTalleresAdmin(){
   const selDoc=document.getElementById('tal-docente');
   if(selDoc&&selDoc.options.length<=1){
     const snapSt=await db.ref('corposepi/staff').once('value');
-    const staff=(snapSt.val()||[]).map((s,i)=>s?{...s,_idx:i}:null).filter(Boolean);
-    staff.forEach(s=>{
+    _adminStaff=(snapSt.val()||[]).map((s,i)=>s?{...s,_idx:i}:null).filter(Boolean);
+    _adminStaff.forEach(s=>{
       const opt=document.createElement('option');
       opt.value=s._idx;
+      opt.dataset.staffId=s.id||s.numdoc||'';
       opt.textContent=(s.nombres||'')+' '+(s.apellidos||'')+' — '+(s.cargo||'Docente');
       selDoc.appendChild(opt);
     });
+  } else if(!_adminStaff.length){
+    // Si el select ya estaba lleno pero el cache está vacío (recarga), recargarlo
+    const snapSt=await db.ref('corposepi/staff').once('value');
+    _adminStaff=(snapSt.val()||[]).map((s,i)=>s?{...s,_idx:i}:null).filter(Boolean);
   }
   const snap=await db.ref('aprende_talleres').once('value');
   const talleres=[];
@@ -1830,8 +1847,11 @@ async function cargarTalleresAdmin(){
       // Vista normal
       html+='<div id="tview-'+t._key+'" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;">';
       html+='<div>';
+      const docAsig=t.docenteId?(_adminStaff.find(s=>(s.id||s.numdoc||'').toLowerCase()===String(t.docenteId).toLowerCase())):null;
+      const docLabel=docAsig?((docAsig.nombres||'')+' '+(docAsig.apellidos||'').split(' ')[0]):'Sin asignar';
       html+='<div style="font-weight:600;font-size:.85rem;">'+t.titulo+'</div>';
       html+='<div style="font-size:.68rem;color:var(--muted);">'+(t.materia||'—')+' · '+gruposNombres+'</div>';
+      html+='<div style="font-size:.68rem;color:'+(t.docenteId?'var(--sage)':'var(--hint)')+';margin-top:.1rem;">👤 '+docLabel+'</div>';
       if(t.desc) html+='<div style="font-size:.68rem;color:var(--hint);margin-top:.1rem;">'+t.desc+'</div>';
       html+='</div>';
       html+='<div style="display:flex;gap:.35rem;">';
@@ -1851,6 +1871,14 @@ async function cargarTalleresAdmin(){
       html+='<div style="display:flex;gap:.4rem;flex-wrap:wrap;">'+grupoChks+'</div></div>';
       html+='<div style="grid-column:1/-1;"><label class="form-label">Descripción</label>';
       html+='<input class="form-input" id="et-desc-'+t._key+'" value="'+(t.desc||'').replace(/"/g,'&quot;')+'"/></div>';
+      // Selector docente en edición
+      const staffOptsEdit='<option value="">— Sin asignar —</option>'+_adminStaff.map(function(s){
+        const sid=s.id||s.numdoc||'';
+        const sel=(t.docenteId&&sid.toLowerCase()===String(t.docenteId).toLowerCase())?' selected':'';
+        return '<option value="'+s._idx+'" data-staff-id="'+sid+'"'+sel+'>'+(s.nombres||'')+' '+(s.apellidos||'')+' — '+(s.cargo||'Docente')+'</option>';
+      }).join('');
+      html+='<div style="grid-column:1/-1;"><label class="form-label">Docente asignado</label>';
+      html+='<select class="form-select" id="et-docente-'+t._key+'">'+staffOptsEdit+'</select></div>';
       html+='</div>';
       html+='<div style="display:flex;gap:.4rem;">';
       html+='<button class="btn-primary" style="font-size:.75rem;padding:.45rem 1rem;" onclick="guardarEdicionTaller(\''+t._key+'\')">💾 Guardar</button>';
@@ -1883,10 +1911,24 @@ async function guardarEdicionTaller(key){
   const bloqueId=document.getElementById('et-bloque-'+key).value;
   const materia=document.getElementById('et-materia-'+key).value;
   const desc=document.getElementById('et-desc-'+key).value.trim();
-  const grupos=GRUPOS.map(g=>g.id).filter(id=>document.getElementById(`et-g-${key}-${id}`)?.checked);
+  const grupos=GRUPOS.map(g=>g.id).filter(id=>document.getElementById('et-g-'+key+'-'+id)?.checked);
+  const docEl=document.getElementById('et-docente-'+key);
+  const docOpt=docEl?.options[docEl.selectedIndex];
+  const docenteId=(docOpt&&docOpt.value!=='')?docOpt.dataset.staffId||null:null;
+  const docenteIdx=(docOpt&&docOpt.value!=='')?docOpt.value:null;
   if(!titulo||!bloqueId||!materia){showToast('⚠️ Completa título, bloque y materia');return;}
-  await db.ref('aprende_talleres/'+key).update({titulo,bloqueId,materia,desc,grupos});
-  showToast('✅ Taller actualizado');
+  await db.ref('aprende_talleres/'+key).update({titulo,bloqueId,materia,desc,grupos,docenteId:docenteId||null});
+  // Actualizar arreglo de talleres del docente seleccionado
+  if(docenteIdx!==null){
+    const snapS=await db.ref('corposepi/staff/'+docenteIdx+'/talleres').once('value');
+    let tals=snapS.val();
+    let arr=[];
+    if(Array.isArray(tals)) arr=[...tals];
+    else if(tals&&typeof tals==='object') arr=Object.values(tals);
+    if(!arr.includes(key)) arr.push(key);
+    await db.ref('corposepi/staff/'+docenteIdx+'/talleres').set(arr);
+  }
+  showToast('✅ Taller actualizado'+(docenteId?' y asignado a '+docOpt.text.split('—')[0].trim():''));
   cargarTalleresAdmin();
 }
 
