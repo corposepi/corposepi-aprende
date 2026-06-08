@@ -2257,8 +2257,8 @@ async function renderHorarioEditor(){
     db.ref('aprende_acciones').once('value'),
     db.ref('corposepi/staff').once('value'),
   ]);
-  const talleres=[];snapT.forEach(c=>talleres.push({...c.val(),_key:c.key}));
-  const accionesHor=[];snapAcc.forEach(c=>accionesHor.push({...c.val(),_key:c.key}));
+  const talleres=[];snapT.forEach(c=>{const v=c.val();if(v)talleres.push({titulo:'',materia:'',bloqueId:'',...v,_key:c.key});});
+  const accionesHor=[];snapAcc.forEach(c=>{const v=c.val();if(v)accionesHor.push({name:'',icon:'🔗',...v,_key:c.key});});
   const staff=snapS.val()||[];
   const staffActivos=(Array.isArray(staff)?staff:Object.values(staff)).filter(s=>s&&s.nombres);
 
@@ -2290,8 +2290,8 @@ async function renderHorarioEditor(){
                     <div style="font-size:.62rem;font-weight:700;color:var(--muted);margin-bottom:.35rem;">${g.nombre} (${g.grados})</div>
                     <select id="hor-${dia}-s${sec.n}-${g.id}-tal" style="width:100%;background:var(--white);border:1px solid var(--cream3);border-radius:6px;padding:.35rem .6rem;font-size:.72rem;color:var(--dark);outline:none;margin-bottom:.3rem;">
                       <option value="">— Sin clase —</option>
-                      ${talleres.length?`<optgroup label="── Talleres / Proyectos">${talleres.map(t=>`<option value="${t._key}" ${sg.tallerKey===t._key?'selected':''}>${t.titulo} (${t.materia})</option>`).join('')}</optgroup>`:''}
-                      ${accionesHor.length?`<optgroup label="── Acciones Articuladoras">${accionesHor.map(a=>`<option value="${a._key}" ${sg.tallerKey===a._key?'selected':''}>${a.icon||'🔗'} ${a.name}</option>`).join('')}</optgroup>`:''}
+                      ${talleres.length?'<optgroup label="── Talleres / Proyectos">'+talleres.map(t=>'<option value="'+t._key+'" '+(sg.tallerKey===t._key?'selected':'')+'>'+(t.titulo||'(sin título)')+' — '+(t.materia||'sin materia')+'</option>').join('')+'</optgroup>':''}
+                      ${accionesHor.length?'<optgroup label="── Acciones Articuladoras">'+accionesHor.map(a=>'<option value="'+a._key+'" '+(sg.tallerKey===a._key?'selected':'')+'>'+a.icon+' '+a.name+'</option>').join('')+'</optgroup>':''}
                     </select>
                     <select id="hor-${dia}-s${sec.n}-${g.id}-doc" style="width:100%;background:var(--white);border:1px solid var(--cream3);border-radius:6px;padding:.35rem .6rem;font-size:.72rem;color:var(--dark);outline:none;">
                       <option value="">— Sin docente —</option>
