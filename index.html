@@ -1111,11 +1111,24 @@ async function buildClases(el){
   }
 
   const diasOrden=['lunes','martes','miercoles','jueves','viernes'];
+  // Calcular fecha real de cada día de la semana actual
+  const hoy=new Date();
+  const diaSemanaHoy=hoy.getDay()||7; // 1=lun..7=dom
+  const inicioSemana=new Date(hoy);
+  inicioSemana.setDate(hoy.getDate()-(diaSemanaHoy-1));
+  const diaIdxMap={lunes:0,martes:1,miercoles:2,jueves:3,viernes:4};
+  function fechaDia(diaKey){
+    const d=new Date(inicioSemana);
+    d.setDate(inicioSemana.getDate()+diaIdxMap[diaKey]);
+    return d.toLocaleDateString('en-CA'); // YYYY-MM-DD
+  }
+
   let html='';
   for(const dia of diasOrden){
     const config=HORARIO_BASE[dia];
     const diaData=horario[dia]||{};
     const esDiaHoy=dia===diaHoy;
+    const fechaReal=fechaDia(dia);
     let clasesDelDia=[];
     config.secciones.forEach(sec=>{
       const secData=diaData[`sec${sec.n}`]||{};
@@ -1124,8 +1137,8 @@ async function buildClases(el){
         if(item&&item.tallerKey&&filtrarItem(item.tallerKey,item.docenteId,g.id)){
           const taller=tMap[item.tallerKey];
           if(taller){
-            const liveData=(((livesMap[item.docenteId]||{})[dia]||{})['sec'+sec.n]||{})[g.id]||null;
-          clasesDelDia.push({sec,grupo:g,taller,docenteId:item.docenteId,estado:estadoSec(sec,esDiaHoy),liveData});
+            const liveData=(((livesMap[item.docenteId]||{})[fechaReal]||{})['sec'+sec.n]||{})[g.id]||null;
+            clasesDelDia.push({sec,grupo:g,taller,docenteId:item.docenteId,estado:estadoSec(sec,esDiaHoy),liveData});
           }
         }
       });
