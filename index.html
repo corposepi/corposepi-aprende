@@ -2947,10 +2947,7 @@ async function guardarPendienteRapido(estId,nombre,secKey,tallerKey,tallerTitulo
 // ══ EVALUACIÓN INDIVIDUAL D — desde planeación ══
 async function abrirEvalIndividual(fecha, secN, grupoId, tallerKey, tallerTitulo){
   const snap=await db.ref('corposepi/students').once('value');
-  const todos=(snap.val()||[]).filter(s=>s&&s.id);
-  console.log('DEBUG G1 — todos los estudiantes activos:');
-  todos.filter(s=>s.status==='active').forEach(s=>console.log(s.id, '| nivel:', s.nivel, '| grado:', s.grado, '| grupo detectado:', detectarGrupoEstudiante(s.nivel,s.grado)));
-  const students=todos.filter(s=>s&&s.id&&s.status==='active'&&detectarGrupoEstudiante(s.nivel, s.grado)===grupoId);
+  const students=(snap.val()||[]).filter(s=>s&&s.id&&s.status==='active'&&detectarGrupoEstudiante(s.nivel, s.grado)===grupoId);
   const snapPend=await db.ref('aprende_pendientes').once('value');
   const pendMap={}; // estId -> tiene pendiente activo
   snapPend.forEach(estSnap=>{
