@@ -492,7 +492,7 @@ const BLOQUES=[
 ];
 
 const GRUPOS=[
-  {id:'G1',nombre:'Grupo 1',grados:'6°, 7° y 8°'},
+  {id:'G1',nombre:'Sexto, Séptimo y Octavo',grados:'6°, 7° y 8°'},
   {id:'G2',nombre:'Grupo 2',grados:'Grado 10°'},
   {id:'G3',nombre:'Grupo 3',grados:'Grado 11°'},
   {id:'G4',nombre:'Grupo 4',grados:'Primaria'},
@@ -1825,16 +1825,16 @@ async function eliminarTaller(key){
 }
 
 // ══ GRUPOS — detectar a qué grupo pertenece un estudiante ══
-function detectarGrupoEstudiante(nivel){
-  const n=String(nivel||'').toLowerCase()
-    .replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i')
-    .replace(/[óòö]/g,'o').replace(/[úùü]/g,'u').replace(/[ñ]/g,'n')
-    .replace(/[°º]/g,'').trim();
-  if(/\b(6|7|8|sexto|septimo|octavo)\b/.test(n)) return 'G1';
-  if(/\b(10|decimo)\b/.test(n)) return 'G2';
-  if(/\b(11|once)\b/.test(n)) return 'G3';
+function norm(s){ return String(s||'').toLowerCase().replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i').replace(/[óòö]/g,'o').replace(/[úùü]/g,'u').replace(/[ñ]/g,'n').replace(/[°º]/g,'').trim(); }
+
+function detectarGrupoEstudiante(nivel, grado){
+  const n=norm(nivel)+' '+norm(grado);
+  // Primaria siempre primero para evitar falsos positivos con números
   if(/\b(transicion|jardin|preescolar|kinder|primero|segundo|tercero|cuarto|quinto)\b/.test(n)) return 'G4';
-  if(/^[1-5]$/.test(n)) return 'G4';
+  if(/\b[1-5]\b/.test(n)&&!/\b(6|7|8|9|10|11)\b/.test(n)) return 'G4';
+  if(/\b(6|7|8|sexto|septimo|octavo)\b/.test(n)) return 'G1';
+  if(/\b(10|decimo|dec)\b/.test(n)) return 'G2';
+  if(/\b(11|once|undecimo|undec)\b/.test(n)) return 'G3';
   return null;
 }
 
@@ -1846,7 +1846,7 @@ async function verEstudiantesTaller(bloqueId, grupoId, tallerTitulo){
 
   // Filtrar por grupo
   const filtrados=grupoId
-    ? students.filter(s=>detectarGrupoEstudiante(s.nivel||s.grado||'')===grupoId)
+    ? students.filter(s=>detectarGrupoEstudiante(s.nivel, s.grado)===grupoId)
     : students;
 
   // Mostrar en modal
@@ -2366,7 +2366,7 @@ async function cargarAsistenciaFecha(){
     html+='<div style="padding:1rem;">';
 
     misGrupos.forEach(function(mg){
-      const grupoStudents=students.filter(function(s){return detectarGrupoEstudiante(s.nivel||s.grado||'')===mg.grupo.id&&s.status==='active';});
+      const grupoStudents=students.filter(function(s){return detectarGrupoEstudiante(s.nivel, s.grado)===mg.grupo.id&&s.status==='active';});
       if(!grupoStudents.length){
         html+='<div style="color:var(--hint);font-size:.78rem;padding:.5rem;">'+mg.grupo.nombre+': sin estudiantes activos.</div>';
         return;
@@ -2445,7 +2445,7 @@ async function cargarMiClaseFecha(){
   const configDia=HORARIO_BASE[diaKey];
   if(!configDia){el.innerHTML='<div style="color:var(--muted);text-align:center;padding:2rem;">Sin clases este día.</div>';return;}
 
-  const miGrupo=detectarGrupoEstudiante(currentUser.nivel||currentUser.grado||'');
+  const miGrupo=detectarGrupoEstudiante(currentUser.nivel, currentUser.grado);
 
   const [snapHor,snapTal,snapSems]=await Promise.all([
     db.ref('aprende_horario').once('value'),
@@ -2535,7 +2535,7 @@ async function enviarEntrega(fecha, secKey, docenteId, tallerKey){
     docenteId, tallerKey,
     estudianteId:currentUser.id,
     estudianteNombre:currentUser.nombres+' '+(currentUser.apellidos||''),
-    grupoId:detectarGrupoEstudiante(currentUser.nivel||currentUser.grado||''),
+    grupoId:detectarGrupoEstudiante(currentUser.nivel, currentUser.grado),
     timestamp:new Date().toISOString()
   });
   showToast('✅ Entrega enviada correctamente');
@@ -2595,7 +2595,7 @@ async function cargarEntregasDocente(){
     // Calcular no entregados por grupo
     const noEntregados=[];
     misGruposSec.forEach(function(mg){
-      students.filter(function(s){return detectarGrupoEstudiante(s.nivel||s.grado||'')===mg.grupo.id&&s.status==='active';})
+      students.filter(function(s){return detectarGrupoEstudiante(s.nivel, s.grado)===mg.grupo.id&&s.status==='active';})
         .forEach(function(s){if(!entregadosIds.has(s.id)) noEntregados.push({est:s,tallerKey:mg.tallerKey,taller:tMap[mg.tallerKey]});});
     });
 
@@ -2745,7 +2745,7 @@ async function enviarEntregaPendiente(pendKey, docenteId, tallerKey){
     docenteId, tallerKey,
     estudianteId:currentUser.id,
     estudianteNombre:currentUser.nombres+' '+(currentUser.apellidos||''),
-    grupoId:detectarGrupoEstudiante(currentUser.nivel||currentUser.grado||''),
+    grupoId:detectarGrupoEstudiante(currentUser.nivel, currentUser.grado),
     pendienteKey:pendKey,
     timestamp:new Date().toISOString()
   });
@@ -2947,7 +2947,10 @@ async function guardarPendienteRapido(estId,nombre,secKey,tallerKey,tallerTitulo
 // ══ EVALUACIÓN INDIVIDUAL D — desde planeación ══
 async function abrirEvalIndividual(fecha, secN, grupoId, tallerKey, tallerTitulo){
   const snap=await db.ref('corposepi/students').once('value');
-  const students=(snap.val()||[]).filter(s=>s&&s.id&&s.status==='active'&&detectarGrupoEstudiante(s.nivel||s.grado||'')===grupoId);
+  const todos=(snap.val()||[]).filter(s=>s&&s.id);
+  console.log('DEBUG G1 — todos los estudiantes activos:');
+  todos.filter(s=>s.status==='active').forEach(s=>console.log(s.id, '| nivel:', s.nivel, '| grado:', s.grado, '| grupo detectado:', detectarGrupoEstudiante(s.nivel,s.grado)));
+  const students=todos.filter(s=>s&&s.id&&s.status==='active'&&detectarGrupoEstudiante(s.nivel, s.grado)===grupoId);
   const snapPend=await db.ref('aprende_pendientes').once('value');
   const pendMap={}; // estId -> tiene pendiente activo
   snapPend.forEach(estSnap=>{
@@ -2986,7 +2989,7 @@ async function abrirEvalIndividual(fecha, secN, grupoId, tallerKey, tallerTitulo
 
 async function guardarEvalIndividual(fecha, secKey, grupoId, tallerKey, tallerTitulo){
   const snap=await db.ref('corposepi/students').once('value');
-  const students=(snap.val()||[]).filter(s=>s&&s.id&&s.status==='active'&&detectarGrupoEstudiante(s.nivel||s.grado||'')===grupoId);
+  const students=(snap.val()||[]).filter(s=>s&&s.id&&s.status==='active'&&detectarGrupoEstudiante(s.nivel, s.grado)===grupoId);
   let creados=0;
   for(const s of students){
     const nota=document.getElementById('evind-'+fecha+'-'+secKey+'-'+grupoId+'-'+s.id)?.value.trim();
