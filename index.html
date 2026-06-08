@@ -1519,7 +1519,7 @@ async function buildInicioDocente(el){
       const gruposNombres=grupos.map(gid=>GRUPOS.find(g=>g.id===gid)?.nombre||gid).join(', ')||'Todos los grupos';
       return`<div style="background:var(--white);border-radius:var(--radius-sm);border:1px solid var(--cream3);padding:.85rem 1.1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
         <div>
-          <div style="font-weight:600;font-size:.9rem;">${a.icon||'🔗'} ${a.name}${a.gold?' <span style="background:var(--gold);color:#fff;font-size:.55rem;padding:1px 6px;border-radius:99px;margin-left:.3rem;">DESTACADA</span>':''}</div>
+          <div style="font-weight:600;font-size:.9rem;">${a.icon||'🔗'} ${a.titulo&&a.titulo!==a.name?a.titulo+' <span style="font-weight:400;font-size:.78rem;color:var(--muted);">— '+a.name+'</span>':a.name}${a.gold?' <span style="background:var(--gold);color:#fff;font-size:.55rem;padding:1px 6px;border-radius:99px;margin-left:.3rem;">DESTACADA</span>':''}</div>
           <div style="font-size:.7rem;color:var(--muted);">${gruposNombres}</div>
           ${a.desc?`<div style="font-size:.65rem;color:var(--hint);margin-top:.1rem;">${a.desc}</div>`:''}
         </div>
@@ -1677,12 +1677,16 @@ async function buildAdmin(el){
       <div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);padding:1.25rem;margin-bottom:1rem;">
         <div class="dc-title">➕ Crear acción articuladora</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
-          <div style="grid-column:1/-1;">
+          <div>
             <label class="form-label">Acción articuladora</label>
             <select class="form-select" id="acc-name" onchange="autoIconAccion()">
               <option value="">— Seleccionar acción —</option>
               ${ACCIONES.map(a=>`<option value="${a.name}" data-icon="${a.icon}" data-gold="${a.gold?'1':'0'}">${a.icon} ${a.name}</option>`).join('')}
             </select>
+          </div>
+          <div>
+            <label class="form-label">Identificador (para horario)</label>
+            <input class="form-input" id="acc-titulo" placeholder="Ej: LEO Décimo, Aula Creativa 6°-8°"/>
           </div>
           <div style="grid-column:1/-1;">
             <label class="form-label">Grupos</label>
@@ -2026,6 +2030,7 @@ async function crearAccionArt(){
   const selOpt=selAcc?.options[selAcc.selectedIndex];
   const name=selAcc?.value?.trim()||'';
   const icon=(selOpt?.dataset?.icon)||'🔗';
+  const titulo=document.getElementById('acc-titulo').value.trim();
   const desc=document.getElementById('acc-desc').value.trim();
   const gold=document.getElementById('acc-gold').checked;
   const grupos=GRUPOS.map(g=>g.id).filter(id=>document.getElementById('acc-g-'+id)?.checked);
@@ -2036,10 +2041,10 @@ async function crearAccionArt(){
   const docenteNombre=docOpt&&docOpt.value!==''?docOpt.text.split('—')[0].trim():null;
   if(!name){showToast('⚠️ Escribe el nombre de la acción');return;}
   const key='acc-'+Date.now();
-  await db.ref('aprende_acciones/'+key).set({key,icon,name,desc,gold,grupos,docenteId:docenteId||null,creadoEn:new Date().toISOString().slice(0,10)});
+  await db.ref('aprende_acciones/'+key).set({key,icon,name,titulo:titulo||name,desc,gold,grupos,docenteId:docenteId||null,creadoEn:new Date().toISOString().slice(0,10)});
   showToast('✅ Acción creada'+(docenteNombre?' y asignada a '+docenteNombre:''));
   // Limpiar form
-  document.getElementById('acc-icon').value='';
+  document.getElementById('acc-titulo').value='';
   document.getElementById('acc-name').value='';
   document.getElementById('acc-desc').value='';
   document.getElementById('acc-gold').checked=false;
@@ -2077,7 +2082,7 @@ async function cargarAccionesAdmin(){
     // Vista normal
     html+='<div id="aview-'+a._key+'" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;">';
     html+='<div>';
-    html+='<div style="font-weight:600;font-size:.88rem;">'+(a.icon||'🔗')+' '+a.name+(a.gold?' ⭐':'')+'</div>';
+    html+='<div style="font-weight:600;font-size:.88rem;">'+(a.icon||'🔗')+' '+(a.titulo&&a.titulo!==a.name?a.titulo+' <span style="font-weight:400;color:var(--muted);">— '+a.name+'</span>':a.name)+(a.gold?' ⭐':'')+'</div>';
     html+='<div style="font-size:.68rem;color:var(--muted);">'+gruposNombres+'</div>';
     html+='<div style="font-size:.68rem;color:'+(a.docenteId?'var(--sage)':'var(--hint)')+';margin-top:.1rem;">👤 '+docLabel+'</div>';
     if(a.desc) html+='<div style="font-size:.68rem;color:var(--hint);margin-top:.1rem;">'+a.desc+'</div>';
@@ -2093,7 +2098,8 @@ async function cargarAccionesAdmin(){
       return '<option value="'+ac.name+'" data-icon="'+ac.icon+'" data-gold="'+(ac.gold?'1':'0')+'"'+sel+'>'+ac.icon+' '+ac.name+'</option>';
     }).join('');
     html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem;">';
-    html+='<div style="grid-column:1/-1;"><label class="form-label">Acción articuladora</label><select class="form-select" id="aen-'+a._key+'"><option value="">— Seleccionar —</option>'+accionOptsEdit+'</select></div>';
+    html+='<div><label class="form-label">Acción articuladora</label><select class="form-select" id="aen-'+a._key+'"><option value="">— Seleccionar —</option>'+accionOptsEdit+'</select></div>';
+    html+='<div><label class="form-label">Identificador (para horario)</label><input class="form-input" id="aet-'+a._key+'" value="'+(a.titulo||'').replace(/"/g,'&quot;')+'" placeholder="Ej: LEO Décimo, Aula Creativa 6°-8°"/></div>';
     html+='<div style="grid-column:1/-1;"><label class="form-label">Descripción</label><input class="form-input" id="aed-'+a._key+'" value="'+(a.desc||'').replace(/"/g,'&quot;')+'"/></div>';
     html+='<div style="grid-column:1/-1;"><label class="form-label">Grupos</label><div style="display:flex;gap:.4rem;flex-wrap:wrap;">';
     GRUPOS.forEach(function(g){html+='<label style="display:flex;align-items:center;gap:.25rem;font-size:.75rem;cursor:pointer;background:var(--cream);border:1px solid var(--cream3);border-radius:7px;padding:.3rem .6rem;"><input type="checkbox" id="aeg-'+a._key+'-'+g.id+'" value="'+g.id+'"'+(grupos.includes(g.id)?' checked':'')+' style="accent-color:var(--corp);"> '+g.nombre+'</label>';});
@@ -2119,6 +2125,7 @@ async function guardarEdicionAccion(key){
   const selOpt=selAcc?.options[selAcc.selectedIndex];
   const name=selAcc?.value?.trim()||'';
   const icon=selOpt?.dataset?.icon||'🔗';
+  const titulo=document.getElementById('aet-'+key).value.trim();
   const desc=document.getElementById('aed-'+key).value.trim();
   const gold=document.getElementById('aeg2-'+key).checked;
   const grupos=GRUPOS.map(g=>g.id).filter(id=>document.getElementById('aeg-'+key+'-'+id)?.checked);
@@ -2126,7 +2133,7 @@ async function guardarEdicionAccion(key){
   const docOpt=docEl?.options[docEl.selectedIndex];
   const docenteId=(docOpt&&docOpt.value!=='')?docOpt.dataset.staffId||null:null;
   if(!name){showToast('⚠️ Escribe el nombre');return;}
-  await db.ref('aprende_acciones/'+key).update({icon,name,desc,gold,grupos,docenteId:docenteId||null});
+  await db.ref('aprende_acciones/'+key).update({icon,name,titulo:titulo||name,desc,gold,grupos,docenteId:docenteId||null});
   showToast('✅ Acción actualizada');
   cargarAccionesAdmin();
 }
@@ -2291,7 +2298,7 @@ async function renderHorarioEditor(){
                     <select id="hor-${dia}-s${sec.n}-${g.id}-tal" style="width:100%;background:var(--white);border:1px solid var(--cream3);border-radius:6px;padding:.35rem .6rem;font-size:.72rem;color:var(--dark);outline:none;margin-bottom:.3rem;">
                       <option value="">— Sin clase —</option>
                       ${talleres.length?'<optgroup label="── Talleres / Proyectos">'+talleres.map(t=>'<option value="'+t._key+'" '+(sg.tallerKey===t._key?'selected':'')+'>'+(t.titulo||'(sin título)')+' — '+(t.materia||'sin materia')+'</option>').join('')+'</optgroup>':''}
-                      ${accionesHor.length?'<optgroup label="── Acciones Articuladoras">'+accionesHor.map(a=>'<option value="'+a._key+'" '+(sg.tallerKey===a._key?'selected':'')+'>'+a.icon+' '+a.name+'</option>').join('')+'</optgroup>':''}
+                      ${accionesHor.length?'<optgroup label="── Acciones Articuladoras">'+accionesHor.map(a=>'<option value="'+a._key+'" '+(sg.tallerKey===a._key?'selected':'')+'>'+a.icon+' '+(a.titulo&&a.titulo!==a.name?a.titulo+' ('+a.name+')':a.name)+'</option>').join('')+'</optgroup>':''}
                     </select>
                     <select id="hor-${dia}-s${sec.n}-${g.id}-doc" style="width:100%;background:var(--white);border:1px solid var(--cream3);border-radius:6px;padding:.35rem .6rem;font-size:.72rem;color:var(--dark);outline:none;">
                       <option value="">— Sin docente —</option>
