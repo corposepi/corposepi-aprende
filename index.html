@@ -1418,10 +1418,11 @@ async function buildInicioDocente(el){
   const primerNombre=nombre.split(' ')[0];
 
   // Leer asignaciones actualizadas de Firebase
-  const [snapStaff, snapTodos, snapHorario]=await Promise.all([
+  const [snapStaff, snapTodos, snapHorario, snapAccionesDin]=await Promise.all([
     db.ref('corposepi/staff/'+currentUser.idx).once('value'),
     db.ref('aprende_talleres').once('value'),
     db.ref('aprende_horario').once('value'),
+    db.ref('aprende_acciones').once('value'),
   ]);
   const staffData=snapStaff.val()||{};
   const bloquesAsig=staffData.bloques||currentUser.bloques||[];
@@ -1468,7 +1469,14 @@ async function buildInicioDocente(el){
   const talleresAsig=todosTalleres.filter(t=>talleresSet.has(t._key));
 
   const bloquesRender=BLOQUES.filter(b=>bloquesAsig.includes(b.id));
-  const accionesRender=ACCIONES.filter(a=>accionesAsig.includes(a.id));
+  // Acciones: combinar las hardcodeadas (asignadas por ID) + las dinámicas de Firebase (por docenteId)
+  const accionesStaticas=ACCIONES.filter(a=>accionesAsig.includes(a.id));
+  const accionesDinamicas=[];
+  snapAccionesDin.forEach(c=>{
+    const v=c.val();
+    if(v.docenteId&&String(v.docenteId).trim().toLowerCase()===myId) accionesDinamicas.push({...v,_key:c.key});
+  });
+  const accionesRender=[...accionesStaticas,...accionesDinamicas];
 
   el.innerHTML=`
   <div class="home-hero">
@@ -1601,6 +1609,7 @@ async function buildAdmin(el){
   <div style="display:flex;gap:.4rem;margin-bottom:1.25rem;border-bottom:2px solid var(--cream3);padding-bottom:0;">
     <button onclick="adminTab('dash',this)" id="atab-dash" class="admin-tab active-tab">📊 Dashboard</button>
     <button onclick="adminTab('talleres',this)" id="atab-talleres" class="admin-tab">📚 Talleres</button>
+    <button onclick="adminTab('acciones',this)" id="atab-acciones" class="admin-tab">🔗 Acciones</button>
     <button onclick="adminTab('docentes',this)" id="atab-docentes" class="admin-tab">👩‍🏫 Docentes</button>
     <button onclick="adminTab('horario',this)" id="atab-horario" class="admin-tab">📅 Horario</button>
     <button onclick="adminTab('semanas',this)" id="atab-semanas" class="admin-tab">📅 Semanas</button>
@@ -1649,6 +1658,43 @@ async function buildAdmin(el){
         <button class="btn-primary" style="margin-top:.75rem" onclick="crearTaller()">✅ Crear taller</button>
       </div>
       <div id="talleres-list"></div>
+    </div>
+  </div>
+  <!-- Panel Acciones Articuladoras -->
+  <div id="apanel-acciones" style="display:none">
+    <div>
+      <div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);padding:1.25rem;margin-bottom:1rem;">
+        <div class="dc-title">➕ Crear acción articuladora</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
+          <div>
+            <label class="form-label">Ícono (emoji)</label>
+            <input class="form-input" id="acc-icon" placeholder="📚" maxlength="4"/>
+          </div>
+          <div>
+            <label class="form-label">Nombre de la acción</label>
+            <input class="form-input" id="acc-name" placeholder="Ej: LEO, Aula Creativa…"/>
+          </div>
+          <div style="grid-column:1/-1;">
+            <label class="form-label">Grupos</label>
+            <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.3rem;">
+              ${GRUPOS.map(g=>`<label style="display:flex;align-items:center;gap:.25rem;font-size:.75rem;cursor:pointer;"><input type="checkbox" id="acc-g-${g.id}" value="${g.id}" style="accent-color:var(--corp);"> ${g.nombre}</label>`).join('')}
+            </div>
+          </div>
+          <div style="grid-column:1/-1;">
+            <label class="form-label">Descripción (opcional)</label>
+            <input class="form-input" id="acc-desc" placeholder="Descripción breve"/>
+          </div>
+          <div style="grid-column:1/-1;">
+            <label class="form-label">Asignar a docente (opcional)</label>
+            <select class="form-select" id="acc-docente"><option value="">— Sin asignar —</option></select>
+          </div>
+          <div style="grid-column:1/-1;">
+            <label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;cursor:pointer;"><input type="checkbox" id="acc-gold" style="accent-color:var(--gold);"> Destacada (oro) — para acciones premium como Int. Financiera</label>
+          </div>
+        </div>
+        <button class="btn-primary" style="margin-top:.75rem" onclick="crearAccionArt()">✅ Crear acción</button>
+      </div>
+      <div id="acciones-list"></div>
     </div>
   </div>
   <!-- Panel Docentes -->
@@ -1729,9 +1775,10 @@ async function buildAdmin(el){
 function adminTab(id,btn){
   document.querySelectorAll('.admin-tab').forEach(b=>b.classList.remove('active-tab'));
   btn.classList.add('active-tab');
-  ['dash','talleres','docentes','horario','semanas','modulos'].forEach(p=>document.getElementById('apanel-'+p).style.display='none');
+  ['dash','talleres','acciones','docentes','horario','semanas','modulos'].forEach(p=>document.getElementById('apanel-'+p).style.display='none');
   document.getElementById('apanel-'+id).style.display='block';
   if(id==='talleres') cargarTalleresAdmin();
+  if(id==='acciones') cargarAccionesAdmin();
   if(id==='docentes') cargarStaffAdmin();
   if(id==='horario') renderHorarioEditor();
   if(id==='semanas') cargarSemanasAdmin();
@@ -1937,6 +1984,133 @@ async function eliminarTaller(key){
   await db.ref('aprende_talleres/'+key).remove();
   showToast('🗑️ Taller eliminado');
   cargarTalleresAdmin();
+}
+
+// ══ ADMIN: ACCIONES ARTICULADORAS ══
+async function _cargarStaffSelectAcciones(selId){
+  const sel=document.getElementById(selId); if(!sel)return;
+  if(sel.options.length>1)return; // ya poblado
+  if(!_adminStaff.length){
+    const snapSt=await db.ref('corposepi/staff').once('value');
+    _adminStaff=(snapSt.val()||[]).map((s,i)=>s?{...s,_idx:i}:null).filter(Boolean);
+  }
+  _adminStaff.forEach(s=>{
+    const opt=document.createElement('option');
+    opt.value=s._idx;
+    opt.dataset.staffId=s.id||s.numdoc||'';
+    opt.textContent=(s.nombres||'')+' '+(s.apellidos||'')+' — '+(s.cargo||'Docente');
+    sel.appendChild(opt);
+  });
+}
+
+async function crearAccionArt(){
+  const icon=(document.getElementById('acc-icon').value.trim()||'🔗');
+  const name=document.getElementById('acc-name').value.trim();
+  const desc=document.getElementById('acc-desc').value.trim();
+  const gold=document.getElementById('acc-gold').checked;
+  const grupos=GRUPOS.map(g=>g.id).filter(id=>document.getElementById('acc-g-'+id)?.checked);
+  const docEl=document.getElementById('acc-docente');
+  const docOpt=docEl?.options[docEl.selectedIndex];
+  const docenteId=(docOpt&&docOpt.value!=='')?docOpt.dataset.staffId||null:null;
+  const docenteIdx=(docOpt&&docOpt.value!=='')?docOpt.value:null;
+  const docenteNombre=docOpt&&docOpt.value!==''?docOpt.text.split('—')[0].trim():null;
+  if(!name){showToast('⚠️ Escribe el nombre de la acción');return;}
+  const key='acc-'+Date.now();
+  await db.ref('aprende_acciones/'+key).set({key,icon,name,desc,gold,grupos,docenteId:docenteId||null,creadoEn:new Date().toISOString().slice(0,10)});
+  showToast('✅ Acción creada'+(docenteNombre?' y asignada a '+docenteNombre:''));
+  // Limpiar form
+  document.getElementById('acc-icon').value='';
+  document.getElementById('acc-name').value='';
+  document.getElementById('acc-desc').value='';
+  document.getElementById('acc-gold').checked=false;
+  GRUPOS.forEach(g=>{const c=document.getElementById('acc-g-'+g.id);if(c)c.checked=false;});
+  if(docEl) docEl.value='';
+  cargarAccionesAdmin();
+}
+
+async function cargarAccionesAdmin(){
+  const el=document.getElementById('acciones-list'); if(!el)return;
+  await _cargarStaffSelectAcciones('acc-docente');
+  const snap=await db.ref('aprende_acciones').once('value');
+  const acciones=[];
+  snap.forEach(c=>{
+    const v=c.val();
+    if(v.grupos&&!Array.isArray(v.grupos)) v.grupos=Object.values(v.grupos);
+    acciones.push({...v,_key:c.key});
+  });
+  if(!acciones.length){
+    el.innerHTML='<div style="color:var(--hint);font-size:.82rem;padding:1rem;">Sin acciones creadas aún.</div>';
+    return;
+  }
+  let html='<div style="display:flex;flex-direction:column;gap:.5rem;">';
+  acciones.forEach(function(a){
+    const grupos=Array.isArray(a.grupos)?a.grupos:[];
+    const gruposNombres=grupos.map(function(gid){var g=GRUPOS.find(function(x){return x.id===gid;});return g?g.nombre:gid;}).join(', ')||'Todos';
+    const docAsig=a.docenteId?(_adminStaff.find(s=>(s.id||s.numdoc||'').toLowerCase()===String(a.docenteId).toLowerCase())):null;
+    const docLabel=docAsig?((docAsig.nombres||'')+' '+(docAsig.apellidos||'').split(' ')[0]):'Sin asignar';
+    const staffOptsEdit='<option value="">— Sin asignar —</option>'+_adminStaff.map(function(s){
+      const sid=s.id||s.numdoc||'';
+      const sel=(a.docenteId&&sid.toLowerCase()===String(a.docenteId).toLowerCase())?' selected':'';
+      return '<option value="'+s._idx+'" data-staff-id="'+sid+'"'+sel+'>'+(s.nombres||'')+' '+(s.apellidos||'')+' — '+(s.cargo||'Docente')+'</option>';
+    }).join('');
+    html+='<div style="background:var(--white);border-radius:var(--radius-sm);border:1px solid var(--cream3);padding:.75rem 1rem;">';
+    // Vista normal
+    html+='<div id="aview-'+a._key+'" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;">';
+    html+='<div>';
+    html+='<div style="font-weight:600;font-size:.88rem;">'+(a.icon||'🔗')+' '+a.name+(a.gold?' ⭐':'')+'</div>';
+    html+='<div style="font-size:.68rem;color:var(--muted);">'+gruposNombres+'</div>';
+    html+='<div style="font-size:.68rem;color:'+(a.docenteId?'var(--sage)':'var(--hint)')+';margin-top:.1rem;">👤 '+docLabel+'</div>';
+    if(a.desc) html+='<div style="font-size:.68rem;color:var(--hint);margin-top:.1rem;">'+a.desc+'</div>';
+    html+='</div>';
+    html+='<div style="display:flex;gap:.35rem;">';
+    html+='<button onclick="editarAccion(\''+a._key+'\')" style="background:rgba(74,103,65,.1);border:1px solid rgba(74,103,65,.2);border-radius:7px;padding:3px 9px;font-size:.65rem;color:var(--sage);cursor:pointer;">✏️ Editar</button>';
+    html+='<button onclick="eliminarAccion(\''+a._key+'\')" style="background:rgba(184,65,10,.1);border:1px solid rgba(184,65,10,.2);border-radius:7px;padding:3px 9px;font-size:.65rem;color:var(--corp);cursor:pointer;">🗑️</button>';
+    html+='</div></div>';
+    // Formulario edición
+    html+='<div id="aedit-'+a._key+'" style="display:none;margin-top:.75rem;">';
+    html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem;">';
+    html+='<div><label class="form-label">Ícono</label><input class="form-input" id="aei-'+a._key+'" value="'+(a.icon||'🔗')+'" maxlength="4"/></div>';
+    html+='<div><label class="form-label">Nombre</label><input class="form-input" id="aen-'+a._key+'" value="'+a.name.replace(/"/g,'&quot;')+'"/></div>';
+    html+='<div style="grid-column:1/-1;"><label class="form-label">Descripción</label><input class="form-input" id="aed-'+a._key+'" value="'+(a.desc||'').replace(/"/g,'&quot;')+'"/></div>';
+    html+='<div style="grid-column:1/-1;"><label class="form-label">Grupos</label><div style="display:flex;gap:.4rem;flex-wrap:wrap;">';
+    GRUPOS.forEach(function(g){html+='<label style="display:flex;align-items:center;gap:.25rem;font-size:.75rem;cursor:pointer;background:var(--cream);border:1px solid var(--cream3);border-radius:7px;padding:.3rem .6rem;"><input type="checkbox" id="aeg-'+a._key+'-'+g.id+'" value="'+g.id+'"'+(grupos.includes(g.id)?' checked':'')+' style="accent-color:var(--corp);"> '+g.nombre+'</label>';});
+    html+='</div></div>';
+    html+='<div style="grid-column:1/-1;"><label class="form-label">Docente asignado</label><select class="form-select" id="aedoc-'+a._key+'">'+staffOptsEdit+'</select></div>';
+    html+='<div style="grid-column:1/-1;"><label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;cursor:pointer;"><input type="checkbox" id="aeg2-'+a._key+'"'+(a.gold?' checked':'')+' style="accent-color:var(--gold);"> Destacada (oro)</label></div>';
+    html+='</div>';
+    html+='<div style="display:flex;gap:.4rem;">';
+    html+='<button class="btn-primary" style="font-size:.75rem;padding:.45rem 1rem;" onclick="guardarEdicionAccion(\''+a._key+'\')">💾 Guardar</button>';
+    html+='<button class="btn-outline" style="font-size:.75rem;padding:.45rem 1rem;" onclick="cancelarEdicionAccion(\''+a._key+'\')">Cancelar</button>';
+    html+='</div></div>';
+    html+='</div>';
+  });
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+function editarAccion(key){document.getElementById('aview-'+key).style.display='none';document.getElementById('aedit-'+key).style.display='block';}
+function cancelarEdicionAccion(key){document.getElementById('aview-'+key).style.display='flex';document.getElementById('aedit-'+key).style.display='none';}
+
+async function guardarEdicionAccion(key){
+  const icon=document.getElementById('aei-'+key).value.trim()||'🔗';
+  const name=document.getElementById('aen-'+key).value.trim();
+  const desc=document.getElementById('aed-'+key).value.trim();
+  const gold=document.getElementById('aeg2-'+key).checked;
+  const grupos=GRUPOS.map(g=>g.id).filter(id=>document.getElementById('aeg-'+key+'-'+id)?.checked);
+  const docEl=document.getElementById('aedoc-'+key);
+  const docOpt=docEl?.options[docEl.selectedIndex];
+  const docenteId=(docOpt&&docOpt.value!=='')?docOpt.dataset.staffId||null:null;
+  if(!name){showToast('⚠️ Escribe el nombre');return;}
+  await db.ref('aprende_acciones/'+key).update({icon,name,desc,gold,grupos,docenteId:docenteId||null});
+  showToast('✅ Acción actualizada');
+  cargarAccionesAdmin();
+}
+
+async function eliminarAccion(key){
+  if(!confirm('¿Eliminar esta acción articuladora?'))return;
+  await db.ref('aprende_acciones/'+key).remove();
+  showToast('🗑️ Acción eliminada');
+  cargarAccionesAdmin();
 }
 
 // ══ GRUPOS — detectar a qué grupo pertenece un estudiante ══
