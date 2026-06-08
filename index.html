@@ -1172,13 +1172,13 @@ async function buildClases(el){
                 ${(()=>{
                   const ld=c.liveData;
                   if(!ld||!ld.activa||!ld.meetUrl)return'';
-                  // Verificar audiencia
                   if(currentRole==='estudiante'){
                     const aud=ld.audiencia;
                     if(Array.isArray(aud)&&!aud.includes(currentUser.id))return'';
                   }
-                  return`<button class="lc-btn-live" onclick="window.open('${ld.meetUrl}','_blank')">🔴 Unirse</button>`;
+                  return`<button class="lc-btn-live" onclick="window.open('${ld.meetUrl}','_blank')">🔴 Unirse ahora</button>`;
                 })()}
+                ${currentRole==='docente'&&c.liveData&&c.liveData.activa?`<span style="background:#E53935;color:#fff;font-size:.6rem;padding:2px 8px;border-radius:99px;font-weight:700;animation:pulse 1.5s ease-in-out infinite;">EN VIVO</span>`:''}
                 ${currentRole==='docente'||currentRole==='admin'?`<button class="lc-btn-next" style="font-size:.65rem;" onclick="verEstudiantesTaller('${c.taller.bloqueId||''}','${c.grupo.id}','${c.taller.titulo}')">👥 Ver alumnos</button>`:''}
               </div>
             </div>
@@ -1523,12 +1523,22 @@ async function buildInicioDocente(el){
     ⏳ Sin talleres asignados aún. El administrador debe asignarlos.
   </div>`}
 
-  <div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);padding:1.25rem;">
+  <div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);padding:1.25rem;margin-bottom:1rem;">
     <div class="dc-title">Acceso rápido</div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem;">
       <button class="btn-secondary" onclick="switchSection('estudiantes',document.getElementById('nav-estudiantes'))">👥 Mis estudiantes</button>
       <button class="btn-outline" onclick="switchSection('proyectos',document.getElementById('nav-proyectos'))">📋 Proyectos</button>
       <button class="btn-outline" onclick="switchSection('clases',document.getElementById('nav-clases'))">📹 Clases en vivo</button>
+    </div>
+  </div>
+
+  <div style="background:linear-gradient(135deg,rgba(0,137,123,.07),rgba(0,191,165,.04));border:1px solid rgba(0,137,123,.2);border-radius:var(--radius);padding:1.25rem;">
+    <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#00695C;margin-bottom:.5rem;">📹 Mi sala Google Meet</div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:.65rem;">Configura tu link de Meet una sola vez. Se usará automáticamente al iniciar clases en vivo.</div>
+    <div style="display:flex;gap:.5rem;align-items:center;">
+      <input id="docente-meet-url" type="url" placeholder="https://meet.google.com/xxx-yyyy-zzz" value="${staffData.meetUrl||''}" style="flex:1;background:var(--white);border:1px solid rgba(0,137,123,.25);border-radius:8px;padding:.5rem .85rem;font-size:.8rem;outline:none;font-family:'DM Mono',monospace;">
+      <button onclick="guardarMeetUrl()" style="background:linear-gradient(135deg,#00897B,#00BFA5);border:none;border-radius:8px;padding:.5rem 1rem;color:#fff;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap;">💾 Guardar</button>
+      ${staffData.meetUrl?`<button onclick="window.open('${staffData.meetUrl}','_blank')" style="background:rgba(0,137,123,.1);border:1px solid rgba(0,137,123,.2);border-radius:8px;padding:.5rem .9rem;color:#00695C;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap;">🔗 Abrir sala</button>`:''}
     </div>
   </div>`;
 
@@ -2321,18 +2331,15 @@ async function renderDiasPlan(semana, dias, horario, tMap){
           html+='<button onclick="toggleLivePanel(\''+liveId+'\',\''+gid+'\')" style="background:rgba(0,137,123,.08);border:1px solid rgba(0,137,123,.2);border-radius:8px;padding:.4rem .9rem;font-size:.7rem;color:#00695C;cursor:pointer;font-weight:600;">📹 Clase en vivo — '+mc.grupo.nombre+'</button>';
           html+='<div id="'+idPanel+'" style="display:none;"></div>';
           html+='<div id="'+liveId+'" style="display:none;margin-top:.65rem;background:rgba(0,137,123,.04);border:1px solid rgba(0,137,123,.15);border-radius:var(--radius-sm);padding:.85rem;">';
-          html+='<div style="font-size:.65rem;font-weight:700;color:#00695C;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.6rem;">📹 Clase en vivo — '+mc.grupo.nombre+' ('+mc.grupo.grados+')</div>';
-          html+='<div style="margin-bottom:.5rem;"><label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;cursor:pointer;"><input type="checkbox" id="live-activa-'+liveId+'" style="accent-color:#00897B;width:16px;height:16px;"> <span style="font-weight:600;">Activar clase en vivo ahora</span></label></div>';
-          html+='<div style="margin-bottom:.5rem;"><label style="font-size:.68rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.25rem;">Link de Google Meet</label><input id="live-url-'+liveId+'" type="url" placeholder="https://meet.google.com/xxx-yyyy-zzz" style="width:100%;background:var(--white);border:1px solid rgba(0,137,123,.25);border-radius:8px;padding:.45rem .75rem;font-size:.8rem;outline:none;font-family:\'DM Mono\',monospace;"></div>';
-          html+='<div style="margin-bottom:.6rem;">';
-          html+='<label style="font-size:.68rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem;">¿Para quién es la clase?</label>';
-          html+='<div style="display:flex;gap:.4rem;flex-wrap:wrap;">';
-          html+='<label style="display:flex;align-items:center;gap:.3rem;font-size:.75rem;cursor:pointer;background:var(--cream);border:1px solid var(--cream3);border-radius:7px;padding:.3rem .65rem;"><input type="radio" name="live-aud-'+liveId+'" value="todos" checked style="accent-color:#00897B;"> Todos ('+mc.grupo.grados+')</label>';
-          html+='<label style="display:flex;align-items:center;gap:.3rem;font-size:.75rem;cursor:pointer;background:var(--cream);border:1px solid var(--cream3);border-radius:7px;padding:.3rem .65rem;"><input type="radio" name="live-aud-'+liveId+'" value="especificos" style="accent-color:#00897B;" onchange="cargarSelectorEstudiantes(\''+liveId+'\',\''+gid+'\')"> Estudiantes específicos</label>';
+          html+='<div style="font-size:.65rem;font-weight:700;color:#00695C;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem;">📹 Clase en vivo — '+mc.grupo.nombre+'</div>';
+          html+='<div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.6rem;">';
+          html+='<label style="display:flex;align-items:center;gap:.3rem;font-size:.75rem;cursor:pointer;background:var(--cream);border:1px solid var(--cream3);border-radius:7px;padding:.3rem .65rem;"><input type="radio" name="live-aud-'+liveId+'" value="todos" checked style="accent-color:#00897B;"> 👥 Todos ('+mc.grupo.grados+')</label>';
+          html+='<label style="display:flex;align-items:center;gap:.3rem;font-size:.75rem;cursor:pointer;background:var(--cream);border:1px solid var(--cream3);border-radius:7px;padding:.3rem .65rem;"><input type="radio" name="live-aud-'+liveId+'" value="especificos" style="accent-color:#00897B;" onchange="cargarSelectorEstudiantes(\''+liveId+'\',\''+gid+'\')"> 👤 Específicos</label>';
           html+='</div>';
-          html+='<div id="live-est-'+liveId+'" style="display:none;margin-top:.5rem;"></div>';
+          html+='<div id="live-est-'+liveId+'" style="display:none;margin-bottom:.6rem;"></div>';
+          html+='<div style="display:flex;gap:.5rem;">';
+          html+='<button id="live-btn-'+liveId+'" onclick="toggleIniciarLive(\''+dia.fecha+'\',\''+sec.n+'\',\''+liveId+'\',\''+gid+'\')" style="background:linear-gradient(135deg,#E53935,#EF5350);border:none;border-radius:8px;padding:.5rem 1.1rem;color:#fff;font-size:.78rem;font-weight:700;cursor:pointer;">🔴 Iniciar clase en vivo</button>';
           html+='</div>';
-          html+='<button onclick="guardarLive(\''+dia.fecha+'\',\''+sec.n+'\',\''+liveId+'\',\''+gid+'\')" style="background:linear-gradient(135deg,#00897B,#00BFA5);border:none;border-radius:8px;padding:.45rem 1.1rem;color:#fff;font-size:.75rem;font-weight:600;cursor:pointer;">💾 Guardar</button>';
           html+='</div>';
           html+='</div>';
         });
@@ -2995,42 +3002,77 @@ async function guardarPendienteRapido(estId,nombre,secKey,tallerKey,tallerTitulo
   showToast('✅ Pendiente asignado a '+nombre);
 }
 
+// ══ MEET URL DOCENTE ══
+async function guardarMeetUrl(){
+  const url=document.getElementById('docente-meet-url')?.value.trim();
+  if(!url){showToast('⚠️ Ingresa el link de Meet');return;}
+  await db.ref('corposepi/staff/'+currentUser.idx+'/meetUrl').set(url);
+  currentUser.meetUrl=url;
+  showToast('✅ Sala Meet guardada');
+}
+
 // ══ CLASES EN VIVO ══
-function toggleLivePanel(liveId, grupoIds){
+function parseLiveId(liveId){
+  // liveId = live-{fecha}-{secKey}-{grupoId}  ej: live-2026-06-13-sec2-G1
+  const sin=liveId.replace('live-','');
+  const partes=sin.split('-');
+  const grupoId=partes[partes.length-1];
+  const secKey=partes[partes.length-2];
+  const fecha=partes.slice(0,partes.length-2).join('-');
+  return{fecha,secKey,grupoId};
+}
+
+function toggleLivePanel(liveId, grupoId){
   const el=document.getElementById(liveId);
   if(!el)return;
   if(el.style.display==='none'){
     el.style.display='block';
-    if(grupoIds) el.dataset.grupos=grupoIds;
-    cargarLive(liveId);
+    cargarEstadoLive(liveId);
   } else {
     el.style.display='none';
   }
 }
 
-function toggleLiveAudiencia(liveId){
-  const activa=document.getElementById('live-activa-'+liveId)?.checked;
-  const wrap=document.getElementById('live-aud-wrap-'+liveId);
-  if(wrap) wrap.style.display=activa?'block':'none';
+async function cargarEstadoLive(liveId){
+  const {fecha,secKey,grupoId}=parseLiveId(liveId);
+  const snap=await db.ref('aprende_lives/'+currentUser.id+'/'+fecha+'/'+secKey+'/'+grupoId).once('value');
+  const data=snap.val();
+  const btn=document.getElementById('live-btn-'+liveId);
+  if(data&&data.activa){
+    if(btn){btn.innerHTML='⏹ Detener clase en vivo';btn.style.background='linear-gradient(135deg,#546E7A,#78909C)';}
+    if(data.audiencia&&data.audiencia!=='todos'){
+      const radio=document.querySelector('input[name="live-aud-'+liveId+'"][value="especificos"]');
+      if(radio){radio.checked=true;await cargarSelectorEstudiantes(liveId,grupoId,data.audiencia);}
+    }
+  }
 }
 
-async function cargarLive(liveId){
-  // liveId = live-{fecha}-sec{n}-{grupoId}
-  const sin=liveId.replace('live-','');
-  const partes=sin.split('-');
-  const grupoId=partes[partes.length-1];
-  const secPart=partes[partes.length-2]; // secN ej: sec2
-  const fecha=partes.slice(0,partes.length-2).join('-');
-  const snap=await db.ref('aprende_lives/'+currentUser.id+'/'+fecha+'/'+secPart+'/'+grupoId).once('value');
-  const data=snap.val();
-  if(!data)return;
-  const chk=document.getElementById('live-activa-'+liveId);
-  const urlEl=document.getElementById('live-url-'+liveId);
-  if(chk) chk.checked=data.activa||false;
-  if(urlEl) urlEl.value=data.meetUrl||'';
-  if(data.audiencia&&data.audiencia!=='todos'){
-    const radio=document.querySelector('input[name="live-aud-'+liveId+'"][value="especificos"]');
-    if(radio){radio.checked=true; await cargarSelectorEstudiantes(liveId,grupoId,data.audiencia);}
+async function toggleIniciarLive(fecha, secN, liveId, grupoId){
+  const meetUrl=currentUser.meetUrl||'';
+  if(!meetUrl){showToast('⚠️ Primero guarda tu link de Meet en Inicio');return;}
+  const {secKey}=parseLiveId(liveId);
+  const snap=await db.ref('aprende_lives/'+currentUser.id+'/'+fecha+'/'+secKey+'/'+grupoId).once('value');
+  const actual=snap.val();
+  const yaActiva=actual&&actual.activa;
+  const audRadio=document.querySelector('input[name="live-aud-'+liveId+'"]:checked');
+  const audVal=audRadio?audRadio.value:'todos';
+  let audiencia='todos';
+  if(audVal==='especificos'){
+    const checks=document.querySelectorAll('#live-est-'+liveId+' input[type=checkbox]:checked');
+    audiencia=Array.from(checks).map(c=>c.value);
+  }
+  const nuevaActiva=!yaActiva;
+  await db.ref('aprende_lives/'+currentUser.id+'/'+fecha+'/'+secKey+'/'+grupoId).set({
+    activa:nuevaActiva,meetUrl,audiencia,docenteId:currentUser.id,grupoId,fecha,secKey
+  });
+  const btn=document.getElementById('live-btn-'+liveId);
+  if(nuevaActiva){
+    if(btn){btn.innerHTML='⏹ Detener clase en vivo';btn.style.background='linear-gradient(135deg,#546E7A,#78909C)';}
+    window.open(meetUrl,'_blank');
+    showToast('🔴 Clase en vivo iniciada — Meet abierto');
+  } else {
+    if(btn){btn.innerHTML='🔴 Iniciar clase en vivo';btn.style.background='linear-gradient(135deg,#E53935,#EF5350)';}
+    showToast('⏹ Clase en vivo detenida');
   }
 }
 
@@ -3040,32 +3082,15 @@ async function cargarSelectorEstudiantes(liveId, grupoId, seleccionados){
   el.style.display='block';
   el.innerHTML='<div style="font-size:.72rem;color:var(--muted);">Cargando estudiantes...</div>';
   const snap=await db.ref('corposepi/students').once('value');
-  const students=(snap.val()||[]).filter(s=>{
-    if(!s||!s.id||s.status!=='active')return false;
-    return detectarGrupoEstudiante(s.nivel,s.grado)===grupoId;
-  });
+  const students=(snap.val()||[]).filter(s=>s&&s.id&&s.status==='active'&&detectarGrupoEstudiante(s.nivel,s.grado)===grupoId);
   if(!students.length){el.innerHTML='<div style="font-size:.72rem;color:var(--hint);">Sin estudiantes activos.</div>';return;}
   const sel=Array.isArray(seleccionados)?seleccionados:[];
-  el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.3rem;max-height:180px;overflow-y:auto;padding:.25rem 0;">'+
+  el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.3rem;max-height:160px;overflow-y:auto;padding:.25rem 0;">'+
     students.map(s=>'<label style="display:flex;align-items:center;gap:.4rem;font-size:.72rem;cursor:pointer;padding:.25rem .4rem;border-radius:6px;background:var(--white);border:1px solid var(--cream3);">'+
       '<input type="checkbox" value="'+s.id+'" '+(sel.includes(s.id)?'checked':'')+' style="accent-color:#00897B;"> '+
       (s.nombres||'')+(s.apellidos?' '+s.apellidos:'')+
       '</label>').join('')+
   '</div>';
-}
-
-async function guardarLive(fecha, secN, liveId, grupoId){
-  const activa=document.getElementById('live-activa-'+liveId)?.checked||false;
-  const meetUrl=document.getElementById('live-url-'+liveId)?.value.trim()||'';
-  const audRadio=document.querySelector('input[name="live-aud-'+liveId+'"]:checked');
-  const audVal=audRadio?audRadio.value:'todos';
-  let audiencia='todos';
-  if(audVal==='especificos'){
-    const checks=document.querySelectorAll('#live-est-'+liveId+' input[type=checkbox]:checked');
-    audiencia=Array.from(checks).map(c=>c.value);
-  }
-  await db.ref('aprende_lives/'+currentUser.id+'/'+fecha+'/sec'+secN+'/'+grupoId).set({activa,meetUrl,audiencia,docenteId:currentUser.id,fecha,secN,grupoId});
-  showToast(activa?'🔴 Clase en vivo activada':'✅ Clase en vivo guardada');
 }
 
 // ══ EVALUACIÓN INDIVIDUAL D — desde planeación ══
