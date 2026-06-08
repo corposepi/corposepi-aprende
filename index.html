@@ -1746,24 +1746,30 @@ async function crearTaller(){
   const materia=document.getElementById('tal-materia').value;
   const desc=document.getElementById('tal-desc').value.trim();
   const grupos=GRUPOS.map(g=>g.id).filter(id=>document.getElementById('tal-g-'+id)?.checked);
-  const docenteIdx=document.getElementById('tal-docente')?.value;
+  const docenteEl=document.getElementById('tal-docente');
+  const docenteIdx=(docenteEl&&docenteEl.value!=='')?docenteEl.value:null;
   if(!titulo||!bloqueId||!materia){showToast('⚠️ Completa título, bloque y materia');return;}
   const key='tal-'+Date.now();
   await db.ref('aprende_talleres/'+key).set({key,titulo,bloqueId,materia,desc,grupos,creadoEn:new Date().toISOString().slice(0,10)});
   // Auto-asignar al docente si se seleccionó uno
-  if(docenteIdx!==''){
+  if(docenteIdx!==null){
     const snapS=await db.ref('corposepi/staff/'+docenteIdx+'/talleres').once('value');
-    const tals=snapS.val()||[];
-    const arr=Array.isArray(tals)?tals:Object.values(tals);
+    let tals=snapS.val();
+    let arr=[];
+    if(Array.isArray(tals)) arr=[...tals];
+    else if(tals&&typeof tals==='object') arr=Object.values(tals);
     if(!arr.includes(key)) arr.push(key);
     await db.ref('corposepi/staff/'+docenteIdx+'/talleres').set(arr);
+    showToast('✅ Taller creado y asignado a '+(docenteEl.options[docenteEl.selectedIndex]?.text.split('—')[0].trim()||'docente'));
+  } else {
+    showToast('✅ Taller creado (sin asignar)');
   }
-  showToast('✅ Taller creado'+(docenteIdx!==''?' y asignado al docente':''));
   document.getElementById('tal-titulo').value='';
   document.getElementById('tal-desc').value='';
   document.querySelectorAll('[id^="tal-g-"]').forEach(c=>c.checked=false);
+  if(docenteEl) docenteEl.value='';
   cargarTalleresAdmin();
-  if(docenteIdx!=='') cargarStaffAdmin(); // refrescar panel docentes
+  cargarStaffAdmin();
 }
 
 async function cargarTalleresAdmin(){
