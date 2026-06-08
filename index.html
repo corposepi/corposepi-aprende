@@ -2300,8 +2300,9 @@ async function renderDiasPlan(semana, dias, horario, tMap){
         });
         // Clase en vivo
         const liveId='live-'+dia.fecha+'-'+planKey;
+        const liveGrupos=misClasesSec.map(function(mc){return mc.grupo.id;}).join(',');
         html+='<div style="margin-top:.65rem;border-top:1px solid var(--cream3);padding-top:.65rem;">';
-        html+='<button onclick="toggleLivePanel(\''+liveId+'\')" style="background:rgba(0,137,123,.08);border:1px solid rgba(0,137,123,.2);border-radius:8px;padding:.4rem .9rem;font-size:.7rem;color:#00695C;cursor:pointer;font-weight:600;">📹 Clase en vivo — Meet</button>';
+        html+='<button onclick="toggleLivePanel(\''+liveId+'\',\''+liveGrupos+'\')" style="background:rgba(0,137,123,.08);border:1px solid rgba(0,137,123,.2);border-radius:8px;padding:.4rem .9rem;font-size:.7rem;color:#00695C;cursor:pointer;font-weight:600;">📹 Clase en vivo — Meet</button>';
         html+='<div id="'+liveId+'" style="display:none;margin-top:.65rem;background:rgba(0,137,123,.04);border:1px solid rgba(0,137,123,.15);border-radius:var(--radius-sm);padding:.85rem;">';
         html+='<div style="font-size:.65rem;font-weight:700;color:#00695C;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.6rem;">📹 Configurar clase en vivo</div>';
         html+='<div style="margin-bottom:.5rem;"><label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;cursor:pointer;"><input type="checkbox" id="live-activa-'+liveId+'" style="accent-color:#00897B;width:16px;height:16px;" onchange="toggleLiveAudiencia(\''+liveId+'\')"> <span style="font-weight:600;">Activar clase en vivo ahora</span></label></div>';
@@ -2310,7 +2311,7 @@ async function renderDiasPlan(semana, dias, horario, tMap){
         html+='<label style="font-size:.68rem;font-weight:600;color:var(--muted);display:block;margin-bottom:.3rem;">¿Para quién es la clase?</label>';
         html+='<div style="display:flex;gap:.4rem;flex-wrap:wrap;">';
         html+='<label style="display:flex;align-items:center;gap:.3rem;font-size:.75rem;cursor:pointer;background:var(--cream);border:1px solid var(--cream3);border-radius:7px;padding:.3rem .65rem;"><input type="radio" name="live-aud-'+liveId+'" value="todos" checked style="accent-color:#00897B;"> Todos los estudiantes</label>';
-        html+='<label style="display:flex;align-items:center;gap:.3rem;font-size:.75rem;cursor:pointer;background:var(--cream);border:1px solid var(--cream3);border-radius:7px;padding:.3rem .65rem;"><input type="radio" name="live-aud-'+liveId+'" value="especificos" style="accent-color:#00897B;" onchange="cargarSelectorEstudiantes(\''+liveId+'\',\''+dia.fecha+'\',\''+sec.n+'\')"> Estudiantes específicos</label>';
+        html+='<label style="display:flex;align-items:center;gap:.3rem;font-size:.75rem;cursor:pointer;background:var(--cream);border:1px solid var(--cream3);border-radius:7px;padding:.3rem .65rem;"><input type="radio" name="live-aud-'+liveId+'" value="especificos" style="accent-color:#00897B;" onchange="cargarSelectorEstudiantes(\''+liveId+'\',\''+dia.fecha+'\',\''+sec.n+'\',null,\''+liveGrupos+'\')"> Estudiantes específicos</label>';
         html+='</div>';
         html+='<div id="live-est-'+liveId+'" style="display:none;margin-top:.5rem;"></div>';
         html+='</div>';
@@ -2976,11 +2977,12 @@ async function guardarPendienteRapido(estId,nombre,secKey,tallerKey,tallerTitulo
 }
 
 // ══ CLASES EN VIVO ══
-function toggleLivePanel(liveId){
+function toggleLivePanel(liveId, grupoIds){
   const el=document.getElementById(liveId);
   if(!el)return;
   if(el.style.display==='none'){
     el.style.display='block';
+    if(grupoIds) el.dataset.grupos=grupoIds;
     cargarLive(liveId);
   } else {
     el.style.display='none';
@@ -3006,17 +3008,23 @@ async function cargarLive(liveId){
   toggleLiveAudiencia(liveId);
   if(data.audiencia&&data.audiencia!=='todos'){
     const radio=document.querySelector('input[name="live-aud-'+liveId+'"][value="especificos"]');
-    if(radio){radio.checked=true; await cargarSelectorEstudiantes(liveId,fecha,secN,data.audiencia);}
+    const grupos=document.getElementById(liveId)?.dataset.grupos||'';
+    if(radio){radio.checked=true; await cargarSelectorEstudiantes(liveId,fecha,secN,data.audiencia,grupos);}
   }
 }
 
-async function cargarSelectorEstudiantes(liveId, fecha, secN, seleccionados){
+async function cargarSelectorEstudiantes(liveId, fecha, secN, seleccionados, grupoIds){
   const el=document.getElementById('live-est-'+liveId);
   if(!el)return;
   el.style.display='block';
   el.innerHTML='<div style="font-size:.72rem;color:var(--muted);">Cargando estudiantes...</div>';
   const snap=await db.ref('corposepi/students').once('value');
-  const students=(snap.val()||[]).filter(s=>s&&s.id&&s.status==='active');
+  const grupos=(grupoIds||document.getElementById(liveId)?.dataset.grupos||'').split(',').filter(Boolean);
+  const students=(snap.val()||[]).filter(s=>{
+    if(!s||!s.id||s.status!=='active')return false;
+    if(!grupos.length)return true;
+    return grupos.includes(detectarGrupoEstudiante(s.nivel,s.grado));
+  });
   if(!students.length){el.innerHTML='<div style="font-size:.72rem;color:var(--hint);">Sin estudiantes activos.</div>';return;}
   const sel=Array.isArray(seleccionados)?seleccionados:[];
   el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.3rem;max-height:180px;overflow-y:auto;padding:.25rem 0;">'+
