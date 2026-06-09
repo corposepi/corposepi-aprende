@@ -3496,27 +3496,23 @@ async function abrirEvalIndividual(fecha, secN, grupoId, tallerKey, tallerTitulo
   panel.innerHTML='<div style="padding:.5rem;color:var(--muted);font-size:.75rem;">Cargando...</div>';
   panel.style.display='block';
 
-  const [snapStu, snapPend, snapEval]=await Promise.all([
+  const [snapStu, snapEval]=await Promise.all([
     db.ref('corposepi/students').once('value'),
-    db.ref('aprende_pendientes').once('value'),
     db.ref('aprende_eval_individual/'+currentUser.id+'/'+fecha+'/'+secKey+'/'+grupoId).once('value'),
   ]);
   const rawStu=snapStu.val()||[];
   const stuArr=Array.isArray(rawStu)?rawStu:Object.values(rawStu);
   const students=stuArr.filter(s=>s&&s.id&&s.status==='active'&&detectarGrupoEstudiante(s.nivel, s.grado)===grupoId);
-  const pendMap={};
-  snapPend.forEach(estSnap=>{
-    estSnap.forEach(p=>{const v=p.val();if(v.docenteId===currentUser.id&&v.estado==='pendiente')pendMap[estSnap.key]=true;});
-  });
-  // Notas ya guardadas para este grupo/fecha/sección
+  // Notas y flags ya guardados para ESTE grupo/fecha/ESTA sección específica
   const evalGuardada=snapEval.val()||{};
   const grupo=GRUPOS.find(g=>g.id===grupoId);
 
   let html='<div style="margin-top:.65rem;background:rgba(21,101,192,.04);border:1px solid rgba(21,101,192,.15);border-radius:var(--radius-sm);padding:.85rem;">';
   html+='<div style="font-size:.68rem;font-weight:700;color:#1565C0;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.65rem;">📋 Evaluación individual — '+(grupo?.nombre||grupoId)+' ('+students.length+' estudiantes)</div>';
   students.forEach(function(s){
-    const tienePend=pendMap[s.id];
-    const notaGuardada=(evalGuardada[s.id]||{}).nota||'';
+    const evSaved=evalGuardada[s.id]||{};
+    const tienePend=!!evSaved.tieneP;          // solo true si fue marcado en ESTA sección
+    const notaGuardada=evSaved.nota||'';
     html+='<div style="border-bottom:1px solid rgba(21,101,192,.1);padding:.55rem 0;display:grid;grid-template-columns:1fr auto;gap:.5rem;align-items:start;">';
     html+='<div>';
     html+='<div style="font-size:.8rem;font-weight:600;margin-bottom:.25rem;">'+s.nombres+' '+(s.apellidos||'')+' <span style="font-size:.62rem;color:var(--muted);font-weight:400;">'+s.id+'</span>'+
@@ -3524,7 +3520,7 @@ async function abrirEvalIndividual(fecha, secN, grupoId, tallerKey, tallerTitulo
     html+='<textarea id="evind-'+fecha+'-'+secKey+'-'+grupoId+'-'+s.id+'" rows="2" style="width:100%;background:var(--white);border:1px solid rgba(21,101,192,.2);border-radius:7px;padding:.4rem .65rem;font-size:.78rem;resize:vertical;outline:none;" placeholder="Fortalezas y/o aspectos a mejorar...">'+escHtml(notaGuardada)+'</textarea>';
     html+='</div>';
     html+='<label style="display:flex;flex-direction:column;align-items:center;gap:.25rem;cursor:pointer;padding-top:.25rem;">';
-    html+='<input type="checkbox" id="evpend-'+fecha+'-'+secKey+'-'+grupoId+'-'+s.id+'" style="width:18px;height:18px;accent-color:var(--corp);">';
+    html+='<input type="checkbox" id="evpend-'+fecha+'-'+secKey+'-'+grupoId+'-'+s.id+'" '+(tienePend?'checked':'')+' style="width:18px;height:18px;accent-color:var(--corp);">';
     html+='<span style="font-size:.55rem;color:var(--corp);text-align:center;font-weight:700;line-height:1.2;">⚠️<br>Pendiente</span>';
     html+='</label>';
     html+='</div>';
