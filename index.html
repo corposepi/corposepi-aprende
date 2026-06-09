@@ -2663,7 +2663,7 @@ async function renderDiasPlan(semana, dias, horario, tMap){
       });
 
       const planKey='sec'+sec.n;
-      const planSec=planGuardada[planKey]||{};
+      const planSec=(planGuardada[dia.fecha]||{})[planKey]||{};
       const descansoTxt=sec.descanso?(' ☕ descanso '+sec.descanso.inicio+'-'+sec.descanso.fin):'';
 
       html+='<div style="border:1px solid var(--cream3);border-radius:var(--radius-sm);margin-bottom:.75rem;overflow:hidden;">';
