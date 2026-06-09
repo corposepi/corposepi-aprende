@@ -835,25 +835,19 @@ const NAV_CONFIG={
   ],
 };
 
-// Mapa global: id_seccion → función de build (independiente de currentRole en tiempo de click)
-const _secFns={};
-
 function buildNav(){
   const nav=NAV_CONFIG[currentRole]||[];
   const navEl=document.getElementById('tb-nav');
   const bnScroll=document.getElementById('bn-scroll');
   const content=document.getElementById('app-content');
   content.innerHTML='';
-  // Limpiar mapa de funciones y registrar las nuevas
-  Object.keys(_secFns).forEach(k=>delete _secFns[k]);
-  nav.forEach(n=>{ _secFns[n.id]=n.fn; });
-  // Top nav (desktop)
-  navEl.innerHTML=nav.map((n,i)=>`<button type="button" class="tb-nav-item${i===0?' active':''}" onclick="switchSection('${n.id}')">${n.label}</button>`).join('');
+  // Top nav
+  navEl.innerHTML=nav.map((n,i)=>`<button class="tb-nav-item${i===0?' active':''}">${n.label}</button>`).join('');
   // Bottom nav (móvil)
   if(bnScroll){
-    bnScroll.innerHTML=nav.map((n,i)=>`<button type="button" class="bn-item${i===0?' active':''}" id="bn-${n.id}" onclick="switchSection('${n.id}')"><span class="bn-icon">${n.icon||'📌'}</span><span class="bn-lbl">${n.short||n.label}</span></button>`).join('');
+    bnScroll.innerHTML=nav.map((n,i)=>`<button type="button" class="bn-item${i===0?' active':''}" id="bn-${n.id}"><span class="bn-icon">${n.icon||'📌'}</span><span class="bn-lbl">${n.short||n.label}</span></button>`).join('');
   }
-  // Crear contenedores de sección
+  // Crear secciones
   nav.forEach((n,i)=>{
     const sec=document.createElement('div');
     sec.className='section'+(i===0?' active':'');
@@ -861,28 +855,36 @@ function buildNav(){
     content.appendChild(sec);
     if(i===0) n.fn(sec);
   });
-}
-
-function switchSection(id){
-  const fn=_secFns[id];
-  if(!fn) return; // sección desconocida
-  // Ocultar todas las secciones
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  // Desmarcar botones
-  document.querySelectorAll('.tb-nav-item').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('.bn-item').forEach(b=>b.classList.remove('active'));
-  // Marcar activo en top nav
-  document.querySelectorAll('.tb-nav-item').forEach(b=>{
-    if((b.getAttribute('onclick')||'').includes("'"+id+"'")) b.classList.add('active');
+  // Handlers — igual que el original que funcionaba, + sync bottom nav
+  navEl.querySelectorAll('.tb-nav-item').forEach((btn,i)=>{
+    btn.onclick=()=>{
+      document.querySelectorAll('.tb-nav-item').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.bn-item').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+      btn.classList.add('active');
+      const bnBtn=document.getElementById('bn-'+nav[i].id);
+      if(bnBtn) bnBtn.classList.add('active');
+      const sec=document.getElementById('sec-'+nav[i].id);
+      if(!sec.innerHTML) nav[i].fn(sec);
+      sec.classList.add('active');
+    };
   });
-  // Marcar activo en bottom nav
-  const botBtn=document.getElementById('bn-'+id);
-  if(botBtn) botBtn.classList.add('active');
-  // Mostrar sección
-  const sec=document.getElementById('sec-'+id);
-  if(!sec) return;
-  if(!sec.innerHTML) fn(sec);
-  sec.classList.add('active');
+  // Bottom nav handlers — mismo mecanismo
+  if(bnScroll){
+    bnScroll.querySelectorAll('.bn-item').forEach((btn,i)=>{
+      btn.onclick=()=>{
+        document.querySelectorAll('.tb-nav-item').forEach(b=>b.classList.remove('active'));
+        document.querySelectorAll('.bn-item').forEach(b=>b.classList.remove('active'));
+        document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+        const topBtn=navEl.querySelectorAll('.tb-nav-item')[i];
+        if(topBtn) topBtn.classList.add('active');
+        btn.classList.add('active');
+        const sec=document.getElementById('sec-'+nav[i].id);
+        if(!sec.innerHTML) nav[i].fn(sec);
+        sec.classList.add('active');
+      };
+    });
+  }
 }
 
 // ══ INICIO ESTUDIANTE ══
