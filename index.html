@@ -3476,29 +3476,39 @@ async function cargarSelectorEstudiantes(liveId, grupoId, seleccionados){
 
 // ══ EVALUACIÓN INDIVIDUAL D — desde planeación ══
 async function abrirEvalIndividual(fecha, secN, grupoId, tallerKey, tallerTitulo){
-  const snap=await db.ref('corposepi/students').once('value');
-  const students=(snap.val()||[]).filter(s=>s&&s.id&&s.status==='active'&&detectarGrupoEstudiante(s.nivel, s.grado)===grupoId);
-  const snapPend=await db.ref('aprende_pendientes').once('value');
-  const pendMap={}; // estId -> tiene pendiente activo
-  snapPend.forEach(estSnap=>{
-    estSnap.forEach(p=>{const v=p.val();if(v.docenteId===currentUser.id&&v.estado==='pendiente')pendMap[estSnap.key]=true;});
-  });
-  const grupo=GRUPOS.find(g=>g.id===grupoId);
   const secKey='sec'+secN;
   const idPanel='eval-ind-'+fecha+'-'+secKey+'-'+grupoId;
   const panel=document.getElementById(idPanel);
   if(!panel)return;
   if(panel.style.display!=='none'){panel.style.display='none';return;}
 
+  panel.innerHTML='<div style="padding:.5rem;color:var(--muted);font-size:.75rem;">Cargando...</div>';
+  panel.style.display='block';
+
+  const [snapStu, snapPend, snapEval]=await Promise.all([
+    db.ref('corposepi/students').once('value'),
+    db.ref('aprende_pendientes').once('value'),
+    db.ref('aprende_eval_individual/'+currentUser.id+'/'+fecha+'/'+secKey+'/'+grupoId).once('value'),
+  ]);
+  const students=(snapStu.val()||[]).filter(s=>s&&s.id&&s.status==='active'&&detectarGrupoEstudiante(s.nivel, s.grado)===grupoId);
+  const pendMap={};
+  snapPend.forEach(estSnap=>{
+    estSnap.forEach(p=>{const v=p.val();if(v.docenteId===currentUser.id&&v.estado==='pendiente')pendMap[estSnap.key]=true;});
+  });
+  // Notas ya guardadas para este grupo/fecha/sección
+  const evalGuardada=snapEval.val()||{};
+  const grupo=GRUPOS.find(g=>g.id===grupoId);
+
   let html='<div style="margin-top:.65rem;background:rgba(21,101,192,.04);border:1px solid rgba(21,101,192,.15);border-radius:var(--radius-sm);padding:.85rem;">';
-  html+='<div style="font-size:.68rem;font-weight:700;color:#1565C0;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.65rem;">📋 Evaluación individual — '+grupo?.nombre+' ('+students.length+' estudiantes)</div>';
+  html+='<div style="font-size:.68rem;font-weight:700;color:#1565C0;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.65rem;">📋 Evaluación individual — '+(grupo?.nombre||grupoId)+' ('+students.length+' estudiantes)</div>';
   students.forEach(function(s){
     const tienePend=pendMap[s.id];
+    const notaGuardada=(evalGuardada[s.id]||{}).nota||'';
     html+='<div style="border-bottom:1px solid rgba(21,101,192,.1);padding:.55rem 0;display:grid;grid-template-columns:1fr auto;gap:.5rem;align-items:start;">';
     html+='<div>';
     html+='<div style="font-size:.8rem;font-weight:600;margin-bottom:.25rem;">'+s.nombres+' '+(s.apellidos||'')+' <span style="font-size:.62rem;color:var(--muted);font-weight:400;">'+s.id+'</span>'+
       (tienePend?' <span style="background:rgba(184,65,10,.1);color:var(--corp);font-size:.6rem;padding:1px 6px;border-radius:99px;">Tiene pendiente</span>':'')+'</div>';
-    html+='<textarea id="evind-'+fecha+'-'+secKey+'-'+grupoId+'-'+s.id+'" rows="2" style="width:100%;background:var(--white);border:1px solid rgba(21,101,192,.2);border-radius:7px;padding:.4rem .65rem;font-size:.78rem;resize:vertical;outline:none;" placeholder="Fortalezas y/o aspectos a mejorar para este estudiante..."></textarea>';
+    html+='<textarea id="evind-'+fecha+'-'+secKey+'-'+grupoId+'-'+s.id+'" rows="2" style="width:100%;background:var(--white);border:1px solid rgba(21,101,192,.2);border-radius:7px;padding:.4rem .65rem;font-size:.78rem;resize:vertical;outline:none;" placeholder="Fortalezas y/o aspectos a mejorar...">'+escHtml(notaGuardada)+'</textarea>';
     html+='</div>';
     html+='<label style="display:flex;flex-direction:column;align-items:center;gap:.25rem;cursor:pointer;padding-top:.25rem;">';
     html+='<input type="checkbox" id="evpend-'+fecha+'-'+secKey+'-'+grupoId+'-'+s.id+'" style="width:18px;height:18px;accent-color:var(--corp);">';
@@ -3511,7 +3521,6 @@ async function abrirEvalIndividual(fecha, secN, grupoId, tallerKey, tallerTitulo
   html+='<button onclick="document.getElementById(\''+idPanel+'\').style.display=\'none\'" class="btn-outline" style="font-size:.72rem;padding:.4rem .8rem;">Cerrar</button>';
   html+='</div></div>';
   panel.innerHTML=html;
-  panel.style.display='block';
 }
 
 async function guardarEvalIndividual(fecha, secKey, grupoId, tallerKey, tallerTitulo){
@@ -3551,12 +3560,7 @@ async function guardarEvalIndividual(fecha, secKey, grupoId, tallerKey, tallerTi
 // ══ UTILS ══
 function showToast(m){const t=document.getElementById('toast');if(!t)return;t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
 
-function switchSection(id,btn){
-  document.querySelectorAll('.tb-nav-item').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('sec-'+id).classList.add('active');
-}
+// switchSection definida arriba en buildNav
 </script>
 </body>
 </html>
