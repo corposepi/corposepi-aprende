@@ -1847,11 +1847,14 @@ async function crearTaller(){
 
 async function cargarTalleresAdmin(){
   const el=document.getElementById('talleres-list'); if(!el)return;
-  // Popular select de docentes
+  // Popular select de docentes — siempre recargar si cache vacío
   const selDoc=document.getElementById('tal-docente');
-  if(selDoc&&selDoc.options.length<=1){
+  if(selDoc&&(!_adminStaff.length||selDoc.options.length<=1)){
     const snapSt=await db.ref('corposepi/staff').once('value');
-    const rawSt=snapSt.val();_adminStaff=Array.isArray(rawSt)?rawSt.map((s,i)=>s?{...s,_idx:i}:null).filter(Boolean):Object.entries(rawSt||{}).map(([k,s])=>s?{...s,_idx:parseInt(k)}:null).filter(Boolean);
+    const rawSt=snapSt.val();
+    _adminStaff=Array.isArray(rawSt)?rawSt.map((s,i)=>s?{...s,_idx:i}:null).filter(Boolean):Object.entries(rawSt||{}).map(([k,s])=>s?{...s,_idx:parseInt(k)}:null).filter(Boolean);
+    // Limpiar opciones existentes y repoblar
+    while(selDoc.options.length>1) selDoc.remove(1);
     _adminStaff.forEach(s=>{
       const opt=document.createElement('option');
       opt.value=s._idx;
@@ -1859,10 +1862,6 @@ async function cargarTalleresAdmin(){
       opt.textContent=(s.nombres||'')+' '+(s.apellidos||'')+' — '+(s.cargo||'Docente');
       selDoc.appendChild(opt);
     });
-  } else if(!_adminStaff.length){
-    // Si el select ya estaba lleno pero el cache está vacío (recarga), recargarlo
-    const snapSt=await db.ref('corposepi/staff').once('value');
-    const rawSt=snapSt.val();_adminStaff=Array.isArray(rawSt)?rawSt.map((s,i)=>s?{...s,_idx:i}:null).filter(Boolean):Object.entries(rawSt||{}).map(([k,s])=>s?{...s,_idx:parseInt(k)}:null).filter(Boolean);
   }
   const snap=await db.ref('aprende_talleres').once('value');
   const talleres=[];
@@ -2003,18 +2002,20 @@ async function eliminarTaller(key){
 // ══ ADMIN: ACCIONES ARTICULADORAS ══
 async function _cargarStaffSelectAcciones(selId){
   const sel=document.getElementById(selId); if(!sel)return;
-  if(sel.options.length>1)return; // ya poblado
-  if(!_adminStaff.length){
+  // Siempre recargar si cache vacío
+  if(!_adminStaff.length||sel.options.length<=1){
     const snapSt=await db.ref('corposepi/staff').once('value');
-    const rawSt=snapSt.val();_adminStaff=Array.isArray(rawSt)?rawSt.map((s,i)=>s?{...s,_idx:i}:null).filter(Boolean):Object.entries(rawSt||{}).map(([k,s])=>s?{...s,_idx:parseInt(k)}:null).filter(Boolean);
+    const rawSt=snapSt.val();
+    _adminStaff=Array.isArray(rawSt)?rawSt.map((s,i)=>s?{...s,_idx:i}:null).filter(Boolean):Object.entries(rawSt||{}).map(([k,s])=>s?{...s,_idx:parseInt(k)}:null).filter(Boolean);
+    while(sel.options.length>1) sel.remove(1);
+    _adminStaff.forEach(s=>{
+      const opt=document.createElement('option');
+      opt.value=s._idx;
+      opt.dataset.staffId=s.id||s.numdoc||'';
+      opt.textContent=(s.nombres||'')+' '+(s.apellidos||'')+' — '+(s.cargo||'Docente');
+      sel.appendChild(opt);
+    });
   }
-  _adminStaff.forEach(s=>{
-    const opt=document.createElement('option');
-    opt.value=s._idx;
-    opt.dataset.staffId=s.id||s.numdoc||'';
-    opt.textContent=(s.nombres||'')+' '+(s.apellidos||'')+' — '+(s.cargo||'Docente');
-    sel.appendChild(opt);
-  });
 }
 
 function autoIconAccion(){
