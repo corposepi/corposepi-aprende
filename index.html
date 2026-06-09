@@ -1851,7 +1851,7 @@ async function cargarTalleresAdmin(){
   const selDoc=document.getElementById('tal-docente');
   if(selDoc&&selDoc.options.length<=1){
     const snapSt=await db.ref('corposepi/staff').once('value');
-    _adminStaff=(snapSt.val()||[]).map((s,i)=>s?{...s,_idx:i}:null).filter(Boolean);
+    const rawSt=snapSt.val();_adminStaff=Array.isArray(rawSt)?rawSt.map((s,i)=>s?{...s,_idx:i}:null).filter(Boolean):Object.entries(rawSt||{}).map(([k,s])=>s?{...s,_idx:parseInt(k)}:null).filter(Boolean);
     _adminStaff.forEach(s=>{
       const opt=document.createElement('option');
       opt.value=s._idx;
@@ -1862,7 +1862,7 @@ async function cargarTalleresAdmin(){
   } else if(!_adminStaff.length){
     // Si el select ya estaba lleno pero el cache está vacío (recarga), recargarlo
     const snapSt=await db.ref('corposepi/staff').once('value');
-    _adminStaff=(snapSt.val()||[]).map((s,i)=>s?{...s,_idx:i}:null).filter(Boolean);
+    const rawSt=snapSt.val();_adminStaff=Array.isArray(rawSt)?rawSt.map((s,i)=>s?{...s,_idx:i}:null).filter(Boolean):Object.entries(rawSt||{}).map(([k,s])=>s?{...s,_idx:parseInt(k)}:null).filter(Boolean);
   }
   const snap=await db.ref('aprende_talleres').once('value');
   const talleres=[];
@@ -2006,7 +2006,7 @@ async function _cargarStaffSelectAcciones(selId){
   if(sel.options.length>1)return; // ya poblado
   if(!_adminStaff.length){
     const snapSt=await db.ref('corposepi/staff').once('value');
-    _adminStaff=(snapSt.val()||[]).map((s,i)=>s?{...s,_idx:i}:null).filter(Boolean);
+    const rawSt=snapSt.val();_adminStaff=Array.isArray(rawSt)?rawSt.map((s,i)=>s?{...s,_idx:i}:null).filter(Boolean):Object.entries(rawSt||{}).map(([k,s])=>s?{...s,_idx:parseInt(k)}:null).filter(Boolean);
   }
   _adminStaff.forEach(s=>{
     const opt=document.createElement('option');
@@ -2216,12 +2216,18 @@ async function verEstudiantesTaller(bloqueId, grupoId, tallerTitulo){
 async function cargarStaffAdmin(){
   const el=document.getElementById('admin-staff-list'); if(!el)return;
   const snap=await db.ref('corposepi/staff').once('value');
-  const staff=snap.val()||[];
-  const lista=staff.map((s,i)=>s?{...s,_idx:i}:null).filter(Boolean);
-  if(!lista.length){ el.innerHTML='<div style="color:var(--hint);font-size:.82rem;">Sin docentes registrados en Firebase.</div>'; return; }
+  const raw=snap.val();
+  let lista=[];
+  if(Array.isArray(raw)){
+    lista=raw.map((s,i)=>s?{...s,_idx:i}:null).filter(Boolean);
+  } else if(raw&&typeof raw==='object'){
+    lista=Object.entries(raw).map(([k,s])=>s?{...s,_idx:parseInt(k)}:null).filter(Boolean);
+  }
+  if(!lista.length){ el.innerHTML='<div style="color:var(--hint);font-size:.82rem;">Sin docentes registrados en Firebase. <button onclick="cargarStaffAdmin()" class="btn-outline" style="font-size:.75rem;padding:.3rem .7rem;margin-left:.5rem;">🔄 Recargar</button></div>'; return; }
 
-  el.innerHTML=`<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem;background:var(--cream);border-radius:var(--radius-sm);padding:.6rem .9rem;">
-    💡 Aquí asignas los <strong>bloques temáticos</strong> de cada docente. Los talleres se asignan en la pestaña <strong>📚 Talleres</strong> y las acciones en <strong>🔗 Acciones</strong>.
+  el.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;background:var(--cream);border-radius:var(--radius-sm);padding:.6rem .9rem;">
+    <div style="font-size:.75rem;color:var(--muted);">💡 Aquí asignas los <strong>bloques temáticos</strong>. Talleres → pestaña <strong>📚</strong> · Acciones → pestaña <strong>🔗</strong></div>
+    <button onclick="cargarStaffAdmin()" class="btn-outline" style="font-size:.72rem;padding:.3rem .75rem;flex-shrink:0;">🔄 Recargar</button>
   </div>`+lista.map(s=>{
     const bl=s.bloques||[];
     return `<div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);padding:1.25rem;">
