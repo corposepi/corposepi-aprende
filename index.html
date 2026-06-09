@@ -3001,30 +3001,21 @@ async function cargarEntregasDocente(){
   const diaKey=diasSemana[new Date(fecha+'T12:00:00').getDay()];
   const configDia=HORARIO_BASE[diaKey];
 
-  const [snapHor,snapTal,snapEntregas,snapStu,snapPend]=await Promise.all([
+  const [snapHor,snapTal,snapEntregas,snapStu,snapEvalInd]=await Promise.all([
     db.ref('aprende_horario').once('value'),
     db.ref('aprende_talleres').once('value'),
     db.ref('aprende_entregas/'+fecha).once('value'),
     db.ref('corposepi/students').once('value'),
-    db.ref('aprende_pendientes').once('value'),
+    db.ref('aprende_eval_individual/'+currentUser.id+'/'+fecha).once('value'),
   ]);
   const horario=snapHor.val()||{};
   const tMap={};snapTal.forEach(function(c){tMap[c.key]=c.val();});
   const entregas=snapEntregas.val()||{};
   const rawStuE=snapStu.val()||[];
   const students=(Array.isArray(rawStuE)?rawStuE:Object.values(rawStuE)).filter(function(s){return s&&s.id;});
-  // Map estId → Set<secKey> con pendientes activos de ESTE docente en ESTA fecha de clase
-  const pendHoyPorSec={};
-  snapPend.forEach(function(estSnap){
-    estSnap.forEach(function(pSnap){
-      const p=pSnap.val();
-      const esDeEstaFecha=(p.fechaClase===fecha)||(p.creadoEn===fecha);
-      if(p&&p.estado==='pendiente'&&p.docenteId===currentUser.id&&esDeEstaFecha&&p.seccionClase){
-        if(!pendHoyPorSec[estSnap.key]) pendHoyPorSec[estSnap.key]=new Set();
-        pendHoyPorSec[estSnap.key].add(p.seccionClase);
-      }
-    });
-  });
+  // evalIndData[secKey][grupoId][estId] = {tieneP, nota, ...}
+  // Sección-seguro: la clave del path incluye secKey → no hay contaminación cruzada
+  const evalIndData=snapEvalInd.val()||{};
 
   if(!configDia){el.innerHTML='<div style="color:var(--hint);text-align:center;padding:2rem;">Sin clases este día.</div>';return;}
 
@@ -3045,13 +3036,15 @@ async function cargarEntregasDocente(){
     const items=Object.entries(secEntregas).filter(function(e){return e[1]&&e[1].docenteId===currentUser.id;});
     const entregadosIds=new Set(items.map(function(e){return e[0];}));
 
-    // Solo estudiantes con pendiente HOY de ESTA docente EN ESTA SECCIÓN y que no entregaron
+    // Solo estudiantes con tieneP:true en eval_individual de ESTA sección (section-safe) que no entregaron
     const noEntregados=[];
+    const secEvalData=evalIndData[secKey]||{};
     misGruposSec.forEach(function(mg){
+      const grupoEval=secEvalData[mg.grupo.id]||{};
       students.filter(function(s){return detectarGrupoEstudiante(s.nivel, s.grado)===mg.grupo.id&&s.status==='active';})
         .forEach(function(s){
-          const secs=pendHoyPorSec[s.id];
-          if(!entregadosIds.has(s.id)&&secs&&secs.has(secKey))
+          const ev=grupoEval[s.id];
+          if(!entregadosIds.has(s.id)&&ev&&ev.tieneP)
             noEntregados.push({est:s,tallerKey:mg.tallerKey||'',taller:tMap[mg.tallerKey]});
         });
     });
@@ -3551,10 +3544,18 @@ async function guardarEvalIndividual(fecha, secKey, grupoId, tallerKey, tallerTi
   for(const s of students){
     const nota=document.getElementById('evind-'+fecha+'-'+secKey+'-'+grupoId+'-'+s.id)?.value.trim();
     const tienePend=document.getElementById('evpend-'+fecha+'-'+secKey+'-'+grupoId+'-'+s.id)?.checked;
-    // Guardar nota individual en planeación
+    // Guardar nota individual (siempre que haya nota; también guarda flag tieneP para Entregas)
     if(nota){
       await db.ref('aprende_eval_individual/'+currentUser.id+'/'+fecha+'/'+secKey+'/'+grupoId+'/'+s.id).set({
         nota, docenteId:currentUser.id, estudianteId:s.id,
+        estudianteNombre:s.nombres+' '+(s.apellidos||''),
+        fecha, tallerKey:tallerKey||'',
+        tieneP:!!(tienePend&&nota)
+      });
+    } else if(tienePend){
+      // Tiene pendiente pero sin nota — guardar solo el flag
+      await db.ref('aprende_eval_individual/'+currentUser.id+'/'+fecha+'/'+secKey+'/'+grupoId+'/'+s.id).update({
+        tieneP:true, docenteId:currentUser.id, estudianteId:s.id,
         estudianteNombre:s.nombres+' '+(s.apellidos||''),
         fecha, tallerKey:tallerKey||''
       });
