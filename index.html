@@ -1791,9 +1791,9 @@ function adminTab(id,btn){
   btn.classList.add('active-tab');
   ['dash','talleres','acciones','docentes','horario','semanas','modulos'].forEach(p=>document.getElementById('apanel-'+p).style.display='none');
   document.getElementById('apanel-'+id).style.display='block';
-  if(id==='talleres') cargarTalleresAdmin();
-  if(id==='acciones') cargarAccionesAdmin();
-  if(id==='docentes') cargarStaffAdmin();
+  if(id==='talleres'){ _adminStaff=[]; cargarTalleresAdmin(); }
+  if(id==='acciones'){ _adminStaff=[]; cargarAccionesAdmin(); }
+  if(id==='docentes'){ _adminStaff=[]; cargarStaffAdmin(); }
   if(id==='horario') renderHorarioEditor();
   if(id==='semanas') cargarSemanasAdmin();
 }
@@ -2215,31 +2215,40 @@ async function verEstudiantesTaller(bloqueId, grupoId, tallerTitulo){
 // ══ ADMIN: ASIGNAR DOCENTES (solo bloques) ══
 async function cargarStaffAdmin(){
   const el=document.getElementById('admin-staff-list'); if(!el)return;
-  const snap=await db.ref('corposepi/staff').once('value');
-  const raw=snap.val();
+  el.innerHTML='<div style="color:var(--hint);font-size:.82rem;padding:.5rem;">Cargando...</div>';
+  const [snapStaff, snapTalleres, snapAcciones]=await Promise.all([
+    db.ref('corposepi/staff').once('value'),
+    db.ref('aprende_talleres').once('value'),
+    db.ref('aprende_acciones').once('value'),
+  ]);
+  const raw=snapStaff.val();
   let lista=[];
   if(Array.isArray(raw)){
     lista=raw.map((s,i)=>s?{...s,_idx:i}:null).filter(Boolean);
   } else if(raw&&typeof raw==='object'){
     lista=Object.entries(raw).map(([k,s])=>s?{...s,_idx:parseInt(k)}:null).filter(Boolean);
   }
-  if(!lista.length){ el.innerHTML='<div style="color:var(--hint);font-size:.82rem;">Sin docentes registrados en Firebase. <button onclick="cargarStaffAdmin()" class="btn-outline" style="font-size:.75rem;padding:.3rem .7rem;margin-left:.5rem;">🔄 Recargar</button></div>'; return; }
+  if(!lista.length){ el.innerHTML='<div style="color:var(--hint);font-size:.82rem;">Sin docentes registrados. <button onclick="cargarStaffAdmin()" class="btn-outline" style="font-size:.75rem;padding:.3rem .7rem;margin-left:.5rem;">🔄 Recargar</button></div>'; return; }
+
+  const todosTalleres=[];snapTalleres.forEach(c=>{const v=c.val();if(v)todosTalleres.push({...v,_key:c.key});});
+  const todasAcciones=[];snapAcciones.forEach(c=>{const v=c.val();if(v)todasAcciones.push({...v,_key:c.key});});
 
   el.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;background:var(--cream);border-radius:var(--radius-sm);padding:.6rem .9rem;">
-    <div style="font-size:.75rem;color:var(--muted);">💡 Aquí asignas los <strong>bloques temáticos</strong>. Talleres → pestaña <strong>📚</strong> · Acciones → pestaña <strong>🔗</strong></div>
-    <button onclick="cargarStaffAdmin()" class="btn-outline" style="font-size:.72rem;padding:.3rem .75rem;flex-shrink:0;">🔄 Recargar</button>
+    <div style="font-size:.75rem;color:var(--muted);">Asigna bloques, talleres y acciones a cada docente.</div>
+    <button onclick="_adminStaff=[];cargarStaffAdmin()" class="btn-outline" style="font-size:.72rem;padding:.3rem .75rem;flex-shrink:0;">🔄 Recargar</button>
   </div>`+lista.map(s=>{
-    const bl=s.bloques||[];
-    return `<div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);padding:1.25rem;">
+    const bl=Array.isArray(s.bloques)?s.bloques:(s.bloques?Object.values(s.bloques):[]);
+    const talAsig=Array.isArray(s.talleres)?s.talleres:(s.talleres?Object.values(s.talleres):[]);
+    return `<div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);padding:1.25rem;margin-bottom:.75rem;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem;flex-wrap:wrap;gap:.5rem;">
         <div>
           <div style="font-weight:700;font-size:.9rem;">${s.nombres||''} ${s.apellidos||''}</div>
           <div style="font-size:.68rem;color:var(--muted);">${s.cargo||'Docente'} · ${s.id}</div>
         </div>
-        <button class="btn-primary" style="font-size:.72rem;padding:.4rem .9rem" onclick="guardarAsignacion(${s._idx})">💾 Guardar bloques</button>
+        <button class="btn-primary" style="font-size:.72rem;padding:.4rem .9rem" onclick="guardarAsignacion(${s._idx})">💾 Guardar</button>
       </div>
-      <div>
-        <div class="dc-title" style="margin-bottom:.5rem;">Bloques temáticos</div>
+      <div style="margin-bottom:.75rem;">
+        <div class="dc-title" style="margin-bottom:.4rem;">Bloques temáticos</div>
         <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
           ${BLOQUES.map(b=>`<label style="display:flex;align-items:center;gap:.3rem;background:var(--cream);border:1px solid var(--cream3);border-radius:8px;padding:.35rem .7rem;font-size:.75rem;cursor:pointer;">
             <input type="checkbox" id="chk-b-${s._idx}-${b.id}" value="${b.id}" ${bl.includes(b.id)?'checked':''} style="accent-color:var(--corp);">
@@ -2247,15 +2256,50 @@ async function cargarStaffAdmin(){
           </label>`).join('')}
         </div>
       </div>
+      ${todosTalleres.length?`<div style="margin-bottom:.75rem;">
+        <div class="dc-title" style="margin-bottom:.4rem;">Talleres asignados</div>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+          ${todosTalleres.map(t=>`<label style="display:flex;align-items:center;gap:.3rem;background:var(--cream);border:1px solid var(--cream3);border-radius:8px;padding:.35rem .7rem;font-size:.75rem;cursor:pointer;">
+            <input type="checkbox" id="chk-t-${s._idx}-${t._key}" value="${t._key}" ${talAsig.includes(t._key)?'checked':''} style="accent-color:var(--sage);">
+            ${t.titulo||'—'} <span style="color:var(--muted);font-size:.65rem;">(${t.materia||'—'})</span>
+          </label>`).join('')}
+        </div>
+      </div>`:''}
+      ${todasAcciones.length?`<div>
+        <div class="dc-title" style="margin-bottom:.4rem;">Acciones articuladoras</div>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+          ${todasAcciones.map(a=>`<label style="display:flex;align-items:center;gap:.3rem;background:var(--cream);border:1px solid var(--cream3);border-radius:8px;padding:.35rem .7rem;font-size:.75rem;cursor:pointer;">
+            <input type="checkbox" id="chk-ac-${s._idx}-${a._key}" value="${a._key}" ${(a.docenteId&&(s.id||s.numdoc||'').toLowerCase()===String(a.docenteId).toLowerCase())?'checked':''} style="accent-color:var(--gold);">
+            ${a.icon||'🔗'} ${a.titulo||a.name}
+          </label>`).join('')}
+        </div>
+      </div>`:''}
     </div>`;
   }).join('');
 }
 
 async function guardarAsignacion(idx){
-  // Solo guarda bloques — talleres y acciones se gestionan desde sus propias pestañas
-  const bloques=BLOQUES.map(b=>b.id).filter(id=>document.getElementById(`chk-b-${idx}-${id}`)?.checked);
-  await db.ref(`corposepi/staff/${idx}/bloques`).set(bloques);
-  showToast('✅ Bloques guardados correctamente');
+  const bloques=BLOQUES.map(b=>b.id).filter(id=>document.getElementById('chk-b-'+idx+'-'+id)?.checked);
+  await db.ref('corposepi/staff/'+idx+'/bloques').set(bloques);
+  // Talleres: guardar en staff y actualizar docenteId en cada taller
+  const snapT=await db.ref('aprende_talleres').once('value');
+  const talKeys=[];snapT.forEach(c=>talKeys.push(c.key));
+  const talSelec=talKeys.filter(k=>document.getElementById('chk-t-'+idx+'-'+k)?.checked);
+  await db.ref('corposepi/staff/'+idx+'/talleres').set(talSelec);
+  // Actualizar docenteId en los talleres seleccionados
+  const snapStf=await db.ref('corposepi/staff/'+idx).once('value');
+  const staffId=snapStf.val()?.id||'';
+  for(const k of talSelec){
+    await db.ref('aprende_talleres/'+k+'/docenteId').set(staffId);
+  }
+  // Acciones: actualizar docenteId en las acciones seleccionadas
+  const snapA=await db.ref('aprende_acciones').once('value');
+  const accKeys=[];snapA.forEach(c=>accKeys.push(c.key));
+  for(const k of accKeys){
+    const checked=document.getElementById('chk-ac-'+idx+'-'+k)?.checked;
+    if(checked) await db.ref('aprende_acciones/'+k+'/docenteId').set(staffId);
+  }
+  showToast('✅ Asignación guardada para '+((snapStf.val()?.nombres||'')));
 }
 
 // ══ ADMIN: HORARIO ══
