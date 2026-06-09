@@ -3013,15 +3013,12 @@ async function cargarEntregasDocente(){
   const entregas=snapEntregas.val()||{};
   const rawStuE=snapStu.val()||[];
   const students=(Array.isArray(rawStuE)?rawStuE:Object.values(rawStuE)).filter(function(s){return s&&s.id;});
-  // Mapa: estudianteId → lista de pendientes activos de este docente
-  const pendByEst={};
+  // Set de estudiantes que tienen al menos un pendiente activo
+  const conPendiente=new Set();
   snapPend.forEach(function(estSnap){
     estSnap.forEach(function(pSnap){
       const p=pSnap.val();
-      if(p&&p.docenteId===currentUser.id&&p.estado==='pendiente'){
-        if(!pendByEst[estSnap.key]) pendByEst[estSnap.key]=[];
-        pendByEst[estSnap.key].push(p);
-      }
+      if(p&&p.estado==='pendiente') conPendiente.add(estSnap.key);
     });
   });
 
@@ -3044,13 +3041,13 @@ async function cargarEntregasDocente(){
     const items=Object.entries(secEntregas).filter(function(e){return e[1]&&e[1].docenteId===currentUser.id;});
     const entregadosIds=new Set(items.map(function(e){return e[0];}));
 
-    // Solo estudiantes con pendiente activo asignado por este docente y que aún no entregaron
+    // Solo estudiantes que tienen pendiente activo Y no han entregado
     const noEntregados=[];
     misGruposSec.forEach(function(mg){
       students.filter(function(s){return detectarGrupoEstudiante(s.nivel, s.grado)===mg.grupo.id&&s.status==='active';})
         .forEach(function(s){
-          if(!entregadosIds.has(s.id)&&pendByEst[s.id]&&pendByEst[s.id].length>0)
-            noEntregados.push({est:s,tallerKey:mg.tallerKey,taller:tMap[mg.tallerKey],pendientes:pendByEst[s.id]});
+          if(!entregadosIds.has(s.id)&&conPendiente.has(s.id))
+            noEntregados.push({est:s,tallerKey:mg.tallerKey,taller:tMap[mg.tallerKey]});
         });
     });
 
