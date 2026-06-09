@@ -3536,24 +3536,20 @@ async function guardarEvalIndividual(fecha, secKey, grupoId, tallerKey, tallerTi
   const snap=await db.ref('corposepi/students').once('value');
   const rawStu2=snap.val()||[];
   const students=(Array.isArray(rawStu2)?rawStu2:Object.values(rawStu2)).filter(s=>s&&s.id&&s.status==='active'&&detectarGrupoEstudiante(s.nivel, s.grado)===grupoId);
+  // Limpiar el nodo completo de este grupo/sección antes de re-guardar.
+  // Evita contaminación de datos viejos (tieneP:true de versiones anteriores).
+  await db.ref('aprende_eval_individual/'+currentUser.id+'/'+fecha+'/'+secKey+'/'+grupoId).remove();
   let creados=0;
   for(const s of students){
     const nota=document.getElementById('evind-'+fecha+'-'+secKey+'-'+grupoId+'-'+s.id)?.value.trim();
     const tienePend=document.getElementById('evpend-'+fecha+'-'+secKey+'-'+grupoId+'-'+s.id)?.checked;
-    // Guardar nota individual (siempre que haya nota; también guarda flag tieneP para Entregas)
-    if(nota){
+    // Guardar solo estudiantes con nota o pendiente marcado
+    if(nota||tienePend){
       await db.ref('aprende_eval_individual/'+currentUser.id+'/'+fecha+'/'+secKey+'/'+grupoId+'/'+s.id).set({
-        nota, docenteId:currentUser.id, estudianteId:s.id,
+        nota:nota||'', docenteId:currentUser.id, estudianteId:s.id,
         estudianteNombre:s.nombres+' '+(s.apellidos||''),
         fecha, tallerKey:tallerKey||'',
-        tieneP:!!(tienePend&&nota)
-      });
-    } else if(tienePend){
-      // Tiene pendiente pero sin nota — guardar solo el flag
-      await db.ref('aprende_eval_individual/'+currentUser.id+'/'+fecha+'/'+secKey+'/'+grupoId+'/'+s.id).update({
-        tieneP:true, docenteId:currentUser.id, estudianteId:s.id,
-        estudianteNombre:s.nombres+' '+(s.apellidos||''),
-        fecha, tallerKey:tallerKey||''
+        tieneP:!!tienePend
       });
     }
     // Crear pendiente si está marcado
