@@ -841,55 +841,40 @@ function buildNav(){
   const bnScroll=document.getElementById('bn-scroll');
   const content=document.getElementById('app-content');
   content.innerHTML='';
-  // Top nav (desktop)
-  navEl.innerHTML=nav.map((n,i)=>`<button class="tb-nav-item${i===0?' active':''}" id="nav-${n.id}">${n.label}</button>`).join('');
-  // Bottom nav (mobile)
+  // Top nav (desktop) — inline onclick para máxima compatibilidad
+  navEl.innerHTML=nav.map((n,i)=>`<button type="button" class="tb-nav-item${i===0?' active':''}" onclick="switchSection('${n.id}')">${n.label}</button>`).join('');
+  // Bottom nav (móvil)
   if(bnScroll){
-    bnScroll.innerHTML=nav.map((n,i)=>`<button type="button" class="bn-item${i===0?' active':''}" id="bn-${n.id}" aria-label="${n.label}"><span class="bn-icon">${n.icon||'📌'}</span><span class="bn-lbl">${n.short||n.label}</span></button>`).join('');
+    bnScroll.innerHTML=nav.map((n,i)=>`<button type="button" class="bn-item${i===0?' active':''}" id="bn-${n.id}" onclick="switchSection('${n.id}')"><span class="bn-icon">${n.icon||'📌'}</span><span class="bn-lbl">${n.short||n.label}</span></button>`).join('');
   }
-  // Build section containers
+  // Crear contenedores de sección
   nav.forEach((n,i)=>{
     const sec=document.createElement('div');
-    sec.className=`section${i===0?' active':''}`;
+    sec.className='section'+(i===0?' active':'');
     sec.id='sec-'+n.id;
     content.appendChild(sec);
     if(i===0) n.fn(sec);
   });
-  // Wire up click handlers
-  nav.forEach((n,i)=>{
-    const topBtn=document.getElementById('nav-'+n.id);
-    const botBtn=document.getElementById('bn-'+n.id);
-    const handler=()=>switchSection(n.id,i,nav);
-    if(topBtn) topBtn.onclick=handler;
-    if(botBtn) botBtn.onclick=handler;
-  });
 }
 
-function switchSection(id, idx, nav){
-  // Normalizar nav/idx — acepta switchSection(id, btnEl) legacy O switchSection(id, i, navArr)
-  if(!Array.isArray(nav)){
-    nav=NAV_CONFIG[currentRole]||[];
-    idx=nav.findIndex(n=>n.id===id);
-  }
-  const navEntry=nav[idx]||nav.find(n=>n.id===id);
-  if(!navEntry) return; // id desconocido — no hacer nada
-  // Limpiar estado activo solo dentro de #app-content y las navs
-  const content=document.getElementById('app-content');
-  if(content) content.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.getElementById('tb-nav')?.querySelectorAll('.tb-nav-item').forEach(b=>b.classList.remove('active'));
-  document.getElementById('bn-scroll')?.querySelectorAll('.bn-item').forEach(b=>b.classList.remove('active'));
-  // Marcar activo
-  const topBtn=document.getElementById('nav-'+id);
+function switchSection(id){
+  const nav=NAV_CONFIG[currentRole]||[];
+  const entry=nav.find(n=>n.id===id);
+  if(!entry) return;
+  // Ocultar todas las secciones
+  document.querySelectorAll('#app-content>.section').forEach(s=>s.classList.remove('active'));
+  // Desmarcar nav
+  document.querySelectorAll('.tb-nav-item').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.bn-item').forEach(b=>b.classList.remove('active'));
+  // Marcar botones activos (top y bottom nav)
+  document.querySelectorAll('.tb-nav-item').forEach(b=>{ if(b.getAttribute('onclick')==="switchSection('"+id+"')") b.classList.add('active'); });
   const botBtn=document.getElementById('bn-'+id);
-  if(topBtn) topBtn.classList.add('active');
   if(botBtn) botBtn.classList.add('active');
+  // Mostrar sección — cargar si es primera vez
   const sec=document.getElementById('sec-'+id);
-  if(sec){
-    if(!sec.innerHTML.trim()) navEntry.fn(sec);
-    sec.classList.add('active');
-    // Scroll al tope en móvil
-    window.scrollTo({top:0,behavior:'smooth'});
-  }
+  if(!sec) return;
+  if(!sec.innerHTML) entry.fn(sec);
+  sec.classList.add('active');
 }
 
 // ══ INICIO ESTUDIANTE ══
