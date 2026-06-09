@@ -845,7 +845,7 @@ function buildNav(){
   navEl.innerHTML=nav.map((n,i)=>`<button class="tb-nav-item${i===0?' active':''}" id="nav-${n.id}">${n.label}</button>`).join('');
   // Bottom nav (mobile)
   if(bnScroll){
-    bnScroll.innerHTML=nav.map((n,i)=>`<button class="bn-item${i===0?' active':''}" id="bn-${n.id}" aria-label="${n.label}"><span class="bn-icon">${n.icon||'📌'}</span><span class="bn-lbl">${n.short||n.label}</span></button>`).join('');
+    bnScroll.innerHTML=nav.map((n,i)=>`<button type="button" class="bn-item${i===0?' active':''}" id="bn-${n.id}" aria-label="${n.label}"><span class="bn-icon">${n.icon||'📌'}</span><span class="bn-lbl">${n.short||n.label}</span></button>`).join('');
   }
   // Build section containers
   nav.forEach((n,i)=>{
@@ -866,24 +866,29 @@ function buildNav(){
 }
 
 function switchSection(id, idx, nav){
-  // Accept both old signature switchSection(id,btnEl) and new switchSection(id,idx,nav)
-  if(typeof idx==='object'&&idx!==null&&idx.classList){
-    // legacy call from inline onclick — find idx
-    const _nav=NAV_CONFIG[currentRole]||[];
-    idx=_nav.findIndex(n=>n.id===id);
-    nav=_nav;
+  // Normalizar nav/idx — acepta switchSection(id, btnEl) legacy O switchSection(id, i, navArr)
+  if(!Array.isArray(nav)){
+    nav=NAV_CONFIG[currentRole]||[];
+    idx=nav.findIndex(n=>n.id===id);
   }
-  document.querySelectorAll('.tb-nav-item').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('.bn-item').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  const navEntry=nav[idx]||nav.find(n=>n.id===id);
+  if(!navEntry) return; // id desconocido — no hacer nada
+  // Limpiar estado activo solo dentro de #app-content y las navs
+  const content=document.getElementById('app-content');
+  if(content) content.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('tb-nav')?.querySelectorAll('.tb-nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('bn-scroll')?.querySelectorAll('.bn-item').forEach(b=>b.classList.remove('active'));
+  // Marcar activo
   const topBtn=document.getElementById('nav-'+id);
   const botBtn=document.getElementById('bn-'+id);
   if(topBtn) topBtn.classList.add('active');
   if(botBtn) botBtn.classList.add('active');
   const sec=document.getElementById('sec-'+id);
   if(sec){
-    if(!sec.innerHTML) nav[idx].fn(sec);
+    if(!sec.innerHTML.trim()) navEntry.fn(sec);
     sec.classList.add('active');
+    // Scroll al tope en móvil
+    window.scrollTo({top:0,behavior:'smooth'});
   }
 }
 
