@@ -2215,7 +2215,7 @@ async function verEstudiantesTaller(bloqueId, grupoId, tallerTitulo){
 // ══ ADMIN: ASIGNAR DOCENTES (solo bloques) ══
 async function cargarStaffAdmin(){
   const el=document.getElementById('admin-staff-list'); if(!el)return;
-  el.innerHTML='<div style="color:var(--hint);font-size:.82rem;padding:.5rem;">Cargando...</div>';
+  el.innerHTML='<div style="color:var(--hint);font-size:.82rem;padding:.5rem;">Cargando staff desde Firebase...</div>';
   const [snapStaff, snapTalleres, snapAcciones]=await Promise.all([
     db.ref('corposepi/staff').once('value'),
     db.ref('aprende_talleres').once('value'),
@@ -2228,7 +2228,13 @@ async function cargarStaffAdmin(){
   } else if(raw&&typeof raw==='object'){
     lista=Object.entries(raw).map(([k,s])=>s?{...s,_idx:parseInt(k)}:null).filter(Boolean);
   }
-  if(!lista.length){ el.innerHTML='<div style="color:var(--hint);font-size:.82rem;">Sin docentes registrados. <button onclick="cargarStaffAdmin()" class="btn-outline" style="font-size:.75rem;padding:.3rem .7rem;margin-left:.5rem;">🔄 Recargar</button></div>'; return; }
+  // Debug: mostrar conteo y tipo de dato
+  const debugInfo='Firebase staff: tipo='+(Array.isArray(raw)?'array':'objeto')+', registros='+lista.length+', ids='+lista.map(s=>s.id||s.nombres||'?').join(', ');
+  if(!lista.length){ el.innerHTML='<div style="color:var(--corp);font-size:.78rem;padding:.5rem;background:#fff3f3;border-radius:6px;margin-bottom:.5rem;">⚠️ '+debugInfo+'</div><div style="color:var(--hint);font-size:.82rem;">Sin docentes registrados. <button onclick="_adminStaff=[];cargarStaffAdmin()" class="btn-outline" style="font-size:.75rem;padding:.3rem .7rem;margin-left:.5rem;">🔄 Recargar</button></div>'; return; }
+  // Mostrar debug info aunque haya resultados
+  const debugDiv=document.createElement('div');
+  debugDiv.style.cssText='font-size:.65rem;color:var(--hint);padding:.3rem .6rem;background:var(--cream);border-radius:4px;margin-bottom:.5rem;';
+  debugDiv.textContent='🔍 '+debugInfo;
 
   const todosTalleres=[];snapTalleres.forEach(c=>{const v=c.val();if(v)todosTalleres.push({...v,_key:c.key});});
   const todasAcciones=[];snapAcciones.forEach(c=>{const v=c.val();if(v)todasAcciones.push({...v,_key:c.key});});
@@ -2236,7 +2242,9 @@ async function cargarStaffAdmin(){
   el.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;background:var(--cream);border-radius:var(--radius-sm);padding:.6rem .9rem;">
     <div style="font-size:.75rem;color:var(--muted);">Asigna bloques, talleres y acciones a cada docente.</div>
     <button onclick="_adminStaff=[];cargarStaffAdmin()" class="btn-outline" style="font-size:.72rem;padding:.3rem .75rem;flex-shrink:0;">🔄 Recargar</button>
-  </div>`+lista.map(s=>{
+  </div>`;
+  el.appendChild(debugDiv);
+  el.innerHTML+=lista.map(s=>{
     const bl=Array.isArray(s.bloques)?s.bloques:(s.bloques?Object.values(s.bloques):[]);
     const talAsig=Array.isArray(s.talleres)?s.talleres:(s.talleres?Object.values(s.talleres):[]);
     return `<div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);padding:1.25rem;margin-bottom:.75rem;">
