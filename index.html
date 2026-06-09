@@ -3490,7 +3490,9 @@ async function abrirEvalIndividual(fecha, secN, grupoId, tallerKey, tallerTitulo
     db.ref('aprende_pendientes').once('value'),
     db.ref('aprende_eval_individual/'+currentUser.id+'/'+fecha+'/'+secKey+'/'+grupoId).once('value'),
   ]);
-  const students=(snapStu.val()||[]).filter(s=>s&&s.id&&s.status==='active'&&detectarGrupoEstudiante(s.nivel, s.grado)===grupoId);
+  const rawStu=snapStu.val()||[];
+  const stuArr=Array.isArray(rawStu)?rawStu:Object.values(rawStu);
+  const students=stuArr.filter(s=>s&&s.id&&s.status==='active'&&detectarGrupoEstudiante(s.nivel, s.grado)===grupoId);
   const pendMap={};
   snapPend.forEach(estSnap=>{
     estSnap.forEach(p=>{const v=p.val();if(v.docenteId===currentUser.id&&v.estado==='pendiente')pendMap[estSnap.key]=true;});
@@ -3525,7 +3527,8 @@ async function abrirEvalIndividual(fecha, secN, grupoId, tallerKey, tallerTitulo
 
 async function guardarEvalIndividual(fecha, secKey, grupoId, tallerKey, tallerTitulo){
   const snap=await db.ref('corposepi/students').once('value');
-  const students=(snap.val()||[]).filter(s=>s&&s.id&&s.status==='active'&&detectarGrupoEstudiante(s.nivel, s.grado)===grupoId);
+  const rawStu2=snap.val()||[];
+  const students=(Array.isArray(rawStu2)?rawStu2:Object.values(rawStu2)).filter(s=>s&&s.id&&s.status==='active'&&detectarGrupoEstudiante(s.nivel, s.grado)===grupoId);
   let creados=0;
   for(const s of students){
     const nota=document.getElementById('evind-'+fecha+'-'+secKey+'-'+grupoId+'-'+s.id)?.value.trim();
