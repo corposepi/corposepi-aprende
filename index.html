@@ -3013,14 +3013,14 @@ async function cargarEntregasDocente(){
   const entregas=snapEntregas.val()||{};
   const rawStuE=snapStu.val()||[];
   const students=(Array.isArray(rawStuE)?rawStuE:Object.values(rawStuE)).filter(function(s){return s&&s.id;});
-  // estId → Set de tallerKeys con pendiente activo de ESTE docente
-  const pendByEstTaller={};
+  // Set de estId con pendiente activo de ESTE docente para ESTA fecha de clase
+  const conPendienteHoy=new Set();
   snapPend.forEach(function(estSnap){
     estSnap.forEach(function(pSnap){
       const p=pSnap.val();
-      if(p&&p.estado==='pendiente'&&p.docenteId===currentUser.id){
-        if(!pendByEstTaller[estSnap.key]) pendByEstTaller[estSnap.key]=new Set();
-        pendByEstTaller[estSnap.key].add(p.tallerKey||'__any__');
+      const esDeEstaFecha=(p.fechaClase===fecha)||(p.creadoEn===fecha);
+      if(p&&p.estado==='pendiente'&&p.docenteId===currentUser.id&&esDeEstaFecha){
+        conPendienteHoy.add(estSnap.key);
       }
     });
   });
@@ -3044,16 +3044,13 @@ async function cargarEntregasDocente(){
     const items=Object.entries(secEntregas).filter(function(e){return e[1]&&e[1].docenteId===currentUser.id;});
     const entregadosIds=new Set(items.map(function(e){return e[0];}));
 
-    // Solo estudiantes con pendiente activo de ESTE docente para ESTE taller Y que no entregaron
+    // Solo estudiantes con pendiente creado HOY por ESTA docente Y que no entregaron
     const noEntregados=[];
     misGruposSec.forEach(function(mg){
-      const tk=mg.tallerKey||'';
       students.filter(function(s){return detectarGrupoEstudiante(s.nivel, s.grado)===mg.grupo.id&&s.status==='active';})
         .forEach(function(s){
-          const estPend=pendByEstTaller[s.id];
-          const tienePendEste=estPend&&(estPend.has(tk)||estPend.has('__any__'));
-          if(!entregadosIds.has(s.id)&&tienePendEste)
-            noEntregados.push({est:s,tallerKey:tk,taller:tMap[tk]});
+          if(!entregadosIds.has(s.id)&&conPendienteHoy.has(s.id))
+            noEntregados.push({est:s,tallerKey:mg.tallerKey||'',taller:tMap[mg.tallerKey]});
         });
     });
 
@@ -3570,7 +3567,8 @@ async function guardarEvalIndividual(fecha, secKey, grupoId, tallerKey, tallerTi
         descripcion:nota,
         docenteId:currentUser.id,
         docenteNombre:(currentUser.nombres||'')+(currentUser.apellidos?' '+currentUser.apellidos:''),
-        creadoEn:new Date().toISOString().slice(0,10),
+        creadoEn:new Date().toLocaleDateString('en-CA'),
+        fechaClase:fecha,
         estado:'pendiente', origen:'evaluacion_clase'
       });
       creados++;
