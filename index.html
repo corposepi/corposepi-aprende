@@ -3001,16 +3001,29 @@ async function cargarEntregasDocente(){
   const diaKey=diasSemana[new Date(fecha+'T12:00:00').getDay()];
   const configDia=HORARIO_BASE[diaKey];
 
-  const [snapHor,snapTal,snapEntregas,snapStu]=await Promise.all([
+  const [snapHor,snapTal,snapEntregas,snapStu,snapPend]=await Promise.all([
     db.ref('aprende_horario').once('value'),
     db.ref('aprende_talleres').once('value'),
     db.ref('aprende_entregas/'+fecha).once('value'),
     db.ref('corposepi/students').once('value'),
+    db.ref('aprende_pendientes').once('value'),
   ]);
   const horario=snapHor.val()||{};
   const tMap={};snapTal.forEach(function(c){tMap[c.key]=c.val();});
   const entregas=snapEntregas.val()||{};
-  const students=(snapStu.val()||[]).filter(function(s){return s&&s.id;});
+  const rawStuE=snapStu.val()||[];
+  const students=(Array.isArray(rawStuE)?rawStuE:Object.values(rawStuE)).filter(function(s){return s&&s.id;});
+  // Mapa: estudianteId → lista de pendientes activos de este docente
+  const pendByEst={};
+  snapPend.forEach(function(estSnap){
+    estSnap.forEach(function(pSnap){
+      const p=pSnap.val();
+      if(p&&p.docenteId===currentUser.id&&p.estado==='pendiente'){
+        if(!pendByEst[estSnap.key]) pendByEst[estSnap.key]=[];
+        pendByEst[estSnap.key].push(p);
+      }
+    });
+  });
 
   if(!configDia){el.innerHTML='<div style="color:var(--hint);text-align:center;padding:2rem;">Sin clases este día.</div>';return;}
 
@@ -3031,11 +3044,14 @@ async function cargarEntregasDocente(){
     const items=Object.entries(secEntregas).filter(function(e){return e[1]&&e[1].docenteId===currentUser.id;});
     const entregadosIds=new Set(items.map(function(e){return e[0];}));
 
-    // Calcular no entregados por grupo
+    // Solo estudiantes con pendiente activo asignado por este docente y que aún no entregaron
     const noEntregados=[];
     misGruposSec.forEach(function(mg){
       students.filter(function(s){return detectarGrupoEstudiante(s.nivel, s.grado)===mg.grupo.id&&s.status==='active';})
-        .forEach(function(s){if(!entregadosIds.has(s.id)) noEntregados.push({est:s,tallerKey:mg.tallerKey,taller:tMap[mg.tallerKey]});});
+        .forEach(function(s){
+          if(!entregadosIds.has(s.id)&&pendByEst[s.id]&&pendByEst[s.id].length>0)
+            noEntregados.push({est:s,tallerKey:mg.tallerKey,taller:tMap[mg.tallerKey],pendientes:pendByEst[s.id]});
+        });
     });
 
     html+='<div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);margin-bottom:1rem;overflow:hidden;">';
