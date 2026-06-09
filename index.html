@@ -3013,14 +3013,15 @@ async function cargarEntregasDocente(){
   const entregas=snapEntregas.val()||{};
   const rawStuE=snapStu.val()||[];
   const students=(Array.isArray(rawStuE)?rawStuE:Object.values(rawStuE)).filter(function(s){return s&&s.id;});
-  // Set de estId con pendiente activo de ESTE docente para ESTA fecha de clase
-  const conPendienteHoy=new Set();
+  // Map estId → Set<secKey> con pendientes activos de ESTE docente en ESTA fecha de clase
+  const pendHoyPorSec={};
   snapPend.forEach(function(estSnap){
     estSnap.forEach(function(pSnap){
       const p=pSnap.val();
       const esDeEstaFecha=(p.fechaClase===fecha)||(p.creadoEn===fecha);
-      if(p&&p.estado==='pendiente'&&p.docenteId===currentUser.id&&esDeEstaFecha){
-        conPendienteHoy.add(estSnap.key);
+      if(p&&p.estado==='pendiente'&&p.docenteId===currentUser.id&&esDeEstaFecha&&p.seccionClase){
+        if(!pendHoyPorSec[estSnap.key]) pendHoyPorSec[estSnap.key]=new Set();
+        pendHoyPorSec[estSnap.key].add(p.seccionClase);
       }
     });
   });
@@ -3044,12 +3045,13 @@ async function cargarEntregasDocente(){
     const items=Object.entries(secEntregas).filter(function(e){return e[1]&&e[1].docenteId===currentUser.id;});
     const entregadosIds=new Set(items.map(function(e){return e[0];}));
 
-    // Solo estudiantes con pendiente creado HOY por ESTA docente Y que no entregaron
+    // Solo estudiantes con pendiente HOY de ESTA docente EN ESTA SECCIÓN y que no entregaron
     const noEntregados=[];
     misGruposSec.forEach(function(mg){
       students.filter(function(s){return detectarGrupoEstudiante(s.nivel, s.grado)===mg.grupo.id&&s.status==='active';})
         .forEach(function(s){
-          if(!entregadosIds.has(s.id)&&conPendienteHoy.has(s.id))
+          const secs=pendHoyPorSec[s.id];
+          if(!entregadosIds.has(s.id)&&secs&&secs.has(secKey))
             noEntregados.push({est:s,tallerKey:mg.tallerKey||'',taller:tMap[mg.tallerKey]});
         });
     });
@@ -3568,7 +3570,7 @@ async function guardarEvalIndividual(fecha, secKey, grupoId, tallerKey, tallerTi
         docenteId:currentUser.id,
         docenteNombre:(currentUser.nombres||'')+(currentUser.apellidos?' '+currentUser.apellidos:''),
         creadoEn:new Date().toLocaleDateString('en-CA'),
-        fechaClase:fecha,
+        fechaClase:fecha, seccionClase:secKey,
         estado:'pendiente', origen:'evaluacion_clase'
       });
       creados++;
