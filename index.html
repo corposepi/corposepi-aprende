@@ -290,6 +290,34 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 /* GOOGLE MEET EMBED BUTTON */
 .meet-btn{background:linear-gradient(135deg,#00897B,#00BFA5);border:none;border-radius:var(--radius-sm);padding:.75rem 1.5rem;color:var(--white);font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:.5rem;}
 
+/* ══ BOTTOM NAV MÓVIL ══ */
+#bottom-nav{
+  display:none;
+  position:fixed;bottom:0;left:0;right:0;z-index:200;
+  background:var(--dark);
+  border-top:1px solid rgba(255,255,255,.08);
+  padding:0 0 env(safe-area-inset-bottom,0);
+  box-shadow:0 -4px 20px rgba(0,0,0,.4);
+}
+#bottom-nav .bn-scroll{
+  display:flex;align-items:stretch;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+#bottom-nav .bn-scroll::-webkit-scrollbar{display:none;}
+#bottom-nav .bn-item{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;min-width:64px;flex:1;
+  padding:.55rem .4rem .45rem;
+  border:none;background:transparent;cursor:pointer;
+  color:rgba(255,255,255,.4);font-size:.58rem;font-family:'DM Sans',sans-serif;
+  font-weight:500;transition:all .18s;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;
+}
+#bottom-nav .bn-item .bn-icon{font-size:1.15rem;line-height:1;}
+#bottom-nav .bn-item.active{color:var(--corp3);}
+#bottom-nav .bn-item.active .bn-icon{filter:drop-shadow(0 0 6px rgba(212,168,67,.5));}
+
 @media(max-width:768px){
   .stats-strip{grid-template-columns:1fr 1fr;}
   .bloques-grid{grid-template-columns:1fr;}
@@ -297,7 +325,23 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
   .libro-periodos{grid-template-columns:1fr;}
   .recursos-list{grid-template-columns:1fr;}
   .tb-nav{display:none;}
-  .section{padding:1rem;}
+  #bottom-nav{display:block;}
+  .section{padding:1rem 1rem 80px;}
+  /* Admin tabs scrollables */
+  .admin-tab{font-size:.72rem;padding:.45rem .7rem;white-space:nowrap;}
+  #admin-tabs-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px;}
+  #admin-tabs-wrap::-webkit-scrollbar{display:none;}
+  /* Topbar compacta */
+  .tb-inner{padding:.55rem 1rem;}
+  .tb-logo-text{display:none;}
+  /* Grids */
+  .form-grid-2{grid-template-columns:1fr!important;}
+  /* Stats más compactas */
+  .stat{padding:.6rem .5rem;}
+  .stat-val{font-size:1.4rem!important;}
+  /* Botones más grandes para touch */
+  .btn-primary,.btn-outline{min-height:42px;font-size:.82rem;}
+  .form-input,.form-select{min-height:42px;font-size:.88rem;}
 }
 
 /* PLANEACION */
@@ -460,6 +504,7 @@ textarea:focus{border-color:var(--corp)!important;outline:none;background:var(--
 </div>
 
 <div class="toast" id="toast"></div>
+<nav id="bottom-nav"><div class="bn-scroll" id="bn-scroll"></div></nav>
 
 <script>
 // ══ CONFIG ══
@@ -759,43 +804,50 @@ function startApp(){
 // ══ NAV BY ROLE ══
 const NAV_CONFIG={
   estudiante:[
-    {id:'inicio',label:'Inicio',fn:buildInicio},
-    {id:'midiahoy',label:'📖 Mi clase',fn:buildMiClaseHoy},
-    {id:'mispendientes',label:'⚠️ Mis pendientes',fn:buildMisPendientes},
-    {id:'proyectos',label:'Mis proyectos',fn:buildProyectos},
-    {id:'libros',label:'Inteligencia Financiera',fn:buildLibros},
-    {id:'movimientos',label:'Mis FNX',fn:buildMovimientos},
+    {id:'inicio',     label:'Inicio',                  icon:'🏠',short:'Inicio',    fn:buildInicio},
+    {id:'midiahoy',   label:'📖 Mi clase',              icon:'📖',short:'Clase',     fn:buildMiClaseHoy},
+    {id:'mispendientes',label:'⚠️ Mis pendientes',     icon:'⚠️',short:'Pendient.',  fn:buildMisPendientes},
+    {id:'proyectos',  label:'Mis proyectos',            icon:'🎯',short:'Proyectos', fn:buildProyectos},
+    {id:'libros',     label:'Inteligencia Financiera',  icon:'📚',short:'Int. Fin.', fn:buildLibros},
+    {id:'movimientos',label:'Mis FNX',                  icon:'💰',short:'FNX',       fn:buildMovimientos},
   ],
   docente:[
-    {id:'inicio',label:'Inicio',fn:buildInicioDocente},
-    {id:'planeacion',label:'📝 Planeación',fn:buildPlaneacion},
-    {id:'asistencia',label:'✅ Asistencia',fn:buildAsistenciaDocente},
-    {id:'entregas',label:'📥 Entregas',fn:buildEntregasDocente},
-    {id:'pendientes',label:'⚠️ Pendientes',fn:buildPendientesDocente},
-    {id:'proyectos',label:'Proyectos',fn:buildProyectosDok},
-    {id:'libros',label:'Int. Financiera',fn:buildLibros},
-    {id:'clases',label:'Clases',fn:buildClases},
-    {id:'estudiantes',label:'Mis estudiantes',fn:buildEstudiantes},
+    {id:'inicio',     label:'Inicio',                  icon:'🏠',short:'Inicio',    fn:buildInicioDocente},
+    {id:'planeacion', label:'📝 Planeación',            icon:'📝',short:'Planear',   fn:buildPlaneacion},
+    {id:'asistencia', label:'✅ Asistencia',            icon:'✅',short:'Asistencia',fn:buildAsistenciaDocente},
+    {id:'entregas',   label:'📥 Entregas',              icon:'📥',short:'Entregas',  fn:buildEntregasDocente},
+    {id:'pendientes', label:'⚠️ Pendientes',            icon:'⚠️',short:'Pendient.', fn:buildPendientesDocente},
+    {id:'proyectos',  label:'Proyectos',                icon:'🎯',short:'Proyectos', fn:buildProyectosDok},
+    {id:'libros',     label:'Int. Financiera',          icon:'📚',short:'Int. Fin.', fn:buildLibros},
+    {id:'clases',     label:'Clases',                   icon:'📡',short:'Clases',    fn:buildClases},
+    {id:'estudiantes',label:'Mis estudiantes',          icon:'👥',short:'Estud.',    fn:buildEstudiantes},
   ],
   padre:[
-    {id:'inicio',label:'Inicio',fn:buildInicioPadre},
-    {id:'pendientes',label:'⚠️ Pendientes',fn:buildPendientesPadre},
-    {id:'proyectos',label:'Proyectos',fn:buildProyectos},
+    {id:'inicio',     label:'Inicio',                  icon:'🏠',short:'Inicio',    fn:buildInicioPadre},
+    {id:'pendientes', label:'⚠️ Pendientes',            icon:'⚠️',short:'Pendient.', fn:buildPendientesPadre},
+    {id:'proyectos',  label:'Proyectos',                icon:'🎯',short:'Proyectos', fn:buildProyectos},
   ],
   admin:[
-    {id:'inicio',label:'Dashboard',fn:buildAdmin},
-    {id:'proyectos',label:'Proyectos',fn:buildProyectos},
-    {id:'libros',label:'Libros',fn:buildLibros},
-    {id:'clases',label:'Clases en vivo',fn:buildClases},
+    {id:'inicio',     label:'Dashboard',               icon:'📊',short:'Dashboard', fn:buildAdmin},
+    {id:'proyectos',  label:'Proyectos',                icon:'🎯',short:'Proyectos', fn:buildProyectos},
+    {id:'libros',     label:'Libros',                   icon:'📚',short:'Libros',    fn:buildLibros},
+    {id:'clases',     label:'Clases en vivo',           icon:'📡',short:'En vivo',   fn:buildClases},
   ],
 };
 
 function buildNav(){
   const nav=NAV_CONFIG[currentRole]||[];
   const navEl=document.getElementById('tb-nav');
+  const bnScroll=document.getElementById('bn-scroll');
   const content=document.getElementById('app-content');
   content.innerHTML='';
-  navEl.innerHTML=nav.map((n,i)=>`<button class="tb-nav-item${i===0?' active':''}" onclick="switchSection('${n.id}',this)" id="nav-${n.id}">${n.label}</button>`).join('');
+  // Top nav (desktop)
+  navEl.innerHTML=nav.map((n,i)=>`<button class="tb-nav-item${i===0?' active':''}" id="nav-${n.id}">${n.label}</button>`).join('');
+  // Bottom nav (mobile)
+  if(bnScroll){
+    bnScroll.innerHTML=nav.map((n,i)=>`<button class="bn-item${i===0?' active':''}" id="bn-${n.id}" aria-label="${n.label}"><span class="bn-icon">${n.icon||'📌'}</span><span class="bn-lbl">${n.short||n.label}</span></button>`).join('');
+  }
+  // Build section containers
   nav.forEach((n,i)=>{
     const sec=document.createElement('div');
     sec.className=`section${i===0?' active':''}`;
@@ -803,16 +855,36 @@ function buildNav(){
     content.appendChild(sec);
     if(i===0) n.fn(sec);
   });
-  navEl.querySelectorAll('.tb-nav-item').forEach((btn,i)=>{
-    btn.onclick=()=>{
-      document.querySelectorAll('.tb-nav-item').forEach(b=>b.classList.remove('active'));
-      document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-      btn.classList.add('active');
-      const sec=document.getElementById('sec-'+nav[i].id);
-      if(!sec.innerHTML) nav[i].fn(sec);
-      sec.classList.add('active');
-    };
+  // Wire up click handlers
+  nav.forEach((n,i)=>{
+    const topBtn=document.getElementById('nav-'+n.id);
+    const botBtn=document.getElementById('bn-'+n.id);
+    const handler=()=>switchSection(n.id,i,nav);
+    if(topBtn) topBtn.onclick=handler;
+    if(botBtn) botBtn.onclick=handler;
   });
+}
+
+function switchSection(id, idx, nav){
+  // Accept both old signature switchSection(id,btnEl) and new switchSection(id,idx,nav)
+  if(typeof idx==='object'&&idx!==null&&idx.classList){
+    // legacy call from inline onclick — find idx
+    const _nav=NAV_CONFIG[currentRole]||[];
+    idx=_nav.findIndex(n=>n.id===id);
+    nav=_nav;
+  }
+  document.querySelectorAll('.tb-nav-item').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.bn-item').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  const topBtn=document.getElementById('nav-'+id);
+  const botBtn=document.getElementById('bn-'+id);
+  if(topBtn) topBtn.classList.add('active');
+  if(botBtn) botBtn.classList.add('active');
+  const sec=document.getElementById('sec-'+id);
+  if(sec){
+    if(!sec.innerHTML) nav[idx].fn(sec);
+    sec.classList.add('active');
+  }
 }
 
 // ══ INICIO ESTUDIANTE ══
@@ -1617,7 +1689,8 @@ async function buildAdmin(el){
     <div class="page-title">Dashboard <em>administrativo</em></div>
   </div>
   <!-- Tabs -->
-  <div style="display:flex;gap:.4rem;margin-bottom:1.25rem;border-bottom:2px solid var(--cream3);padding-bottom:0;">
+  <div id="admin-tabs-wrap" style="margin-bottom:1.25rem;border-bottom:2px solid var(--cream3);">
+  <div style="display:flex;gap:.4rem;padding-bottom:0;min-width:max-content;">
     <button onclick="adminTab('dash',this)" id="atab-dash" class="admin-tab active-tab">📊 Dashboard</button>
     <button onclick="adminTab('talleres',this)" id="atab-talleres" class="admin-tab">📚 Talleres</button>
     <button onclick="adminTab('acciones',this)" id="atab-acciones" class="admin-tab">🔗 Acciones</button>
@@ -1626,6 +1699,7 @@ async function buildAdmin(el){
     <button onclick="adminTab('semanas',this)" id="atab-semanas" class="admin-tab">📅 Semanas</button>
     <button onclick="adminTab('modulos',this)" id="atab-modulos" class="admin-tab">🔗 Módulos</button>
   </div>
+  </div><!-- /admin-tabs-wrap -->
   <!-- Panel Dashboard -->
   <div id="apanel-dash">
     <div id="admin-stats-strip" class="stats-strip"><div class="stat"><div class="stat-val" style="color:var(--muted)">…</div><div class="stat-lbl">Cargando</div></div></div>
@@ -2229,13 +2303,7 @@ async function cargarStaffAdmin(){
   } else if(raw&&typeof raw==='object'){
     lista=Object.entries(raw).map(([k,s])=>s?{...s,_idx:parseInt(k)}:null).filter(Boolean);
   }
-  // Debug: mostrar conteo y tipo de dato
-  const debugInfo='Firebase staff: tipo='+(Array.isArray(raw)?'array':'objeto')+', registros='+lista.length+', ids='+lista.map(s=>s.id||s.nombres||'?').join(', ');
-  if(!lista.length){ el.innerHTML='<div style="color:var(--corp);font-size:.78rem;padding:.5rem;background:#fff3f3;border-radius:6px;margin-bottom:.5rem;">⚠️ '+debugInfo+'</div><div style="color:var(--hint);font-size:.82rem;">Sin docentes registrados. <button onclick="_adminStaff=[];cargarStaffAdmin()" class="btn-outline" style="font-size:.75rem;padding:.3rem .7rem;margin-left:.5rem;">🔄 Recargar</button></div>'; return; }
-  // Mostrar debug info aunque haya resultados
-  const debugDiv=document.createElement('div');
-  debugDiv.style.cssText='font-size:.65rem;color:var(--hint);padding:.3rem .6rem;background:var(--cream);border-radius:4px;margin-bottom:.5rem;';
-  debugDiv.textContent='🔍 '+debugInfo;
+  if(!lista.length){ el.innerHTML='<div style="color:var(--hint);font-size:.82rem;">Sin docentes registrados. <button onclick="_adminStaff=[];cargarStaffAdmin()" class="btn-outline" style="font-size:.75rem;padding:.3rem .7rem;margin-left:.5rem;">🔄 Recargar</button></div>'; return; }
 
   const todosTalleres=[];snapTalleres.forEach(c=>{const v=c.val();if(v)todosTalleres.push({...v,_key:c.key});});
   const todasAcciones=[];snapAcciones.forEach(c=>{const v=c.val();if(v)todasAcciones.push({...v,_key:c.key});});
@@ -2244,7 +2312,6 @@ async function cargarStaffAdmin(){
     <div style="font-size:.75rem;color:var(--muted);">Asigna bloques, talleres y acciones a cada docente.</div>
     <button onclick="_adminStaff=[];cargarStaffAdmin()" class="btn-outline" style="font-size:.72rem;padding:.3rem .75rem;flex-shrink:0;">🔄 Recargar</button>
   </div>`;
-  el.appendChild(debugDiv);
   el.innerHTML+=lista.map(s=>{
     const bl=Array.isArray(s.bloques)?s.bloques:(s.bloques?Object.values(s.bloques):[]);
     const talAsig=Array.isArray(s.talleres)?s.talleres:(s.talleres?Object.values(s.talleres):[]);
