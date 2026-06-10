@@ -868,6 +868,7 @@ const NAV_CONFIG={
     {id:'entregas',   label:'📥 Entregas',              icon:'📥',short:'Entregas',  fn:buildEntregasDocente},
     {id:'pendientes', label:'⚠️ Pendientes',            icon:'⚠️',short:'Pendient.', fn:buildPendientesDocente},
     {id:'proyectos',  label:'Proyectos',                icon:'🎯',short:'Proyectos', fn:buildProyectosDok},
+    {id:'guia',       label:'📚 Guía proyectos',         icon:'📚',short:'Guía',      fn:buildGuiaProyectos},
     {id:'libros',     label:'Int. Financiera',          icon:'📚',short:'Int. Fin.', fn:buildLibros},
     {id:'clases',     label:'Clases',                   icon:'📡',short:'Clases',    fn:buildClases},
     {id:'estudiantes',label:'Mis estudiantes',          icon:'👥',short:'Estud.',    fn:buildEstudiantes},
@@ -1011,6 +1012,98 @@ async function buildInicio(el){
     </button>
   </div>`;
 }
+
+// ══ EJEMPLOS GUÍA DOCENTE ══
+const EJEMPLOS_PROYECTOS=[
+  {bloqueId:'B1',
+   titulo:'Nuestra Historia en Palabras: Memoria Comunitaria de Madrid',
+   preguntaGeneradora:'¿Cómo podemos rescatar y compartir la historia y tradiciones de Madrid, Cundinamarca, a través del lenguaje y las artes?',
+   descripcion:'Los estudiantes se convierten en cronistas de su comunidad. Entrevistarán a adultos mayores, escribirán crónicas y cuentos, crearán ilustraciones y producirán un periódico comunitario bilingüe (español–inglés) que se donará a la biblioteca municipal y al colegio.',
+   grupos:['G1','G4'],fechaInicio:'2026-02-03',fechaFin:'2026-04-25',estado:'activo',faseActual:2,
+   fasesDetalle:{
+     0:{fechaInicio:'2026-02-03',fechaFin:'2026-02-14',
+        actividades:'1. Salida de campo al parque principal y barrios históricos de Madrid.\n2. Entrevista colectiva a 3 adultos mayores invitados al aula (¿Cómo era Madrid antes? ¿Qué tradiciones existían?).\n3. Mapa parlante: los estudiantes ubican en un plano los lugares con historia del municipio.\n4. Lista colectiva de personajes, leyendas y tradiciones en riesgo de perderse.\n5. Registro fotográfico y de video con el celular del docente.',
+        producto:'Mapa parlante de Madrid con anotaciones y lista de 10 historias/tradiciones identificadas.'},
+     1:{fechaInicio:'2026-02-17',fechaFin:'2026-02-28',
+        actividades:'1. Votación democrática: los estudiantes eligen los 5 temas que incluirá el periódico (sección de crónicas, recetas típicas, leyendas, vocabulario en inglés de la región, galería de arte).\n2. Distribución de roles: cronistas, ilustradores, traductores, editores.\n3. Diseño del nombre y logo del periódico (concurso interno).\n4. Cronograma de producción: quién entrega qué y cuándo.\n5. Carta formal de solicitud a la alcaldía para donar el periódico.',
+        producto:'Plan editorial del periódico con roles asignados, nombre elegido y cronograma de producción.'},
+     2:{fechaInicio:'2026-03-03',fechaFin:'2026-03-28',
+        actividades:'1. Cada cronista realiza 2 entrevistas adicionales a familiares o vecinos y escribe su crónica (mínimo 300 palabras).\n2. Los ilustradores crean dibujos a mano o digital para acompañar cada texto.\n3. Los traductores trabajan en la sección en inglés: glosario de palabras propias de Madrid, descripción de la plaza principal en inglés.\n4. Círculos de escritura: revisión entre pares, el docente da retroalimentación escrita.\n5. Sesión de recetas: familiares invitados comparten recetas típicas que los estudiantes transcriben y traducen.',
+        producto:'Textos originales revisados (crónicas, cuentos, recetas), ilustraciones y sección bilingüe listos para diagramación.'},
+     3:{fechaInicio:'2026-03-31',fechaFin:'2026-04-11',
+        actividades:'1. Diagramación del periódico usando Canva o Publisher (sala de sistemas).\n2. Revisión final ortográfica y de estilo por el docente de Español.\n3. Corrección de la sección en inglés con el docente de Inglés.\n4. Impresión de prueba y correcciones finales.\n5. Reflexión escrita individual: ¿Qué aprendí de mi comunidad? ¿Qué me sorprendió? ¿Qué cambió en mí?',
+        producto:'Archivo digital listo para imprimir + reflexión individual escrita de cada estudiante.'},
+     4:{fechaInicio:'2026-04-22',fechaFin:'2026-04-25',
+        actividades:'1. Ceremonia de lanzamiento del periódico con familias, rector y personajes entrevistados.\n2. Cada estudiante presenta en 2 minutos su aporte al periódico.\n3. Donación oficial de 20 ejemplares a la Biblioteca Municipal de Madrid.\n4. Publicación digital en el canal YouTube de CORPOSEPI.\n5. Evaluación colectiva: ¿Qué impacto tuvo nuestro proyecto en la comunidad?',
+        producto:'Periódico impreso y digital, video del lanzamiento, carta de recibido de la biblioteca.'},
+   }},
+  {bloqueId:'B2',
+   titulo:'Agua Limpia para Madrid: Investigación Científica y Acción Comunitaria',
+   preguntaGeneradora:'¿Cuál es la calidad del agua que consumimos en Madrid y qué podemos hacer científicamente para protegerla?',
+   descripcion:'A través del método científico, los estudiantes investigan la calidad del agua en diferentes puntos del municipio (acueducto, quebradas, agua lluvia). Analizan datos, proponen soluciones y presentan sus hallazgos ante la comunidad educativa y las autoridades ambientales.',
+   grupos:['G1','G2'],fechaInicio:'2026-02-03',fechaFin:'2026-04-17',estado:'activo',faseActual:1,
+   fasesDetalle:{
+     0:{fechaInicio:'2026-02-03',fechaFin:'2026-02-07',
+        actividades:'1. Vídeo-debate: "¿De dónde viene el agua que tomo cada mañana?" — los estudiantes investigan de casa.\n2. Lluvia de preguntas: cada estudiante escribe 3 preguntas sobre el agua local en un post-it.\n3. Clasificación de preguntas por categorías (calidad, cantidad, contaminación, salud).\n4. Selección democrática de la pregunta central de investigación.\n5. Formulación de subpreguntas por equipos (equipo pH, equipo turbidez, equipo biológico, equipo estadístico).',
+        producto:'Pregunta central de indagación acordada + subpreguntas por equipo + mapa conceptual inicial.'},
+     1:{fechaInicio:'2026-02-10',fechaFin:'2026-02-21',
+        actividades:'1. Cada equipo formula su hipótesis específica (ej: "El agua de la quebrada X tiene mayor turbidez que el acueducto porque...").\n2. Diseño del protocolo de recolección: qué medir, dónde, cuándo y con qué materiales.\n3. Lista de materiales: kit de pH (vinagre, bicarbonato, indicador natural de repollo morado), filtros caseros, recipientes estériles.\n4. Mapa de puntos de muestreo: 5 puntos definidos (acueducto escolar, grifo de casa, quebrada cercana, agua lluvia, agua estancada).\n5. Carta de autorización a padres para salida de campo.',
+        producto:'Protocolo de investigación escrito + materiales listos + mapa de puntos de muestreo aprobado.'},
+     2:{fechaInicio:'2026-02-24',fechaFin:'2026-03-14',
+        actividades:'1. Salida de campo (2 sesiones): recolección de muestras en los 5 puntos con recipientes etiquetados.\n2. En el laboratorio improvisado del aula: medición de pH con indicador de repollo morado, test de turbidez (comparación visual), recuento de partículas visibles.\n3. Experimento de filtración: los estudiantes diseñan y prueban filtros caseros (arena, carbón, grava, algodón).\n4. Registro sistemático en tablas de datos (Excel o cuaderno cuadriculado).\n5. Fotografía y video de cada experimento para el informe.',
+        producto:'Tablas de datos completas con mediciones de los 5 puntos + fotos del proceso experimental.'},
+     3:{fechaInicio:'2026-03-17',fechaFin:'2026-03-28',
+        actividades:'1. Construcción de gráficas de barras comparativas (Matemáticas): pH por punto, turbidez por punto.\n2. Contraste con hipótesis inicial: ¿Se cumplió? ¿Por qué sí o no?\n3. Búsqueda de información sobre estándares de calidad del agua en Colombia (Resolución 2115 de 2007).\n4. Identificación de causas de contaminación encontradas: agrícola, doméstica, industrial.\n5. Formulación de 3 conclusiones científicas soportadas en datos y 2 recomendaciones para la comunidad.',
+        producto:'Informe científico con gráficas, análisis estadístico, conclusiones y recomendaciones (mínimo 5 páginas).'},
+     4:{fechaInicio:'2026-04-14',fechaFin:'2026-04-17',
+        actividades:'1. Elaboración de un póster científico (A1) con los hallazgos más importantes.\n2. Presentación tipo congreso científico: cada equipo expone 5 minutos ante jurado (rector, docentes, invitado de la CAR Cundinamarca).\n3. Campaña de concientización: los estudiantes diseñan 3 piezas para redes sociales con tips de cuidado del agua.\n4. Envío formal del informe a la UMATA municipal con carta de los estudiantes.\n5. Coevaluación y heteroevaluación con rúbrica.',
+        producto:'Póster científico, presentación oral, 3 piezas de campaña digital, informe enviado a la UMATA.'},
+   }},
+  {bloqueId:'B3',
+   titulo:'Madrid Seguro: Propuestas Ciudadanas para la Seguridad Vial',
+   preguntaGeneradora:'¿Qué problemas de seguridad vial existen en Madrid y qué propuestas ciudadanas podemos formular para mejorarla?',
+   descripcion:'Los estudiantes asumen el rol de ciudadanos activos y analizan la problemática de movilidad y seguridad vial de Madrid. Mediante encuestas, observación directa y consulta de datos oficiales, formulan propuestas concretas que presentan ante autoridades locales.',
+   grupos:['G1','G3'],fechaInicio:'2026-02-03',fechaFin:'2026-04-11',estado:'activo',faseActual:0,
+   fasesDetalle:{
+     0:{fechaInicio:'2026-02-03',fechaFin:'2026-02-07',
+        actividades:'1. Presentación del caso: video de noticieros sobre accidentes viales en municipios de Cundinamarca.\n2. Mapa de empatía: ¿quién se ve afectado por los accidentes de tránsito? (peatones, ciclistas, conductores, familias).\n3. Estadísticas impactantes: número de muertos en carreteras de Colombia en 2024 (datos ANSV).\n4. Pregunta generadora: ¿esto también ocurre en Madrid? Los estudiantes toman postura inicial.\n5. Asignación de roles de investigación: equipo de campo, equipo estadístico, equipo de propuestas, equipo de comunicaciones.',
+        producto:'Mapa de empatía colectivo + acta de conformación de equipos + hipótesis inicial grupal.'},
+     1:{fechaInicio:'2026-02-10',fechaFin:'2026-02-21',
+        actividades:'1. Identificación de los 3 puntos más peligrosos de Madrid según percepción ciudadana (encuesta informal en el barrio).\n2. Revisión de noticias locales y redes sociales sobre accidentes en Madrid (últimos 2 años).\n3. Marco conceptual: tipos de vías, señalización, normativa vial colombiana (Código Nacional de Tránsito).\n4. Matriz de análisis: causas (velocidad, alcohol, infraestructura, cultura vial) vs. zonas críticas.\n5. Elaboración de preguntas para encuesta formal y guía de observación de campo.',
+        producto:'Marco conceptual (2 páginas), mapa de zonas críticas de Madrid, instrumentos de recolección listos.'},
+     2:{fechaInicio:'2026-02-24',fechaFin:'2026-03-14',
+        actividades:'1. Salida de observación a 2 puntos críticos: conteo de vehículos, infractores, estado de señales (20 min cada punto).\n2. Encuesta a 50 ciudadanos en el parque principal (equipo estadístico, en parejas).\n3. Entrevista al Comandante de Tránsito de Madrid: ¿cuáles son los accidentes más frecuentes? ¿Qué hace falta?\n4. Consulta al Plan de Ordenamiento Territorial (POT) de Madrid: proyectos viales existentes.\n5. Sistematización de datos en tabla Excel y cálculo de porcentajes.',
+        producto:'Base de datos de la encuesta tabulada, grabación (o acta) de entrevista a Tránsito, informe de observación de campo.'},
+     3:{fechaInicio:'2026-03-17',fechaFin:'2026-03-28',
+        actividades:'1. Análisis de causas con árbol de problemas (técnica de ciencias sociales).\n2. Diseño de 3 propuestas concretas: (a) señalización nueva en 2 puntos críticos, (b) campaña escolar de cultura vial, (c) ciclovía dominical en una calle céntrica.\n3. Cada propuesta incluye: descripción, costo estimado, responsable institucional, cronograma, indicador de impacto.\n4. Maqueta o plano de una de las propuestas físicas (señalización).\n5. Redacción del documento final: "Propuesta Ciudadana Estudiantil para la Seguridad Vial de Madrid".',
+        producto:'Documento de propuesta ciudadana (8–10 páginas) con árbol de problemas, 3 soluciones detalladas y maqueta.'},
+     4:{fechaInicio:'2026-04-07',fechaFin:'2026-04-11',
+        actividades:'1. Presentación formal ante el Concejo Municipal o la Secretaría de Gobierno de Madrid (gestionar con la rectora).\n2. Exposición de 15 minutos con diapositivas y maqueta: problema + evidencia + 3 propuestas.\n3. Rueda de prensa simulada: el equipo de comunicaciones responde preguntas de "periodistas" (otros cursos).\n4. Carta formal radicada en la alcaldía con las propuestas estudiantiles.\n5. Publicación del video de la presentación en redes de CORPOSEPI.',
+        producto:'Video de presentación ante autoridades, carta radicada en alcaldía, nota de prensa redactada por los estudiantes.'},
+   }},
+  {bloqueId:'B4',
+   titulo:'Sembrando Alegría: Arte y Movimiento para Adultos Mayores',
+   preguntaGeneradora:'¿Cómo podemos mejorar el bienestar físico y emocional de los adultos mayores de nuestra comunidad a través del arte y la actividad física?',
+   descripcion:'Los estudiantes visitan el Centro Día o Hogar Geriátrico de Madrid y diseñan un programa de 8 sesiones de arte terapia y actividad física adaptada. Al final, organizan una exposición con las obras creadas y reconocen públicamente el valor de los adultos mayores.',
+   grupos:['G1','G4'],fechaInicio:'2026-02-03',fechaFin:'2026-05-08',estado:'activo',faseActual:0,
+   fasesDetalle:{
+     0:{fechaInicio:'2026-02-03',fechaFin:'2026-02-14',
+        actividades:'1. Primera visita al Centro Día de Madrid: presentación de los estudiantes, conversación libre con los adultos mayores.\n2. Actividad de "cartografía corporal": los adultos mayores dibujan siluetas y marcan dónde sienten dolor o limitación física.\n3. Encuesta sencilla (oral): ¿qué actividades disfrutan? ¿qué les gustaría hacer que ya no pueden? ¿qué recuerdan con alegría?\n4. Observación de las condiciones del espacio físico disponible para actividades.\n5. Reunión de cierre: los estudiantes comparten con el docente qué encontraron y qué sintieron.',
+        producto:'Informe de diagnóstico (1 página por equipo) + mapa de necesidades físicas y emocionales de los adultos mayores.'},
+     1:{fechaInicio:'2026-02-17',fechaFin:'2026-02-28',
+        actividades:'1. Investigación: ¿qué es arte terapia? ¿qué ejercicios físicos son seguros para adultos mayores? (consulta web guiada).\n2. Diseño del cronograma de 8 sesiones: alternando arte (pintura, collage, música) y movimiento (estiramiento, baile de salón, yoga suave).\n3. Planilla de cada sesión: objetivo, materiales, descripción paso a paso, tiempo, adaptaciones para quienes no puedan moverse.\n4. Gestión de materiales: carta a padres de familia solicitando donación de materiales de arte.\n5. Ensayo de la primera sesión en el aula (simulación) con retroalimentación del docente.',
+        producto:'Plan de 8 sesiones detallado + planillas de cada sesión + lista de materiales gestionados.'},
+     2:{fechaInicio:'2026-03-03',fechaFin:'2026-04-11',
+        actividades:'8 sesiones quincenales (cada 2 semanas, 1 sesión de 90 minutos):\n• Sesión 1: Presentación artística — autorretrato con acuarelas.\n• Sesión 2: Movimiento — baile de pasillos colombianos adaptado (sentados).\n• Sesión 3: Arte — collage "mi historia de vida".\n• Sesión 4: Movimiento — estiramiento con música de los años 60-70.\n• Sesión 5: Arte — pintura de naturaleza muerta (frutas de la región).\n• Sesión 6: Movimiento — ejercicios de respiración y meditación guiada.\n• Sesión 7: Arte — mosaico colectivo con el tema "Madrid de mis recuerdos".\n• Sesión 8: Movimiento y cierre — coreografía sencilla creada entre todos.',
+        producto:'Diario de campo de cada sesión (fotos + descripción + reflexión) + obras de arte de los adultos mayores recopiladas.'},
+     3:{fechaInicio:'2026-04-14',fechaFin:'2026-04-25',
+        actividades:'1. Cada estudiante escribe en su diario: ¿qué aprendí de los adultos mayores? ¿qué cambió en mi forma de ver la vejez? ¿qué fue lo más difícil? ¿qué fue lo más bonito?\n2. Círculo de reflexión grupal: el docente facilita una conversación con preguntas socráticas.\n3. Los estudiantes identifican cuáles habilidades artísticas y físicas desarrollaron ellos mismos.\n4. Carta de agradecimiento individual a un adulto mayor específico.\n5. Evaluación del impacto: encuesta a los cuidadores del Centro Día sobre cambios observados en los adultos mayores.',
+        producto:'Diario de campo completo (mínimo 8 entradas), carta de agradecimiento, encuesta de impacto diligenciada.'},
+     4:{fechaInicio:'2026-04-28',fechaFin:'2026-05-08',
+        actividades:'1. Montaje de la exposición "Manos que Cuentan": las obras de los adultos mayores se exhiben en el colegio, con etiquetas escritas por los estudiantes.\n2. Los adultos mayores son invitados de honor a la inauguración (transporte coordinado con el Centro Día).\n3. Cada estudiante presenta ante familiares y comunidad su aporte al proyecto.\n4. Acto de reconocimiento: diploma para cada adulto mayor participante, entregado por los estudiantes.\n5. Video memorial del proyecto compartido en redes de CORPOSEPI y en el Centro Día.',
+        producto:'Exposición montada, diplomas entregados, video memorial publicado, cobertura en redes CORPOSEPI.'},
+   }},
+];
 
 // ══ PROYECTOS NEM ══
 async function buildProyectos(el){
@@ -3814,6 +3907,92 @@ async function guardarEvalIndividual(fecha, secKey, grupoId, tallerKey, tallerTi
 }
 
 // ══ UTILS ══
+// ══ GUÍA DE PROYECTOS — EJEMPLOS PARA DOCENTES ══
+function buildGuiaProyectos(el){
+  el.innerHTML=`
+  <div class="page-hdr">
+    <div class="page-eyebrow">Guía para docentes</div>
+    <div class="page-title">Ejemplos de <em>proyectos</em></div>
+    <div class="page-sub">Un proyecto completamente formulado y desarrollado por cada metodología. Úsalos como inspiración y modelo para crear los tuyos.</div>
+  </div>
+  <div id="guia-tabs" style="display:flex;gap:.4rem;overflow-x:auto;padding-bottom:.3rem;margin-bottom:1rem;scrollbar-width:none;">
+    ${EJEMPLOS_PROYECTOS.map((e,i)=>{
+      const m=NEM_METODOLOGIAS.find(x=>x.bloqueId===e.bloqueId);
+      return `<button type="button" id="gtab-${i}" onclick="mostrarEjemplo(${i})"
+        style="flex-shrink:0;background:${i===0?m.color:'var(--cream)'};color:${i===0?'white':'var(--muted)'};border:1.5px solid ${i===0?m.color:'var(--cream3)'};border-radius:99px;padding:.4rem 1rem;font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .2s;">
+        ${m.icon} ${m.sigla}
+      </button>`;
+    }).join('')}
+  </div>
+  <div id="guia-contenido"></div>`;
+  mostrarEjemplo(0);
+}
+
+function mostrarEjemplo(idx){
+  const e=EJEMPLOS_PROYECTOS[idx];
+  const m=NEM_METODOLOGIAS.find(x=>x.bloqueId===e.bloqueId);
+  const blq=BLOQUES.find(b=>b.id===e.bloqueId);
+  // Actualizar tabs
+  EJEMPLOS_PROYECTOS.forEach((_,i)=>{
+    const mt=NEM_METODOLOGIAS.find(x=>x.bloqueId===EJEMPLOS_PROYECTOS[i].bloqueId);
+    const btn=document.getElementById('gtab-'+i);
+    if(btn){btn.style.background=i===idx?mt.color:'var(--cream)';btn.style.color=i===idx?'white':'var(--muted)';btn.style.borderColor=i===idx?mt.color:'var(--cream3)';}
+  });
+  const el=document.getElementById('guia-contenido');
+  if(!el)return;
+  // Cabecera del ejemplo
+  let html=`<div style="background:${m.color};border-radius:var(--radius) var(--radius) 0 0;padding:1.25rem 1.35rem;">
+    <div style="font-size:.58rem;font-weight:700;color:rgba(255,255,255,.65);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.3rem;">${m.icon} ${m.sigla} · Bloque ${m.num} · ${blq?.materias?.join(' · ')||''}</div>
+    <div style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:700;color:white;line-height:1.3;margin-bottom:.45rem;">${e.titulo}</div>
+    <div style="font-size:.73rem;font-style:italic;color:rgba(255,255,255,.8);border-left:3px solid rgba(255,255,255,.4);padding-left:.6rem;line-height:1.5;">${e.preguntaGeneradora}</div>
+  </div>
+  <div style="background:var(--white);border:1.5px solid ${m.color}30;border-top:none;border-radius:0 0 var(--radius) var(--radius);padding:1rem 1.35rem;margin-bottom:1rem;">
+    <!-- Metodología info -->
+    <div style="background:${m.bg};border-radius:8px;padding:.6rem .85rem;margin-bottom:.85rem;font-size:.68rem;color:${m.color};line-height:1.5;border-left:3px solid ${m.color};">
+      <strong>${m.sigla}:</strong> ${m.descripcion}
+    </div>
+    <!-- Descripción del reto -->
+    <div style="margin-bottom:.85rem;">
+      <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:.3rem;">Descripción / Reto para estudiantes</div>
+      <div style="font-size:.78rem;color:var(--dark);line-height:1.65;">${e.descripcion}</div>
+    </div>
+    <!-- Meta info -->
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.3rem;">
+      <span style="background:${m.bg};color:${m.color};font-size:.6rem;padding:3px 9px;border-radius:99px;font-weight:600;">📅 ${e.fechaInicio} → ${e.fechaFin}</span>
+      <span style="background:#E8F5E9;color:#2E7D32;font-size:.6rem;padding:3px 9px;border-radius:99px;font-weight:600;">🟢 ${e.estado==='activo'?'Activo':e.estado}</span>
+      <span style="background:var(--cream);color:var(--muted);font-size:.6rem;padding:3px 9px;border-radius:99px;">Fase actual: ${(e.faseActual||0)+1}/5</span>
+    </div>
+  </div>
+  <!-- Fases desarrolladas -->
+  <div style="margin-bottom:.5rem;">
+    <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:.6rem;">5 Fases desarrolladas — ejemplo completo</div>
+    ${m.fases.map((f,i)=>{
+      const fd=e.fasesDetalle[i]||{};
+      const completada=(e.faseActual||0)>i;
+      const activa=(e.faseActual||0)===i;
+      return '<details '+(activa||completada?'open':'')+' style="border:1.5px solid '+(completada?m.color:activa?m.color+'70':'var(--cream3)')+';border-radius:var(--radius-sm);margin-bottom:.45rem;overflow:hidden;">'+
+      '<summary style="display:flex;align-items:flex-start;gap:.5rem;padding:.6rem .85rem;background:'+(completada?m.color:activa?m.bg:'var(--cream)')+';cursor:pointer;list-style:none;-webkit-appearance:none;">'+
+      '<div style="min-width:24px;height:24px;border-radius:50%;background:'+(completada?'rgba(255,255,255,.2)':activa?m.color:'var(--cream3)')+';color:'+(completada?'white':activa?'white':'var(--muted)')+';font-size:.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">'+(completada?'✓':(i+1))+'</div>'+
+      '<div style="flex:1;">'+
+        '<div style="font-size:.75rem;font-weight:700;color:'+(completada?'white':activa?m.color:'var(--dark)')+';">'+f.n+'</div>'+
+        '<div style="font-size:.62rem;color:'+(completada?'rgba(255,255,255,.7)':activa?m.color+'aa':'var(--muted)')+';">'+f.desc+'</div>'+
+        (fd.fechaInicio?'<div style="font-size:.58rem;color:'+(completada?'rgba(255,255,255,.55)':'var(--muted)')+';margin-top:.2rem;">📅 '+fd.fechaInicio+' → '+fd.fechaFin+'</div>':'')+'</div>'+
+      '<span style="font-size:.7rem;color:'+(completada?'rgba(255,255,255,.5)':'var(--muted)')+';">▾</span>'+
+      '</summary>'+
+      '<div style="padding:.75rem .85rem;background:var(--white);">'+
+        '<div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.35rem;">Actividades</div>'+
+        '<div style="font-size:.75rem;color:var(--dark);line-height:1.7;white-space:pre-wrap;background:var(--cream);border-radius:7px;padding:.6rem .85rem;margin-bottom:.55rem;">'+escHtml(fd.actividades||'')+'</div>'+
+        '<div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.25rem;">Producto / evidencia esperada</div>'+
+        '<div style="font-size:.73rem;color:'+m.color+';font-weight:600;background:'+m.bg+';border-radius:6px;padding:.4rem .65rem;">'+escHtml(fd.producto||'')+'</div>'+
+      '</div></details>';
+    }).join('')}
+  </div>
+  <div style="background:${m.bg};border-radius:var(--radius-sm);padding:.75rem 1rem;font-size:.7rem;color:${m.color};line-height:1.6;margin-top:.5rem;">
+    <strong>💡 Cómo usar este ejemplo:</strong> Ve a la pestaña <em>Proyectos</em>, abre el panel de <strong>${m.sigla} — Bloque ${m.num}</strong>, copia o adapta este contenido a tu contexto, asigna tus grupos y cambia las fechas. Cada fase tiene espacio propio para desarrollarla.
+  </div>`;
+  el.innerHTML=html;
+}
+
 function showToast(m){const t=document.getElementById('toast');if(!t)return;t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
 
 // switchSection definida arriba en buildNav
