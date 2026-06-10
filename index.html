@@ -1017,7 +1017,7 @@ async function buildProyectos(el){
   const grupoId = currentUser ? detectarGrupoEstudiante(currentUser.nivel, currentUser.grado) : null;
   el.innerHTML=`
   <div class="page-hdr">
-    <div class="page-eyebrow">Nueva Escuela Mexicana · NEM</div>
+    <div class="page-eyebrow">4 Metodologías Sociocríticas</div>
     <div class="page-title">Mis <em>proyectos</em></div>
     <div class="page-sub">Cuatro metodologías sociocríticas que guían el aprendizaje. Tu proyecto no termina en el cuaderno — transforma la comunidad.</div>
   </div>
@@ -1175,7 +1175,7 @@ function abrirProyecto(id){
         <div class="pd-reto">${p.reto}</div>
       </div>
       <div class="pd-section">
-        <div class="pd-section-title">Etapas del proyecto (metodología NEM)</div>
+        <div class="pd-section-title">Etapas del proyecto</div>
         <div class="etapas-list">
           ${p.etapas.map((e,i)=>`<div class="etapa"><div class="etapa-num">${i+1}</div><div class="etapa-info"><div class="etapa-name">${e.n}</div><div class="etapa-desc">${e.desc}</div></div></div>`).join('')}
         </div>
@@ -1438,7 +1438,7 @@ function buildMovimientos(el){
 async function buildProyectosDok(el){
   el.innerHTML=`
   <div class="page-hdr">
-    <div class="page-eyebrow">Nueva Escuela Mexicana · NEM</div>
+    <div class="page-eyebrow">4 Metodologías Sociocríticas</div>
     <div class="page-title">Gestión de <em>proyectos</em></div>
     <div class="page-sub">Un proyecto por metodología. Crea, avanza fases y comparte con tus grupos.</div>
   </div>
