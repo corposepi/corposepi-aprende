@@ -1508,46 +1508,25 @@ function _renderPanelesDok(existing){
           </div>
           <!-- Fases con desarrollo -->
           <div style="margin-bottom:.85rem;">
-            <div class="form-label" style="margin-bottom:.5rem;">Fases del proyecto — desarrollo de cada una</div>
+            <div class="form-label" style="margin-bottom:.5rem;">Fases del proyecto — haz clic en cada fase para desarrollarla</div>
             <input type="hidden" id="pdok-fase-${m.bloqueId}" value="${p.faseActual||0}"/>
-            ${m.fases.map((f,i)=>{
-              const fd=(p.fasesDetalle||{})[i]||{};
-              const activa=(p.faseActual||0)===i;
-              const completada=(p.faseActual||0)>i;
-              return `<div style="border:1.5px solid ${completada?m.color:activa?m.color+'80':'var(--cream3)'};border-radius:var(--radius-sm);margin-bottom:.45rem;overflow:hidden;">
-                <!-- Cabecera fase -->
-                <div style="display:flex;align-items:center;gap:.5rem;padding:.5rem .7rem;background:${completada?m.color:activa?m.bg:'var(--cream)'};cursor:pointer;"
-                  onclick="toggleFasePanel('fdet-${m.bloqueId}-${i}')">
-                  <div style="min-width:22px;height:22px;border-radius:50%;background:${completada?'white':activa?m.color:'var(--cream3)'};color:${completada?m.color:activa?'white':'var(--muted)'};font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${completada?'✓':(i+1)}</div>
-                  <div style="flex:1;">
-                    <div style="font-size:.72rem;font-weight:700;color:${completada?'white':activa?m.color:'var(--dark)'};">${f.n}</div>
-                    <div style="font-size:.6rem;color:${completada?'rgba(255,255,255,.7)':activa?m.color+'99':'var(--muted)'};">${f.desc}</div>
-                  </div>
-                  <div style="display:flex;align-items:center;gap:.4rem;">
-                    <button type="button" onclick="event.stopPropagation();setFaseDok('${m.bloqueId}',${i})"
-                      style="background:${activa?m.color:'rgba(0,0,0,.08)'};color:${activa?'white':'var(--muted)'};border:none;border-radius:6px;padding:2px 8px;font-size:.58rem;font-weight:700;cursor:pointer;">${activa?'● Actual':'Marcar actual'}</button>
-                    <span style="font-size:.65rem;color:${completada?'rgba(255,255,255,.6)':'var(--muted)'};">▾</span>
-                  </div>
-                </div>
-                <!-- Cuerpo editable fase -->
-                <div id="fdet-${m.bloqueId}-${i}" style="display:${activa||fd.actividades?'block':'none'};padding:.55rem .7rem;background:var(--white);">
-                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:.45rem;margin-bottom:.4rem;">
-                    <div><label style="font-size:.6rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">Fecha inicio fase</label>
-                      <input class="form-input" type="date" id="fdok-fi-${m.bloqueId}-${i}" value="${fd.fechaInicio||''}" style="margin-top:.15rem;font-size:.72rem;padding:.3rem .5rem;"/></div>
-                    <div><label style="font-size:.6rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">Fecha fin fase</label>
-                      <input class="form-input" type="date" id="fdok-ff-${m.bloqueId}-${i}" value="${fd.fechaFin||''}" style="margin-top:.15rem;font-size:.72rem;padding:.3rem .5rem;"/></div>
-                  </div>
-                  <label style="font-size:.6rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">Actividades / desarrollo de la fase</label>
-                  <textarea id="fdok-act-${m.bloqueId}-${i}" rows="3"
-                    style="width:100%;margin-top:.15rem;background:var(--cream);border:1px solid var(--cream3);border-radius:7px;padding:.4rem .6rem;font-family:'DM Sans',sans-serif;font-size:.76rem;resize:vertical;outline:none;line-height:1.55;"
-                    placeholder="Describe las actividades, recursos, metodología específica, productos esperados para esta fase...">${escHtml(fd.actividades||'')}</textarea>
-                  <label style="font-size:.6rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:.35rem;display:block;">Producto / evidencia esperada</label>
-                  <input class="form-input" id="fdok-prod-${m.bloqueId}-${i}" value="${escHtml(fd.producto||'')}"
-                    placeholder="Ej: Informe escrito, video, maqueta, exposición oral..."
-                    style="margin-top:.15rem;font-size:.72rem;padding:.3rem .5rem;"/>
-                </div>
-              </div>`;
-            }).join('')}
+            ${m.fases.map((f,i)=>{const fd=(p.fasesDetalle||{})[i]||{};const activa=(p.faseActual||0)===i;const completada=(p.faseActual||0)>i;const bColor=completada?m.color:activa?m.color:'var(--cream3)';const bBg=completada?m.color:activa?m.bg:'var(--cream)';const tColor=completada?'white':activa?m.color:'var(--dark)';return '<details'+(activa||fd.actividades?' open':'')+' style="border:1.5px solid '+bColor+';border-radius:var(--radius-sm);margin-bottom:.4rem;overflow:hidden;">'+
+'<summary style="display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;background:'+bBg+';cursor:pointer;list-style:none;-webkit-appearance:none;">'+
+'<div style="min-width:22px;height:22px;border-radius:50%;background:'+(completada?'white':activa?m.color:'var(--cream3)')+';color:'+(completada?m.color:activa?'white':'var(--muted)')+';font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+(completada?'✓':(i+1))+'</div>'+
+'<div style="flex:1;"><div style="font-size:.73rem;font-weight:700;color:'+tColor+';">'+f.n+'</div><div style="font-size:.6rem;color:'+(completada?'rgba(255,255,255,.65)':activa?m.color+'bb':'var(--muted)')+';">'+f.desc+'</div></div>'+
+'<button type="button" onclick="event.preventDefault();setFaseDok(\''+m.bloqueId+'\','+i+')" style="background:'+(activa?m.color:'rgba(0,0,0,.09)')+';color:'+(activa?'white':'var(--muted)')+';border:none;border-radius:6px;padding:2px 9px;font-size:.58rem;font-weight:700;cursor:pointer;flex-shrink:0;">'+(activa?'● Actual':'Marcar actual')+'</button>'+
+'<span style="font-size:.7rem;color:'+(completada?'rgba(255,255,255,.5)':'var(--muted)')+';">▾</span>'+
+'</summary>'+
+'<div style="padding:.6rem .75rem;background:var(--white);border-top:1px solid '+bColor+'20;">'+
+'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.45rem;margin-bottom:.45rem;">'+
+'<div><label style="font-size:.6rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">Fecha inicio fase</label><input class="form-input" type="date" id="fdok-fi-'+m.bloqueId+'-'+i+'" value="'+(fd.fechaInicio||'')+'" style="margin-top:.15rem;font-size:.72rem;padding:.3rem .5rem;"/></div>'+
+'<div><label style="font-size:.6rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">Fecha fin fase</label><input class="form-input" type="date" id="fdok-ff-'+m.bloqueId+'-'+i+'" value="'+(fd.fechaFin||'')+'" style="margin-top:.15rem;font-size:.72rem;padding:.3rem .5rem;"/></div>'+
+'</div>'+
+'<label style="font-size:.6rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">Actividades / desarrollo de la fase</label>'+
+'<textarea id="fdok-act-'+m.bloqueId+'-'+i+'" rows="4" style="width:100%;margin-top:.15rem;background:var(--cream);border:1px solid var(--cream3);border-radius:7px;padding:.45rem .65rem;font-family:\'DM Sans\',sans-serif;font-size:.78rem;resize:vertical;outline:none;line-height:1.6;" placeholder="Describe las actividades, recursos y metodología específica para esta fase...">'+escHtml(fd.actividades||'')+'</textarea>'+
+'<label style="font-size:.6rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:.4rem;display:block;">Producto / evidencia esperada</label>'+
+'<input class="form-input" id="fdok-prod-'+m.bloqueId+'-'+i+'" value="'+escHtml(fd.producto||'')+'" placeholder="Ej: Informe escrito, video, maqueta, exposición oral..." style="margin-top:.15rem;font-size:.72rem;padding:.3rem .5rem;"/>'+
+'</div></details>';}).join('')}
           </div>
           <!-- Acciones -->
           <div style="display:flex;gap:.45rem;flex-wrap:wrap;">
