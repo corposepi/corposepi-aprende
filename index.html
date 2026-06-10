@@ -2032,6 +2032,7 @@ async function buildAdmin(el){
     <button onclick="adminTab('horario',this)" id="atab-horario" class="admin-tab">📅 Horario</button>
     <button onclick="adminTab('semanas',this)" id="atab-semanas" class="admin-tab">📅 Semanas</button>
     <button onclick="adminTab('modulos',this)" id="atab-modulos" class="admin-tab">🔗 Módulos</button>
+    <button onclick="adminTab('estudiantes',this)" id="atab-estudiantes" class="admin-tab">👤 Estudiantes</button>
   </div>
   </div><!-- /admin-tabs-wrap -->
   <!-- Panel Dashboard -->
@@ -2167,6 +2168,17 @@ async function buildAdmin(el){
         <button class="btn-primary" onclick="window.open('${c.link}','_blank')">${c.lbl}</button>
       </div>`).join('')}
     </div>
+  </div>
+  <!-- Panel Estudiantes -->
+  <div id="apanel-estudiantes" style="display:none">
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.85rem;">
+      <input id="adm-est-buscar" class="form-input" style="max-width:260px;font-size:.8rem;padding:.4rem .75rem;" placeholder="🔍 Nombre o ID..." oninput="filtrarEstudiantesAdmin()"/>
+      <select id="adm-est-filtro-grado" class="form-select" style="max-width:150px;font-size:.78rem;" onchange="filtrarEstudiantesAdmin()">
+        <option value="">Todos los grados</option>
+      </select>
+      <button class="btn-outline" style="font-size:.72rem;" onclick="cargarEstudiantesAdmin()">🔄 Recargar</button>
+    </div>
+    <div id="adm-est-lista"><div style="color:var(--muted);font-size:.82rem;padding:.5rem;">Selecciona la pestaña Estudiantes para cargar.</div></div>
   </div>`;
 
   // Cargar datos reales de Firebase para el dashboard
@@ -2197,13 +2209,14 @@ async function buildAdmin(el){
 function adminTab(id,btn){
   document.querySelectorAll('.admin-tab').forEach(b=>b.classList.remove('active-tab'));
   btn.classList.add('active-tab');
-  ['dash','talleres','acciones','docentes','horario','semanas','modulos'].forEach(p=>document.getElementById('apanel-'+p).style.display='none');
+  ['dash','talleres','acciones','docentes','horario','semanas','modulos','estudiantes'].forEach(p=>document.getElementById('apanel-'+p).style.display='none');
   document.getElementById('apanel-'+id).style.display='block';
   if(id==='talleres'){ _adminStaff=[]; cargarTalleresAdmin(); }
   if(id==='acciones'){ _adminStaff=[]; cargarAccionesAdmin(); }
   if(id==='docentes'){ _adminStaff=[]; cargarStaffAdmin(); }
   if(id==='horario') renderHorarioEditor();
   if(id==='semanas') cargarSemanasAdmin();
+  if(id==='estudiantes') cargarEstudiantesAdmin();
 }
 
 // ══ ADMIN: TALLERES ══
@@ -3907,6 +3920,92 @@ async function guardarEvalIndividual(fecha, secKey, grupoId, tallerKey, tallerTi
 }
 
 // ══ UTILS ══
+// ══ ADMIN: EDITAR ESTUDIANTES ══
+let _admEstudiantes=[];   // [{_key, nombres, apellidos, id, nivel, grado, status, fnx}]
+async function cargarEstudiantesAdmin(){
+  const el=document.getElementById('adm-est-lista');
+  if(!el)return;
+  el.innerHTML='<div style="color:var(--muted);font-size:.82rem;padding:.5rem;">⏳ Cargando estudiantes...</div>';
+  const snap=await db.ref('corposepi/students').once('value');
+  const raw=snap.val()||{};
+  _admEstudiantes=Object.entries(raw)
+    .filter(([,v])=>v&&(v.nombres||v.id))
+    .map(([k,v])=>({...v,_key:k}))
+    .sort((a,b)=>(a.apellidos||'').localeCompare(b.apellidos||''));
+  // Poblar filtro de grados
+  const gradoSel=document.getElementById('adm-est-filtro-grado');
+  if(gradoSel){
+    const grados=[...new Set(_admEstudiantes.map(s=>(s.nivel||'')+' '+(s.grado||'')).map(s=>s.trim()).filter(Boolean))].sort();
+    gradoSel.innerHTML='<option value="">Todos los grados</option>'+grados.map(g=>`<option value="${g}">${g}</option>`).join('');
+  }
+  filtrarEstudiantesAdmin();
+}
+function filtrarEstudiantesAdmin(){
+  const el=document.getElementById('adm-est-lista'); if(!el)return;
+  const q=(document.getElementById('adm-est-buscar')?.value||'').toLowerCase().trim();
+  const gFil=(document.getElementById('adm-est-filtro-grado')?.value||'').toLowerCase();
+  const lista=_admEstudiantes.filter(s=>{
+    const nombre=((s.nombres||'')+' '+(s.apellidos||'')).toLowerCase();
+    const grado=((s.nivel||'')+' '+(s.grado||'')).toLowerCase().trim();
+    const matchQ=!q||nombre.includes(q)||(s.id||'').toLowerCase().includes(q);
+    const matchG=!gFil||grado===gFil;
+    return matchQ&&matchG;
+  });
+  if(!lista.length){el.innerHTML='<div style="color:var(--muted);font-size:.82rem;padding:1rem;text-align:center;">Sin resultados</div>';return;}
+  el.innerHTML=`<div style="font-size:.65rem;color:var(--muted);margin-bottom:.5rem;">${lista.length} estudiante(s) · Haz clic en cualquier campo para editarlo</div>
+  <div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);overflow:hidden;">
+  <table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="background:var(--cream);border-bottom:2px solid var(--cream3);">
+      <th style="text-align:left;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:.5rem .75rem;">Nombre</th>
+      <th style="text-align:left;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:.5rem .75rem;">ID</th>
+      <th style="text-align:left;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:.5rem .75rem;">Nivel</th>
+      <th style="text-align:left;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:.5rem .75rem;">Grado</th>
+      <th style="text-align:left;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:.5rem .75rem;">Estado</th>
+    </tr></thead>
+    <tbody>
+    ${lista.map(s=>`<tr id="est-row-${s._key}" style="border-bottom:1px solid var(--cream);">
+      <td style="padding:.45rem .75rem;">
+        <div style="font-size:.82rem;font-weight:600;">${escHtml(s.nombres||'')} ${escHtml(s.apellidos||'')}</div>
+        <div style="font-size:.62rem;color:var(--muted);">FNX: ${parseFloat(s.fnx||0).toFixed(0)}</div>
+      </td>
+      <td style="font-family:'DM Mono',monospace;font-size:.7rem;color:var(--muted);padding:.45rem .75rem;">${escHtml(s.id||'')}</td>
+      <td style="padding:.45rem .75rem;">
+        <input id="enivel-${s._key}" value="${escHtml(s.nivel||'')}"
+          style="width:100%;min-width:80px;background:var(--cream);border:1px solid transparent;border-radius:5px;padding:.25rem .4rem;font-size:.78rem;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;"
+          onfocus="this.style.borderColor='var(--corp)';this.style.background='var(--white)'"
+          onblur="guardarCampoEstudiante('${s._key}','nivel',this.value,this)"
+          placeholder="Ej: Secundaria"/>
+      </td>
+      <td style="padding:.45rem .75rem;">
+        <input id="egrado-${s._key}" value="${escHtml(s.grado||'')}"
+          style="width:100%;min-width:60px;background:var(--cream);border:1px solid transparent;border-radius:5px;padding:.25rem .4rem;font-size:.78rem;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;"
+          onfocus="this.style.borderColor='var(--corp)';this.style.background='var(--white)'"
+          onblur="guardarCampoEstudiante('${s._key}','grado',this.value,this)"
+          placeholder="Ej: 11°"/>
+      </td>
+      <td style="padding:.45rem .75rem;">
+        <select id="estatus-${s._key}" style="background:${s.status==='active'?'#E8F5E9':'#FBE9E7'};color:${s.status==='active'?'#2E7D32':'#BF360C'};border:none;border-radius:5px;padding:.25rem .5rem;font-size:.72rem;font-family:'DM Sans',sans-serif;cursor:pointer;"
+          onchange="guardarCampoEstudiante('${s._key}','status',this.value,this)">
+          <option value="active" ${s.status==='active'?'selected':''}>✅ Activo</option>
+          <option value="inactive" ${s.status==='inactive'?'selected':''}>⛔ Inactivo</option>
+        </select>
+      </td>
+    </tr>`).join('')}
+    </tbody>
+  </table></div>`;
+}
+async function guardarCampoEstudiante(key,campo,valor,inputEl){
+  if(inputEl){inputEl.style.borderColor='transparent';inputEl.style.background='var(--cream)';}
+  const s=_admEstudiantes.find(x=>x._key===key);
+  if(!s||s[campo]===valor)return;   // sin cambios
+  try{
+    await db.ref('corposepi/students/'+key+'/'+campo).set(valor.trim());
+    s[campo]=valor.trim();
+    if(inputEl){inputEl.style.background='#E8F5E9';setTimeout(()=>{if(inputEl)inputEl.style.background='var(--cream)';},1200);}
+    showToast('✅ '+campo+' actualizado');
+  }catch(e){showToast('❌ Error al guardar: '+e.message);}
+}
+
 // ══ GUÍA DE PROYECTOS — EJEMPLOS PARA DOCENTES ══
 function buildGuiaProyectos(el){
   el.innerHTML=`
