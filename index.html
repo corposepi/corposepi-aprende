@@ -124,33 +124,31 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .accion-chip:hover,.accion-chip.active{background:var(--corp);border-color:var(--corp);color:var(--white);}
 .accion-chip.active-gold{background:var(--gold);border-color:var(--gold);color:var(--dark);}
 
-/* PROYECTOS */
-.proyectos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem;}
-.proyecto-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);overflow:hidden;transition:all .2s;cursor:pointer;}
-.proyecto-card:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(26,18,8,.1);}
-.pc-header{padding:1.25rem;border-bottom:1px solid var(--cream3);}
-.pc-tags{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.75rem;}
-.pc-tag{font-size:.6rem;font-weight:600;padding:2px 7px;border-radius:99px;text-transform:uppercase;letter-spacing:.06em;}
+/* PROYECTOS NEM */
 .pt-bloque1{background:#E8F5E9;color:#2E7D32;}
 .pt-bloque2{background:#E3F2FD;color:#1565C0;}
 .pt-bloque3{background:#FBE9E7;color:#BF360C;}
 .pt-bloque4{background:#F3E5F5;color:#6A1B9A;}
-.pt-integrador{background:linear-gradient(135deg,#FFF3E0,#FBE9E7);color:#E65100;}
-.pt-activo{background:#E8F5E9;color:#2E7D32;}
-.pt-revision{background:#FFF8E1;color:#F57F17;}
-.pt-completado{background:#F5F5F5;color:#757575;}
-.pc-title{font-family:'Fraunces',serif;font-size:1rem;font-weight:700;color:var(--dark);margin-bottom:.35rem;line-height:1.25;}
-.pc-desc{font-size:.78rem;color:var(--muted);line-height:1.6;}
-.pc-body{padding:1rem 1.25rem;}
-.pc-progress-label{display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-bottom:.35rem;}
-.pc-progress-bar{height:4px;background:var(--cream3);border-radius:2px;overflow:hidden;}
-.pc-progress-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--corp),var(--corp3));transition:width .5s ease;}
-.pc-meta{display:flex;align-items:center;justify-content:space-between;margin-top:.85rem;}
-.pc-ciclo{font-size:.68rem;font-weight:600;color:var(--muted);font-family:'DM Mono',monospace;}
-.pc-reward{font-size:.7rem;font-weight:600;color:var(--corp);display:flex;align-items:center;gap:.2rem;}
-.pc-footer{padding:.85rem 1.25rem;background:var(--cream);border-top:1px solid var(--cream3);display:flex;align-items:center;justify-content:space-between;}
-.pc-docente{font-size:.7rem;color:var(--muted);}
-.pc-btn{background:var(--dark);color:var(--white);border:none;border-radius:8px;padding:.4rem .9rem;font-family:'DM Sans',sans-serif;font-size:.72rem;font-weight:600;cursor:pointer;}
+/* NEM Metodología Cards */
+.nem-met-card{transition:box-shadow .2s,transform .2s;}
+.nem-met-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(26,18,8,.1);}
+/* NEM Fase Tracker */
+.nem-fase-btn{flex:1;min-width:70px;border-radius:7px;padding:.4rem .45rem;text-align:center;cursor:pointer;transition:all .2s;font-size:.6rem;font-weight:600;line-height:1.3;border:none;}
+/* Proyecto activo card */
+.proy-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);overflow:hidden;margin-bottom:.7rem;transition:box-shadow .2s;}
+.proy-card:hover{box-shadow:0 6px 20px rgba(26,18,8,.08);}
+/* Fase barra */
+.fase-barra{height:5px;border-radius:3px;transition:background .3s;}
+/* Panel docente */
+.pdok-panel{background:var(--white);border-radius:var(--radius);overflow:hidden;margin-bottom:.65rem;transition:box-shadow .2s;}
+.pdok-panel:hover{box-shadow:0 4px 16px rgba(26,18,8,.07);}
+.pdok-header{padding:.85rem 1.1rem;cursor:pointer;display:flex;align-items:center;gap:.65rem;}
+.pdok-body{padding:1rem 1.1rem;border-top:1px solid var(--cream3);}
+@media(max-width:600px){
+  .nem-met-grid{grid-template-columns:1fr!important;}
+  .pdok-form-2{grid-template-columns:1fr!important;}
+  .nem-fases-row{flex-direction:column!important;}
+}
 
 /* DETALLE PROYECTO */
 .proyecto-detalle{display:none;position:fixed;inset:0;background:rgba(26,18,8,.7);z-index:200;overflow-y:auto;padding:1.5rem;}
@@ -585,6 +583,58 @@ const ACCIONES=[
   {id:'marketing',icon:'📣',name:'Marketing y Emprendimiento'},
 ];
 
+// ══ NEM — 4 Metodologías Sociocríticas ══
+const NEM_METODOLOGIAS=[
+  {bloqueId:'B1',num:1,sigla:'ABPC',icon:'🏘️',
+   nombre:'Proyectos Comunitarios',nombreLargo:'Aprendizaje Basado en Proyectos Comunitarios',
+   color:'#4A6741',bg:'#E8F5E9',
+   descripcion:'Fomenta la intervención y el servicio directo en la comunidad para resolver necesidades sociales reales. Los estudiantes identifican un problema, lo investigan y ejecutan una acción transformadora.',
+   preguntaGuia:'¿Qué necesita mi comunidad y cómo puedo contribuir desde mi aprendizaje?',
+   fases:[
+     {n:'Diagnóstico comunitario',desc:'Observación directa, entrevistas y análisis de necesidades reales del entorno.'},
+     {n:'Planificación participativa',desc:'Diseño colectivo del proyecto: objetivos, actividades, recursos y roles.'},
+     {n:'Ejecución de la acción',desc:'Intervención real en la comunidad: talleres, campañas, construcciones, etc.'},
+     {n:'Sistematización',desc:'Registro y reflexión sobre lo vivido. ¿Qué aprendí? ¿Qué cambió en mi comunidad?'},
+     {n:'Socialización pública',desc:'Presentación ante la comunidad, padres, concejo municipal o medios de comunicación.'},
+   ]},
+  {bloqueId:'B2',num:2,sigla:'ABI-STEAM',icon:'🔬',
+   nombre:'Indagación STEAM',nombreLargo:'Aprendizaje Basado en Indagación (STEAM)',
+   color:'#1565C0',bg:'#E3F2FD',
+   descripcion:'Desarrolla el pensamiento científico y la reflexión crítica a través de la ciencia, tecnología, ingeniería, artes y matemáticas integradas en proyectos reales.',
+   preguntaGuia:'¿Cómo puedo usar la ciencia y la tecnología para comprender y mejorar mi realidad?',
+   fases:[
+     {n:'Pregunta de indagación',desc:'Formulación de una pregunta científica motivadora y contextualizada en el entorno.'},
+     {n:'Hipótesis y diseño',desc:'Planteamiento de hipótesis y diseño del experimento o la investigación.'},
+     {n:'Exploración y recolección',desc:'Experimentación, observación, medición y recolección de datos reales.'},
+     {n:'Análisis e interpretación',desc:'Procesamiento de datos, graficación y contraste con la hipótesis inicial.'},
+     {n:'Comunicación científica',desc:'Informe, póster, video o presentación de hallazgos ante la comunidad educativa.'},
+   ]},
+  {bloqueId:'B3',num:3,sigla:'ABP',icon:'🧩',
+   nombre:'Basado en Problemas',nombreLargo:'Aprendizaje Basado en Problemas (ABP)',
+   color:'#BF360C',bg:'#FBE9E7',
+   descripcion:'Se centra en el análisis crítico de situaciones problemáticas específicas del entorno para encontrar soluciones viables y argumentadas desde múltiples perspectivas.',
+   preguntaGuia:'¿Cuál es el problema real que afecta a mi contexto y cómo puedo resolverlo?',
+   fases:[
+     {n:'Encuentro con el problema',desc:'Presentación del caso o situación problemática real, compleja y motivadora.'},
+     {n:'Análisis y comprensión',desc:'Identificación de lo conocido, lo desconocido y lo que se necesita investigar.'},
+     {n:'Investigación y contrastación',desc:'Búsqueda de información, consulta de fuentes y verificación crítica de datos.'},
+     {n:'Propuesta de solución',desc:'Elaboración de la solución argumentada, viable y con impacto real medible.'},
+     {n:'Evaluación y argumentación',desc:'Sustentación pública de la solución y evaluación crítica entre pares y docente.'},
+   ]},
+  {bloqueId:'B4',num:4,sigla:'AS',icon:'🤝',
+   nombre:'Aprendizaje Servicio',nombreLargo:'Aprendizaje Servicio (AS)',
+   color:'#6A1B9A',bg:'#F3E5F5',
+   descripcion:'Vincula el aprendizaje académico con acciones solidarias concretas, enfocadas en mejorar la calidad de vida de la comunidad y fortalecer valores ciudadanos y artísticos.',
+   preguntaGuia:'¿Cómo puedo servir a mi comunidad mientras aprendo y crezco como persona?',
+   fases:[
+     {n:'Diagnóstico de necesidades',desc:'Identificación participativa de necesidades del grupo o comunidad beneficiaria.'},
+     {n:'Planificación del servicio',desc:'Diseño del plan de acción solidaria: qué, cómo, cuándo, con quién y para quién.'},
+     {n:'Acción solidaria',desc:'Ejecución del servicio: visitas, talleres, creaciones artísticas o actividades físicas.'},
+     {n:'Reflexión crítica',desc:'¿Qué aprendí sobre mí mismo y sobre los demás? ¿Qué transformé con mi servicio?'},
+     {n:'Celebración y visibilización',desc:'Reconocimiento público del impacto logrado y difusión del proyecto en la comunidad.'},
+   ]},
+];
+
 const LIBROS=[
   {num:1,titulo:'Semillas de Riqueza',ciclo:'Ciclo 1 — Exploratorio',grados:'Transición, 1° y 2°',edades:'5 a 8 años',periodos:[
     {num:'P1',pregunta:'¿De dónde viene el dinero y cómo lo usamos?',proyecto:'Mi tiendita del barrio',metodologia:'ABP comunitario'},
@@ -962,25 +1012,110 @@ async function buildInicio(el){
   </div>`;
 }
 
-// ══ PROYECTOS ══
-function buildProyectos(el){
+// ══ PROYECTOS NEM ══
+async function buildProyectos(el){
+  const grupoId = currentUser ? detectarGrupoEstudiante(currentUser.nivel, currentUser.grado) : null;
   el.innerHTML=`
   <div class="page-hdr">
-    <div class="page-eyebrow">Mi aprendizaje activo</div>
+    <div class="page-eyebrow">Nueva Escuela Mexicana · NEM</div>
     <div class="page-title">Mis <em>proyectos</em></div>
-    <div class="page-sub">Todo el aprendizaje ocurre a través de proyectos reales. No hay guías que llenar — hay retos que resolver.</div>
+    <div class="page-sub">Cuatro metodologías sociocríticas que guían el aprendizaje. Tu proyecto no termina en el cuaderno — transforma la comunidad.</div>
   </div>
-  <div class="acciones-strip" style="margin-bottom:1.25rem;">
-    <div class="accion-chip active" onclick="filtrarProyectos('todos',this)">Todos</div>
-    <div class="accion-chip" onclick="filtrarProyectos('activo',this)">Activos</div>
-    <div class="accion-chip" onclick="filtrarProyectos('revision',this)">En revisión</div>
-    <div class="accion-chip" onclick="filtrarProyectos('completado',this)">Completados</div>
+  <!-- 4 Metodologías -->
+  <div class="nem-met-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;margin-bottom:1.5rem;">
+    ${NEM_METODOLOGIAS.map(m=>{
+      const blq=BLOQUES.find(b=>b.id===m.bloqueId);
+      return `<div class="nem-met-card" style="background:${m.bg};border:1.5px solid ${m.color}25;border-radius:var(--radius);padding:.9rem;cursor:pointer;" onclick="toggleNemCard('nemc-${m.bloqueId}',this)">
+        <div style="display:flex;align-items:flex-start;gap:.5rem;margin-bottom:.45rem;">
+          <span style="font-size:1.3rem;line-height:1;">${m.icon}</span>
+          <div>
+            <div style="font-size:.55rem;font-weight:700;color:${m.color};text-transform:uppercase;letter-spacing:.09em;">Bloque ${m.num} · ${m.sigla}</div>
+            <div style="font-size:.76rem;font-weight:700;color:#1a1208;line-height:1.25;">${m.nombreLargo}</div>
+          </div>
+        </div>
+        <div style="font-size:.66rem;color:#555;line-height:1.5;margin-bottom:.45rem;">${m.descripcion}</div>
+        <div style="font-size:.6rem;color:var(--muted);margin-bottom:.3rem;">${blq?.materias?.join(' · ')||''}</div>
+        <div style="font-size:.58rem;font-style:italic;color:${m.color};border-left:2px solid ${m.color};padding-left:.4rem;line-height:1.4;margin-bottom:.4rem;">${m.preguntaGuia}</div>
+        <div style="font-size:.6rem;color:${m.color};font-weight:600;">▾ Ver 5 fases</div>
+        <div id="nemc-${m.bloqueId}" style="display:none;margin-top:.6rem;border-top:1px solid ${m.color}20;padding-top:.55rem;">
+          ${m.fases.map((f,i)=>`<div style="display:flex;gap:.35rem;align-items:flex-start;margin-bottom:.3rem;">
+            <div style="min-width:18px;height:18px;border-radius:50%;background:${m.color};color:white;font-size:.55rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${i+1}</div>
+            <div><div style="font-size:.64rem;font-weight:600;color:#333;">${f.n}</div><div style="font-size:.6rem;color:#777;line-height:1.4;">${f.desc}</div></div>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }).join('')}
   </div>
-  <div class="proyectos-grid" id="proyectos-grid">
-    ${PROYECTOS_DEMO.map(p=>renderProyectoCard(p)).join('')}
+  <!-- Proyectos activos -->
+  <div id="nem-proy-lista">
+    <div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.78rem;">⏳ Cargando proyectos...</div>
   </div>`;
+  // Cargar proyectos de Firebase
+  try{
+    const snap=await db.ref('aprende_proyectos').once('value');
+    const all=snap.val()||{};
+    const lista=[];
+    Object.entries(all).forEach(([dId,bloques])=>{
+      if(typeof bloques!=='object')return;
+      Object.entries(bloques).forEach(([bk,p])=>{
+        if(!p||p.estado==='borrador')return;
+        if(grupoId&&(p.grupos||[]).length&&!(p.grupos||[]).includes(grupoId))return;
+        lista.push({...p,_bk:bk,_dId:dId});
+      });
+    });
+    _renderNemListaEstudiante(lista);
+  }catch(e){ _renderNemListaEstudiante([]); }
 }
 
+function toggleNemCard(id,card){
+  const el=document.getElementById(id);if(!el)return;
+  const open=el.style.display!=='none';
+  el.style.display=open?'none':'block';
+  const lbl=card?card.querySelector('[id^="nemc-"]~*'):(card?.lastElementChild);
+  // update toggle label
+  const spans=card?card.querySelectorAll('div[style*="Ver"]'):[];
+  spans.forEach(s=>{if(s.textContent.includes('Ver'))s.textContent=open?'▾ Ver 5 fases':'▴ Ocultar fases';});
+}
+function _renderNemListaEstudiante(lista){
+  const el=document.getElementById('nem-proy-lista');if(!el)return;
+  if(!lista.length){
+    el.innerHTML=`<div style="text-align:center;padding:2.5rem 1rem;color:var(--muted);">
+      <div style="font-size:2rem;margin-bottom:.5rem;">📋</div>
+      <div style="font-size:.82rem;">Tu docente aún no ha publicado proyectos.</div>
+      <div style="font-size:.72rem;margin-top:.3rem;">Vuelve pronto o consulta en clase.</div>
+    </div>`;return;
+  }
+  const activos=lista.filter(p=>p.estado==='activo');
+  const otros=lista.filter(p=>p.estado!=='activo');
+  const card=p=>{
+    const m=NEM_METODOLOGIAS.find(x=>x.bloqueId===(p.bloqueId||(p._bk?'B'+p._bk.replace('b',''):'')));
+    const faseIdx=p.faseActual||0;
+    const fase=m?m.fases[faseIdx]:null;
+    const estadoLbl=p.estado==='activo'?'🟢 Activo':p.estado==='completado'?'✅ Completado':p.estado==='pausado'?'⏸ Pausado':'📋 '+p.estado;
+    return `<div class="proy-card">
+      <div style="background:${m?.color||'#555'};padding:.6rem 1rem;display:flex;align-items:center;gap:.5rem;">
+        <span style="font-size:1rem;">${m?.icon||'🎯'}</span>
+        <div style="flex:1;">
+          <div style="font-size:.55rem;font-weight:700;color:rgba(255,255,255,.65);text-transform:uppercase;">${m?.sigla||'PROY'} · Bloque ${m?.num||''}</div>
+          <div style="font-size:.8rem;font-weight:700;color:white;">${escHtml(p.titulo||'Sin título')}</div>
+        </div>
+        <div style="background:rgba(255,255,255,.15);color:white;font-size:.58rem;padding:2px 8px;border-radius:99px;font-weight:600;white-space:nowrap;">${estadoLbl}</div>
+      </div>
+      <div style="padding:.7rem 1rem;">
+        ${p.preguntaGeneradora?`<div style="font-size:.7rem;font-style:italic;color:var(--muted);margin-bottom:.45rem;line-height:1.5;">"${escHtml(p.preguntaGeneradora)}"</div>`:''}
+        ${fase?`<div style="font-size:.63rem;background:${m?.bg};color:${m?.color};border-radius:6px;padding:.28rem .55rem;margin-bottom:.4rem;font-weight:600;">📍 Fase ${faseIdx+1}/5: ${fase.n} — ${fase.desc}</div>`:''}
+        <div style="display:flex;gap:3px;margin-bottom:.3rem;">
+          ${(m?.fases||[]).map((_,i)=>`<div class="fase-barra" style="flex:1;background:${i<=faseIdx?m?.color||'#888':'#e8e8e8'};"></div>`).join('')}
+        </div>
+        ${p.descripcion?`<div style="font-size:.68rem;color:#555;line-height:1.5;margin-top:.3rem;">${escHtml(p.descripcion)}</div>`:''}
+        ${p.fechaFin?`<div style="font-size:.6rem;color:var(--muted);margin-top:.35rem;">📅 Entrega: ${p.fechaFin}</div>`:''}
+      </div>
+    </div>`;
+  };
+  el.innerHTML=`
+  ${activos.length?`<div style="font-size:.65rem;font-weight:700;color:var(--sage);text-transform:uppercase;letter-spacing:.09em;margin-bottom:.5rem;">🟢 Proyectos activos (${activos.length})</div>${activos.map(card).join('')}`:''}
+  ${otros.length?`<div style="font-size:.65rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin:${activos.length?'.9rem':''} 0 .5rem;">Otros proyectos (${otros.length})</div>${otros.map(card).join('')}`:''}`;
+}
 function renderProyectoCard(p){
   const estadoTag=p.estado==='activo'?'pt-activo Activo':p.estado==='revision'?'pt-revision En revisión':'pt-completado Completado';
   const [estadoCls,estadoLbl]=estadoTag.split(' ');
@@ -1300,60 +1435,143 @@ function buildMovimientos(el){
 }
 
 // ══ DOCENTE: PROYECTOS ══
-function buildProyectosDok(el){
+async function buildProyectosDok(el){
   el.innerHTML=`
   <div class="page-hdr">
-    <div class="page-eyebrow">${currentUser.bloque}</div>
+    <div class="page-eyebrow">Nueva Escuela Mexicana · NEM</div>
     <div class="page-title">Gestión de <em>proyectos</em></div>
+    <div class="page-sub">Un proyecto por metodología. Crea, avanza fases y comparte con tus grupos.</div>
   </div>
-  <div class="doc-grid">
-    <div class="doc-card">
-      <div class="dc-title">Crear nuevo proyecto</div>
-      <div class="form-group"><label class="form-label">Título del proyecto</label><input class="form-input" placeholder="Ej: El agua en mi ciudad"/></div>
-      <div class="form-group"><label class="form-label">Pregunta orientadora</label><input class="form-input" placeholder="¿Qué relación tiene...?"/></div>
-      <div class="form-group"><label class="form-label">Bloque(s) involucrado(s)</label>
-        <select class="form-select"><option>Solo mi bloque</option><option>Proyecto integrador — 2 bloques</option><option>Proyecto integrador — todos los bloques</option></select></div>
-      <div class="form-group"><label class="form-label">Acción articuladora</label>
-        <select class="form-select">${ACCIONES.map(a=>`<option>${a.name}</option>`).join('')}</select></div>
-      <div class="form-group"><label class="form-label">Ciclo educativo</label>
-        <select class="form-select"><option>Ciclo 1</option><option>Ciclo 2</option><option>Ciclo 3</option><option>Ciclo 4</option><option>Ciclo 5</option></select></div>
-      <div class="form-group"><label class="form-label">FNX al completar</label><input class="form-input" type="number" placeholder="15" value="15"/></div>
-      <div class="btn-row" style="margin-top:1rem;">
-        <button class="btn-primary" onclick="showToast('✅ Proyecto creado y publicado')">Crear proyecto</button>
-        <button class="btn-outline">Vista previa</button>
-      </div>
-    </div>
-    <div class="doc-card">
-      <div class="dc-title">Proyectos activos — entregas pendientes</div>
-      ${PROYECTOS_DEMO.map(p=>`<div style="padding:.65rem 0;border-bottom:1px solid var(--cream);display:flex;justify-content:space-between;align-items:center;">
-        <div>
-          <div style="font-size:.82rem;font-weight:500;color:var(--dark);margin-bottom:.15rem;">${p.titulo}</div>
-          <div style="font-size:.68rem;color:var(--muted)">${p.ciclo} · ${p.progreso}% promedio</div>
+  <div id="pdok-panels"><div style="text-align:center;padding:2rem;color:var(--muted);font-size:.8rem;">⏳ Cargando...</div></div>`;
+  try{
+    const snap=await db.ref('aprende_proyectos/'+currentUser.id).once('value');
+    _renderPanelesDok(snap.val()||{});
+  }catch(e){ _renderPanelesDok({}); }
+}
+
+const _faseDok={};
+function _renderPanelesDok(existing){
+  const el=document.getElementById('pdok-panels');if(!el)return;
+  el.innerHTML=NEM_METODOLOGIAS.map(m=>{
+    const bk=m.bloqueId.toLowerCase();
+    const p=existing[bk]||{};
+    const blq=BLOQUES.find(b=>b.id===m.bloqueId);
+    _faseDok[m.bloqueId]=p.faseActual||0;
+    const estadoBadge=p.titulo?(p.estado==='activo'?`<span style="background:${m.color};color:white;font-size:.58rem;padding:2px 8px;border-radius:99px;font-weight:700;">🟢 Activo</span>`:p.estado==='completado'?`<span style="background:#4caf50;color:white;font-size:.58rem;padding:2px 8px;border-radius:99px;">✅ Completado</span>`:`<span style="background:var(--cream3);color:var(--muted);font-size:.58rem;padding:2px 8px;border-radius:99px;">📝 Borrador</span>`):`<span style="font-size:.6rem;color:var(--muted);">Sin proyecto</span>`;
+    return `<div class="pdok-panel" style="border:1.5px solid ${m.color}20;">
+      <div class="pdok-header" style="background:${m.bg};" onclick="togglePDokPanel('pdok-body-${m.bloqueId}')">
+        <span style="font-size:1.4rem;">${m.icon}</span>
+        <div style="flex:1;">
+          <div style="font-size:.58rem;font-weight:700;color:${m.color};text-transform:uppercase;letter-spacing:.09em;">Bloque ${m.num} · ${m.sigla}</div>
+          <div style="font-size:.82rem;font-weight:700;color:#1a1208;">${m.nombreLargo}</div>
+          <div style="font-size:.62rem;color:#777;">${blq?.materias?.join(' · ')||''}</div>
         </div>
-        <button class="btn-outline" style="font-size:.68rem;padding:.3rem .7rem;" onclick="showToast('Revisando entregas de ${p.titulo}')">Revisar</button>
-      </div>`).join('')}
-    </div>
-  </div>
-  <div class="doc-card" style="margin-top:.75rem;">
-    <div class="dc-title">Agregar recursos al proyecto</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;">
-      <div style="background:var(--cream);border-radius:var(--radius-sm);padding:1rem;text-align:center;cursor:pointer;" onclick="window.open('https://youtube.com','_blank')">
-        <div style="font-size:1.5rem;margin-bottom:.3rem;">▶</div>
-        <div style="font-size:.78rem;font-weight:600;color:var(--dark)">Video YouTube</div>
-        <div style="font-size:.68rem;color:var(--muted)">Canal CORPOSEPI</div>
+        <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:.2rem;">
+          ${estadoBadge}
+          <span style="font-size:.6rem;color:var(--muted);">▼</span>
+        </div>
       </div>
-      <div style="background:var(--cream);border-radius:var(--radius-sm);padding:1rem;text-align:center;cursor:pointer;" onclick="window.open('https://drive.google.com','_blank')">
-        <div style="font-size:1.5rem;margin-bottom:.3rem;">📁</div>
-        <div style="font-size:.78rem;font-weight:600;color:var(--dark)">Google Drive</div>
-        <div style="font-size:.68rem;color:var(--muted)">Docs y archivos</div>
+      <div id="pdok-body-${m.bloqueId}" style="display:${p.titulo?'block':'none'};">
+        <div class="pdok-body">
+          <!-- Descripción metodología -->
+          <div style="background:${m.bg};border-radius:8px;padding:.6rem .85rem;margin-bottom:.85rem;font-size:.67rem;color:${m.color};line-height:1.5;border-left:3px solid ${m.color};">
+            <strong>${m.sigla}:</strong> ${m.descripcion}
+          </div>
+          <!-- Formulario -->
+          <div class="pdok-form-2" style="display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-bottom:.55rem;">
+            <div class="form-group" style="margin:0;"><label class="form-label">Título del proyecto</label>
+              <input class="form-input" id="pdok-tit-${m.bloqueId}" value="${escHtml(p.titulo||'')}" placeholder="Ej: El agua en mi comunidad"/></div>
+            <div class="form-group" style="margin:0;"><label class="form-label">Estado</label>
+              <select class="form-select" id="pdok-est-${m.bloqueId}">
+                <option value="borrador"${(p.estado||'borrador')==='borrador'?' selected':''}>📝 Borrador</option>
+                <option value="activo"${p.estado==='activo'?' selected':''}>🟢 Activo (visible)</option>
+                <option value="pausado"${p.estado==='pausado'?' selected':''}>⏸ Pausado</option>
+                <option value="completado"${p.estado==='completado'?' selected':''}>✅ Completado</option>
+              </select></div>
+          </div>
+          <div class="form-group" style="margin-bottom:.55rem;"><label class="form-label">Pregunta generadora</label>
+            <input class="form-input" id="pdok-preg-${m.bloqueId}" value="${escHtml(p.preguntaGeneradora||'')}" placeholder="${m.preguntaGuia}"/></div>
+          <div class="form-group" style="margin-bottom:.55rem;"><label class="form-label">Reto / descripción para estudiantes</label>
+            <textarea class="form-input" id="pdok-desc-${m.bloqueId}" rows="3" style="resize:vertical;" placeholder="Describe el reto, contexto y producto esperado...">${escHtml(p.descripcion||'')}</textarea></div>
+          <!-- Grupos -->
+          <div class="form-group" style="margin-bottom:.55rem;"><label class="form-label">Grupos asignados</label>
+            <div style="display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.2rem;">
+              ${GRUPOS.map(g=>`<label style="display:flex;align-items:center;gap:.3rem;font-size:.7rem;background:var(--cream);border-radius:6px;padding:.28rem .55rem;cursor:pointer;border:1px solid var(--cream3);">
+                <input type="checkbox" id="pdok-g-${m.bloqueId}-${g.id}" ${(p.grupos||[]).includes(g.id)?'checked':''} style="accent-color:${m.color};"> ${g.nombre}</label>`).join('')}
+            </div></div>
+          <!-- Fechas -->
+          <div class="pdok-form-2" style="display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-bottom:.75rem;">
+            <div class="form-group" style="margin:0;"><label class="form-label">Fecha de inicio</label>
+              <input class="form-input" type="date" id="pdok-fi-${m.bloqueId}" value="${p.fechaInicio||''}"/></div>
+            <div class="form-group" style="margin:0;"><label class="form-label">Fecha de entrega</label>
+              <input class="form-input" type="date" id="pdok-ff-${m.bloqueId}" value="${p.fechaFin||''}"/></div>
+          </div>
+          <!-- Tracker de fases -->
+          <div style="margin-bottom:.85rem;">
+            <div class="form-label" style="margin-bottom:.4rem;">Fase actual del proyecto</div>
+            <input type="hidden" id="pdok-fase-${m.bloqueId}" value="${p.faseActual||0}"/>
+            <div class="nem-fases-row" style="display:flex;gap:.3rem;flex-wrap:wrap;">
+              ${m.fases.map((f,i)=>`<button type="button" class="nem-fase-btn" id="fbd-${m.bloqueId}-${i}"
+                onclick="setFaseDok('${m.bloqueId}',${i})"
+                style="background:${(p.faseActual||0)>=i?m.color:'var(--cream3)'};color:${(p.faseActual||0)>=i?'white':'var(--muted)'};">
+                ${i+1}. ${f.n}
+              </button>`).join('')}
+            </div>
+            <div id="fase-desc-${m.bloqueId}" style="font-size:.65rem;color:var(--muted);margin-top:.3rem;font-style:italic;">${m.fases[p.faseActual||0]?.desc||''}</div>
+          </div>
+          <!-- Acciones -->
+          <div style="display:flex;gap:.45rem;flex-wrap:wrap;">
+            <button class="btn-primary" style="font-size:.72rem;" onclick="guardarProyectoBloque('${m.bloqueId}')">💾 Guardar proyecto</button>
+            <button class="btn-outline" style="font-size:.72rem;" onclick="window.open('https://drive.google.com','_blank')">📁 Drive</button>
+            <button class="btn-outline" style="font-size:.72rem;" onclick="window.open('https://youtube.com','_blank')">▶ YouTube</button>
+          </div>
+        </div>
       </div>
-      <div style="background:var(--cream);border-radius:var(--radius-sm);padding:1rem;text-align:center;cursor:pointer;" onclick="window.open('https://meet.google.com','_blank')">
-        <div style="font-size:1.5rem;margin-bottom:.3rem;">📹</div>
-        <div style="font-size:.78rem;font-weight:600;color:var(--dark)">Google Meet</div>
-        <div style="font-size:.68rem;color:var(--muted)">Clase en vivo</div>
-      </div>
-    </div>
-  </div>`;
+      <!-- Botón crear si vacío -->
+      ${!p.titulo?`<div style="padding:.65rem 1.1rem;border-top:1px solid ${m.bg};">
+        <button class="btn-outline" style="font-size:.72rem;width:100%;border-color:${m.color}40;color:${m.color};" onclick="togglePDokPanel('pdok-body-${m.bloqueId}')">+ Crear proyecto ${m.sigla}</button>
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+function togglePDokPanel(id){
+  const el=document.getElementById(id);
+  if(el)el.style.display=el.style.display==='none'?'block':'none';
+}
+function setFaseDok(bloqueId,fase){
+  _faseDok[bloqueId]=fase;
+  document.getElementById('pdok-fase-'+bloqueId).value=fase;
+  const m=NEM_METODOLOGIAS.find(x=>x.bloqueId===bloqueId);
+  if(!m)return;
+  m.fases.forEach((_,i)=>{
+    const btn=document.getElementById('fbd-'+bloqueId+'-'+i);
+    if(btn){btn.style.background=fase>=i?m.color:'var(--cream3)';btn.style.color=fase>=i?'white':'var(--muted)';}
+  });
+  const descEl=document.getElementById('fase-desc-'+bloqueId);
+  if(descEl)descEl.textContent=m.fases[fase]?.desc||'';
+}
+async function guardarProyectoBloque(bloqueId){
+  const bk=bloqueId.toLowerCase();
+  const titulo=document.getElementById('pdok-tit-'+bloqueId)?.value.trim();
+  if(!titulo){showToast('⚠️ Escribe el título del proyecto');return;}
+  const preguntaGeneradora=document.getElementById('pdok-preg-'+bloqueId)?.value.trim()||'';
+  const descripcion=document.getElementById('pdok-desc-'+bloqueId)?.value.trim()||'';
+  const estado=document.getElementById('pdok-est-'+bloqueId)?.value||'borrador';
+  const fechaInicio=document.getElementById('pdok-fi-'+bloqueId)?.value||'';
+  const fechaFin=document.getElementById('pdok-ff-'+bloqueId)?.value||'';
+  const faseActual=parseInt(document.getElementById('pdok-fase-'+bloqueId)?.value)||0;
+  const grupos=GRUPOS.map(g=>g.id).filter(gid=>document.getElementById('pdok-g-'+bloqueId+'-'+gid)?.checked);
+  const m=NEM_METODOLOGIAS.find(x=>x.bloqueId===bloqueId);
+  await db.ref('aprende_proyectos/'+currentUser.id+'/'+bk).set({
+    titulo,preguntaGeneradora,descripcion,estado,
+    metodologia:m?.sigla||bloqueId,metodologiaNombre:m?.nombreLargo||'',
+    bloqueId,faseActual,grupos,
+    fechaInicio,fechaFin,
+    docenteId:currentUser.id,
+    docenteNombre:(currentUser.nombres||'')+(currentUser.apellidos?' '+currentUser.apellidos:''),
+    updatedAt:new Date().toLocaleDateString('en-CA'),
+  });
+  showToast('✅ Proyecto guardado — Bloque '+bloqueId.replace('B',''));
 }
 
 // ══ DOCENTE: ESTUDIANTES ══
