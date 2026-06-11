@@ -745,6 +745,7 @@ async function doLogin(){
     }catch(e){showErr('est','Error de conexión con Firebase');return;}
     if(!estudiante){showErr('est','ID o número de documento incorrectos.');return;}
     if(estudiante.bloqueado){showErr('est','Esta cuenta está bloqueada. Contacta a administración.');return;}
+    if(estudiante.bloqueadoAprende){showErr('est','🔒 Tu acceso está suspendido por pagos pendientes. Comunícate con la institución para regularizar tu situación.');return;}
     currentRole='estudiante';
     currentUser={
       idx:0,id:estudiante.id,
@@ -804,6 +805,7 @@ async function doLogin(){
       estudiante=students.find(s=>s.id===id&&String(s.numdoc)===String(numdoc));
     }catch(e){showErr('pad','Error de conexión con Firebase');return;}
     if(!estudiante){showErr('pad','ID o número de documento incorrectos.');return;}
+    if(estudiante.bloqueadoAprende){showErr('pad','🔒 El acceso de este estudiante está suspendido por pagos pendientes. Comunícate con la institución para regularizar.');return;}
     currentRole='padre';
     currentUser={
       idx:0,id:estudiante.id,
@@ -2175,6 +2177,11 @@ async function buildAdmin(el){
       <input id="adm-est-buscar" class="form-input" style="max-width:260px;font-size:.8rem;padding:.4rem .75rem;" placeholder="🔍 Nombre o ID..." oninput="filtrarEstudiantesAdmin()"/>
       <select id="adm-est-filtro-grado" class="form-select" style="max-width:150px;font-size:.78rem;" onchange="filtrarEstudiantesAdmin()">
         <option value="">Todos los grados</option>
+      </select>
+      <select id="adm-est-filtro-acceso" class="form-select" style="max-width:150px;font-size:.78rem;" onchange="filtrarEstudiantesAdmin()">
+        <option value="">Todos</option>
+        <option value="bloqueado">🔒 Bloqueados</option>
+        <option value="activo">🔓 Con acceso</option>
       </select>
       <button class="btn-outline" style="font-size:.72rem;" onclick="cargarEstudiantesAdmin()">🔄 Recargar</button>
     </div>
@@ -3944,15 +3951,21 @@ function filtrarEstudiantesAdmin(){
   const el=document.getElementById('adm-est-lista'); if(!el)return;
   const q=(document.getElementById('adm-est-buscar')?.value||'').toLowerCase().trim();
   const gFil=(document.getElementById('adm-est-filtro-grado')?.value||'').toLowerCase();
+  const aFil=document.getElementById('adm-est-filtro-acceso')?.value||'';
   const lista=_admEstudiantes.filter(s=>{
     const nombre=((s.nombres||'')+' '+(s.apellidos||'')).toLowerCase();
     const grado=((s.nivel||'')+' '+(s.grado||'')).toLowerCase().trim();
     const matchQ=!q||nombre.includes(q)||(s.id||'').toLowerCase().includes(q);
     const matchG=!gFil||grado===gFil;
-    return matchQ&&matchG;
+    const matchA=!aFil||(aFil==='bloqueado'?!!s.bloqueadoAprende:!s.bloqueadoAprende);
+    return matchQ&&matchG&&matchA;
   });
+  const totalBloqueados=_admEstudiantes.filter(s=>s.bloqueadoAprende).length;
   if(!lista.length){el.innerHTML='<div style="color:var(--muted);font-size:.82rem;padding:1rem;text-align:center;">Sin resultados</div>';return;}
-  el.innerHTML=`<div style="font-size:.65rem;color:var(--muted);margin-bottom:.5rem;">${lista.length} estudiante(s) · Haz clic en cualquier campo para editarlo</div>
+  el.innerHTML=`<div style="display:flex;align-items:center;gap:.75rem;font-size:.65rem;color:var(--muted);margin-bottom:.5rem;">
+    <span>${lista.length} estudiante(s) · Clic en campo para editar</span>
+    ${totalBloqueados?`<span style="background:#FFEBEE;color:#C62828;border-radius:20px;padding:.15rem .55rem;font-weight:700;">🔒 ${totalBloqueados} bloqueado${totalBloqueados>1?'s':''}</span>`:''}
+  </div>
   <div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);overflow:hidden;">
   <table style="width:100%;border-collapse:collapse;">
     <thead><tr style="background:var(--cream);border-bottom:2px solid var(--cream3);">
@@ -3961,9 +3974,10 @@ function filtrarEstudiantesAdmin(){
       <th style="text-align:left;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:.5rem .75rem;">Nivel</th>
       <th style="text-align:left;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:.5rem .75rem;">Grado</th>
       <th style="text-align:left;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:.5rem .75rem;">Estado</th>
+      <th style="text-align:left;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:.5rem .75rem;">Acceso plataforma</th>
     </tr></thead>
     <tbody>
-    ${lista.map(s=>`<tr id="est-row-${s._key}" style="border-bottom:1px solid var(--cream);">
+    ${lista.map(s=>`<tr id="est-row-${s._key}" style="border-bottom:1px solid var(--cream);${s.bloqueadoAprende?'background:#FFF3F3;':''}">
       <td style="padding:.45rem .75rem;">
         <div style="font-size:.82rem;font-weight:600;">${escHtml(s.nombres||'')} ${escHtml(s.apellidos||'')}</div>
         <div style="font-size:.62rem;color:var(--muted);">FNX: ${parseFloat(s.fnx||0).toFixed(0)}</div>
@@ -3990,6 +4004,14 @@ function filtrarEstudiantesAdmin(){
           <option value="inactive" ${s.status==='inactive'?'selected':''}>⛔ Inactivo</option>
         </select>
       </td>
+      <td style="padding:.45rem .75rem;">
+        <button id="btn-bloqueo-${s._key}" onclick="toggleBloqueoEstudiante('${s._key}')"
+          style="border:none;border-radius:6px;padding:.3rem .65rem;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap;
+          background:${s.bloqueadoAprende?'#FFEBEE':'#E8F5E9'};color:${s.bloqueadoAprende?'#C62828':'#2E7D32'};">
+          ${s.bloqueadoAprende?'🔒 Bloqueado':'🔓 Con acceso'}
+        </button>
+        ${s.bloqueadoAprende?`<div style="font-size:.58rem;color:#C62828;margin-top:.15rem;">Pago pendiente</div>`:''}
+      </td>
     </tr>`).join('')}
     </tbody>
   </table></div>`;
@@ -4004,6 +4026,40 @@ async function guardarCampoEstudiante(key,campo,valor,inputEl){
     if(inputEl){inputEl.style.background='#E8F5E9';setTimeout(()=>{if(inputEl)inputEl.style.background='var(--cream)';},1200);}
     showToast('✅ '+campo+' actualizado');
   }catch(e){showToast('❌ Error al guardar: '+e.message);}
+}
+async function toggleBloqueoEstudiante(key){
+  const s=_admEstudiantes.find(x=>x._key===key);
+  if(!s)return;
+  const nuevo=!s.bloqueadoAprende;
+  try{
+    await db.ref('corposepi/students/'+key+'/bloqueadoAprende').set(nuevo||null);
+    s.bloqueadoAprende=nuevo;
+    // Actualizar botón
+    const btn=document.getElementById('btn-bloqueo-'+key);
+    if(btn){
+      btn.textContent=nuevo?'🔒 Bloqueado':'🔓 Con acceso';
+      btn.style.background=nuevo?'#FFEBEE':'#E8F5E9';
+      btn.style.color=nuevo?'#C62828':'#2E7D32';
+    }
+    // Actualizar fondo de fila
+    const row=document.getElementById('est-row-'+key);
+    if(row) row.style.background=nuevo?'#FFF3F3':'';
+    // Actualizar badge "Pago pendiente" debajo del botón
+    if(btn){
+      let badge=btn.nextElementSibling;
+      if(nuevo&&!badge){
+        const d=document.createElement('div');
+        d.style.cssText='font-size:.58rem;color:#C62828;margin-top:.15rem;';
+        d.textContent='Pago pendiente';
+        btn.parentNode.appendChild(d);
+      } else if(!nuevo&&badge){
+        badge.remove();
+      }
+    }
+    // Actualizar badge contador en cabecera
+    filtrarEstudiantesAdmin();
+    showToast(nuevo?'🔒 Acceso bloqueado · '+s.nombres+' '+s.apellidos:'🔓 Acceso restaurado · '+s.nombres+' '+s.apellidos);
+  }catch(e){showToast('❌ Error: '+e.message);}
 }
 
 // ══ GUÍA DE PROYECTOS — EJEMPLOS PARA DOCENTES ══
