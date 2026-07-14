@@ -139,6 +139,22 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .proy-card:hover{box-shadow:0 6px 20px rgba(26,18,8,.08);}
 /* Fase barra */
 .fase-barra{height:5px;border-radius:3px;transition:background .3s;}
+/* ── Horario ── */
+.hor-table{border-collapse:separate;border-spacing:3px;width:100%;font-size:.72rem;}
+.hor-table th{background:#1E293B;color:#fff;text-align:center;font-weight:700;padding:.42rem .3rem;border-radius:6px;font-size:.7rem;}
+.hor-table th.ht-time{background:transparent;color:var(--muted);font-size:.62rem;font-weight:600;}
+.hor-table td{background:var(--white);border:1px solid var(--cream3);border-radius:6px;padding:.28rem;vertical-align:top;min-width:100px;}
+.hor-table td.ht-time{vertical-align:middle;padding:.4rem .5rem;white-space:nowrap;min-width:72px;max-width:80px;}
+.ht-sn{font-size:.66rem;font-weight:800;color:#1E293B;}
+.ht-hr{font-size:.55rem;color:var(--muted);}
+.hor-table td.ht-empty{text-align:center;color:var(--cream3);font-size:.9rem;}
+.hor-table td.ht-muted{background:#F8FAFC;opacity:.4;}
+.hor-card{border-radius:5px;padding:.22rem .38rem;margin-bottom:2px;color:#fff;}
+.hor-card:last-child{margin-bottom:0;}
+.hor-card-t{font-size:.62rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hor-card-g{font-size:.52rem;opacity:.85;}
+.hor-card-d{font-size:.5rem;opacity:.75;}
+.hor-desc{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:5px;font-size:.6rem;font-weight:600;color:#92400E;padding:.18rem .5rem;text-align:center;}
 /* Panel docente */
 .pdok-panel{background:var(--white);border-radius:var(--radius);overflow:hidden;margin-bottom:.65rem;transition:box-shadow .2s;}
 .pdok-panel:hover{box-shadow:0 4px 16px rgba(26,18,8,.07);}
@@ -857,6 +873,7 @@ function startApp(){
 const NAV_CONFIG={
   estudiante:[
     {id:'inicio',     label:'Inicio',                  icon:'🏠',short:'Inicio',    fn:buildInicio},
+    {id:'horario',    label:'📅 Horario',               icon:'📅',short:'Horario',   fn:buildHorario},
     {id:'midiahoy',   label:'📖 Mi clase',              icon:'📖',short:'Clase',     fn:buildMiClaseHoy},
     {id:'mispendientes',label:'⚠️ Mis pendientes',     icon:'⚠️',short:'Pendient.',  fn:buildMisPendientes},
     {id:'proyectos',  label:'Mis proyectos',            icon:'🎯',short:'Proyectos', fn:buildProyectos},
@@ -865,6 +882,7 @@ const NAV_CONFIG={
   ],
   docente:[
     {id:'inicio',     label:'Inicio',                  icon:'🏠',short:'Inicio',    fn:buildInicioDocente},
+    {id:'horario',    label:'📅 Mi horario',            icon:'📅',short:'Horario',   fn:buildHorario},
     {id:'planeacion', label:'📝 Planeación',            icon:'📝',short:'Planear',   fn:buildPlaneacion},
     {id:'asistencia', label:'✅ Asistencia',            icon:'✅',short:'Asistencia',fn:buildAsistenciaDocente},
     {id:'entregas',   label:'📥 Entregas',              icon:'📥',short:'Entregas',  fn:buildEntregasDocente},
@@ -877,14 +895,16 @@ const NAV_CONFIG={
   ],
   padre:[
     {id:'inicio',     label:'Inicio',                  icon:'🏠',short:'Inicio',    fn:buildInicioPadre},
+    {id:'horario',    label:'📅 Horario',               icon:'📅',short:'Horario',   fn:buildHorario},
     {id:'pendientes', label:'⚠️ Pendientes',            icon:'⚠️',short:'Pendient.', fn:buildPendientesPadre},
     {id:'proyectos',  label:'Proyectos',                icon:'🎯',short:'Proyectos', fn:buildProyectos},
   ],
   admin:[
-    {id:'inicio',     label:'Dashboard',               icon:'📊',short:'Dashboard', fn:buildAdmin},
-    {id:'proyectos',  label:'Proyectos',                icon:'🎯',short:'Proyectos', fn:buildProyectos},
-    {id:'libros',     label:'Libros',                   icon:'📚',short:'Libros',    fn:buildLibros},
-    {id:'clases',     label:'Clases en vivo',           icon:'📡',short:'En vivo',   fn:buildClases},
+    {id:'inicio',       label:'Dashboard',               icon:'📊',short:'Dashboard', fn:buildAdmin},
+    {id:'horario-vis',  label:'📅 Ver Horario',           icon:'📅',short:'Ver Hor.',  fn:buildHorario},
+    {id:'proyectos',    label:'Proyectos',                icon:'🎯',short:'Proyectos', fn:buildProyectos},
+    {id:'libros',       label:'Libros',                   icon:'📚',short:'Libros',    fn:buildLibros},
+    {id:'clases',       label:'Clases en vivo',           icon:'📡',short:'En vivo',   fn:buildClases},
   ],
 };
 
@@ -2035,6 +2055,7 @@ async function buildAdmin(el){
     <button onclick="adminTab('semanas',this)" id="atab-semanas" class="admin-tab">📅 Semanas</button>
     <button onclick="adminTab('modulos',this)" id="atab-modulos" class="admin-tab">🔗 Módulos</button>
     <button onclick="adminTab('estudiantes',this)" id="atab-estudiantes" class="admin-tab">👤 Estudiantes</button>
+    <button onclick="adminTab('ver-horario',this)" id="atab-ver-horario" class="admin-tab">🗓️ Ver Horario</button>
   </div>
   </div><!-- /admin-tabs-wrap -->
   <!-- Panel Dashboard -->
@@ -2186,7 +2207,8 @@ async function buildAdmin(el){
       <button class="btn-outline" style="font-size:.72rem;" onclick="cargarEstudiantesAdmin()">🔄 Recargar</button>
     </div>
     <div id="adm-est-lista"><div style="color:var(--muted);font-size:.82rem;padding:.5rem;">Selecciona la pestaña Estudiantes para cargar.</div></div>
-  </div>`;
+  </div>
+  <div id="apanel-ver-horario" style="display:none"></div>`;
 
   // Cargar datos reales de Firebase para el dashboard
   let totalEstudiantes=0,totalStaff=0,totalCPI=0,totalFNX=0;
@@ -2216,7 +2238,7 @@ async function buildAdmin(el){
 function adminTab(id,btn){
   document.querySelectorAll('.admin-tab').forEach(b=>b.classList.remove('active-tab'));
   btn.classList.add('active-tab');
-  ['dash','talleres','acciones','docentes','horario','semanas','modulos','estudiantes'].forEach(p=>document.getElementById('apanel-'+p).style.display='none');
+  ['dash','talleres','acciones','docentes','horario','semanas','modulos','estudiantes','ver-horario'].forEach(p=>document.getElementById('apanel-'+p).style.display='none');
   document.getElementById('apanel-'+id).style.display='block';
   if(id==='talleres'){ _adminStaff=[]; cargarTalleresAdmin(); }
   if(id==='acciones'){ _adminStaff=[]; cargarAccionesAdmin(); }
@@ -2224,6 +2246,7 @@ function adminTab(id,btn){
   if(id==='horario') renderHorarioEditor();
   if(id==='semanas') cargarSemanasAdmin();
   if(id==='estudiantes') cargarEstudiantesAdmin();
+  if(id==='ver-horario') buildHorario(document.getElementById('apanel-ver-horario'));
 }
 
 // ══ ADMIN: TALLERES ══
@@ -2572,6 +2595,179 @@ async function eliminarAccion(key){
   await db.ref('aprende_acciones/'+key).remove();
   showToast('🗑️ Acción eliminada');
   cargarAccionesAdmin();
+}
+
+// ══ HORARIO ══════════════════════════════════════════════════
+const HOR_GRUPOS=[
+  {id:'G1',nombre:'6°·7°·8°',grados:'Sexto, Séptimo y Octavo',color:'#0369A1'},
+  {id:'G2',nombre:'10°',     grados:'Décimo',                  color:'#7C3AED'},
+  {id:'G3',nombre:'11°',     grados:'Undécimo',                color:'#B45309'},
+  {id:'G4',nombre:'Prim.',   grados:'Primaria (1° a 5°)',       color:'#15803D'},
+];
+const HOR_SECS=[
+  {n:1,i:'8:00', f:'9:00',  desc:null},
+  {n:2,i:'9:00', f:'10:40', desc:{h:'9:30',a:'10:00',antes:false}},
+  {n:3,i:'10:40',f:'12:00', desc:null},
+  {n:4,i:'12:40',f:'14:00', desc:{h:'12:00',a:'12:40',antes:true}},
+];
+const HOR_DIAS=['lunes','martes','miercoles','jueves','viernes'];
+const HOR_DIAS_N={lunes:'Lunes',martes:'Martes',miercoles:'Miércoles',jueves:'Jueves',viernes:'Viernes'};
+const HOR_COLORS=['#0369A1','#7C3AED','#B45309','#15803D','#BE185D','#0E7490','#4338CA','#DC2626','#047857','#9333EA'];
+const HOR_MARTES_SECS=[{n:1,i:'8:00',f:'9:00',desc:null},{n:2,i:'9:00',f:'11:20',desc:{h:'9:30',a:'10:00',antes:false}},{n:3,i:'12:00',f:'14:00',desc:{h:'11:20',a:'12:00',antes:true}}];
+let _horTalColors={};let _horColIdx=0;
+function _horColor(tk){if(!_horTalColors[tk])_horTalColors[tk]=HOR_COLORS[_horColIdx++%HOR_COLORS.length];return _horTalColors[tk];}
+function _horNom(tk,tMap,aMap){
+  if(!tk)return null;
+  if(tMap[tk])return tMap[tk].titulo||tMap[tk].nombre||null;
+  if(aMap[tk]){const a=aMap[tk];return(a.icon?a.icon+' ':'')+
+    (a.titulo&&a.titulo!==a.name?a.titulo+' ('+a.name+')':a.name||a.titulo||null);}
+  return null;
+}
+function _horSecsForDia(dia){return dia==='martes'?HOR_MARTES_SECS:HOR_SECS;}
+function _horSecN(dia,n){return _horSecsForDia(dia).find(s=>s.n===n);}
+
+async function buildHorario(el){
+  if(!el){console.error('buildHorario: el es null');return;}
+  el.innerHTML='<div style="text-align:center;padding:2rem;color:var(--muted)">⏳ Cargando horario...</div>';
+  let snapH,snapT,snapA,snapS;
+  try{
+    [snapH,snapT,snapA,snapS]=await Promise.all([
+      db.ref('aprende_horario').once('value'),
+      db.ref('aprende_talleres').once('value'),
+      db.ref('aprende_acciones').once('value'),
+      db.ref('corposepi/staff').once('value'),
+    ]);
+  }catch(e){
+    el.innerHTML=`<div style="color:red;padding:1rem">❌ Error cargando horario: ${e.message}</div>`;
+    return;
+  }
+  const hor=snapH.val()||{};
+  const tMap={};snapT.forEach(c=>{const v=c.val();if(v)tMap[c.key]=v;});
+  const aMap={};snapA.forEach(c=>{const v=c.val();if(v)aMap[c.key]=v;});
+  const rawS=snapS.val()||[];
+  const staffArr=(Array.isArray(rawS)?rawS:Object.values(rawS)).filter(s=>s&&s.nombres);
+  const staffMap={};staffArr.forEach(s=>{if(s.id)staffMap[s.id]={n:s.nombres+(s.apellidos?' '+s.apellidos.split(' ')[0]:'')};});
+
+  // Para estudiante/padre: vista fija del grupo
+  if(currentRole==='estudiante'||currentRole==='padre'){
+    const gid=detectarGrupoEstudiante(currentUser.nivel||'',currentUser.grado||'');
+    const g=HOR_GRUPOS.find(x=>x.id===gid);
+    let html=`<div style="font-size:.85rem;font-weight:800;color:${g?.color||'#1E293B'};margin-bottom:.65rem">
+      📅 Horario · ${g?g.nombre+' — '+g.grados:'Mi grupo'}</div>`;
+    html+=_horTablaGrupo(hor,tMap,aMap,gid||'G1',staffMap);
+    el.innerHTML=`<div style="overflow-x:auto">${html}</div>`;
+    return;
+  }
+
+  // Para admin y docente: vistas con tabs
+  const tabs=[
+    {id:'general', label:'📊 General', fn:()=>_horTablaGeneral(hor,tMap,aMap,staffMap)},
+    {id:'docente', label:'👩‍🏫 Mi horario', fn:()=>_horTablaDocente(hor,tMap,aMap,currentRole==='docente'?currentUser.id:null)},
+    ...HOR_GRUPOS.map(g=>({id:g.id, label:g.nombre, fn:()=>_horTablaGrupo(hor,tMap,aMap,g.id,staffMap)})),
+  ];
+  // Si es admin, quitar tab "Mi horario"
+  const tabsVis=currentRole==='admin'
+    ?tabs.filter(t=>t.id!=='docente')
+    :tabs;
+
+  let activeTab=tabsVis[0].id;
+  function renderHorTab(){
+    const tab=tabsVis.find(t=>t.id===activeTab)||tabsVis[0];
+    const tabBar=tabsVis.map(t=>`<button onclick="window._horTab('${t.id}')"
+      style="padding:.3rem .75rem;border-radius:99px;border:none;cursor:pointer;font-size:.72rem;font-weight:700;
+      background:${activeTab===t.id?'#1E293B':'#F1F5F9'};color:${activeTab===t.id?'#fff':'#475569'};
+      margin-right:.3rem;white-space:nowrap">${t.label}</button>`).join('');
+    el.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:.2rem;margin-bottom:.75rem">${tabBar}</div>
+      <div style="overflow-x:auto">${tab.fn()}</div>`;
+    window._horTab=id=>{activeTab=id;renderHorTab();};
+  }
+  renderHorTab();
+}
+
+function _horTablaHead(){
+  return`<thead><tr><th class="ht-time"></th>${HOR_DIAS.map(d=>`<th>${HOR_DIAS_N[d]}</th>`).join('')}</tr></thead>`;
+}
+function _horDescRow(desc){
+  return`<tr><td></td><td colspan="5" class="hor-desc">☕ Descanso · ${desc.h} — ${desc.a}</td></tr>`;
+}
+
+function _horTablaGeneral(hor,tMap,aMap,staffMap){
+  let h=`<table class="hor-table">${_horTablaHead()}<tbody>`;
+  for(let sn=1;sn<=4;sn++){
+    const sec=HOR_SECS.find(s=>s.n===sn);if(!sec)continue;
+    if(sec.desc&&sec.desc.antes)h+=_horDescRow(sec.desc);
+    h+=`<tr><td class="ht-time"><div class="ht-sn">Sec. ${sn}</div><div class="ht-hr">${sec.i}–${sec.f}</div></td>`;
+    HOR_DIAS.forEach(d=>{
+      if(!_horSecN(d,sn)){h+=`<td class="ht-muted"></td>`;return;}
+      const secData=(hor[d]||{})[`sec${sn}`]||{};
+      let inner='';
+      HOR_GRUPOS.forEach(g=>{
+        const item=secData[g.id]||{};
+        const nom=_horNom(item.tallerKey,tMap,aMap);if(!nom)return;
+        const docNom=staffMap&&item.docenteId?staffMap[item.docenteId]?.n||'':''
+        const col=_horColor(item.tallerKey);
+        inner+=`<div class="hor-card" style="background:${col}">
+          <div class="hor-card-t">${nom}</div>
+          <div class="hor-card-g">${g.nombre}${docNom?' · '+docNom:''}</div>
+        </div>`;
+      });
+      h+=`<td class="${inner?'':'ht-empty'}">${inner||'·'}</td>`;
+    });
+    h+=`</tr>`;
+    if(sec.desc&&!sec.desc.antes)h+=_horDescRow(sec.desc);
+  }
+  return h+`</tbody></table>`;
+}
+
+function _horTablaGrupo(hor,tMap,aMap,gid,staffMap){
+  let h=`<table class="hor-table">${_horTablaHead()}<tbody>`;
+  for(let sn=1;sn<=4;sn++){
+    const sec=HOR_SECS.find(s=>s.n===sn);if(!sec)continue;
+    if(sec.desc&&sec.desc.antes)h+=_horDescRow(sec.desc);
+    h+=`<tr><td class="ht-time"><div class="ht-sn">Sec. ${sn}</div><div class="ht-hr">${sec.i}–${sec.f}</div></td>`;
+    HOR_DIAS.forEach(d=>{
+      if(!_horSecN(d,sn)){h+=`<td class="ht-muted"></td>`;return;}
+      const item=((hor[d]||{})[`sec${sn}`]||{})[gid]||{};
+      const nom=_horNom(item.tallerKey,tMap,aMap);
+      if(!nom){h+=`<td class="ht-empty">·</td>`;return;}
+      const docNom=staffMap&&item.docenteId?staffMap[item.docenteId]?.n||'':'';
+      const col=_horColor(item.tallerKey);
+      h+=`<td><div class="hor-card" style="background:${col}">
+        <div class="hor-card-t">${nom}</div>
+        ${docNom?`<div class="hor-card-d">👤 ${docNom}</div>`:''}
+      </div></td>`;
+    });
+    h+=`</tr>`;
+    if(sec.desc&&!sec.desc.antes)h+=_horDescRow(sec.desc);
+  }
+  return h+`</tbody></table>`;
+}
+
+function _horTablaDocente(hor,tMap,aMap,docenteId){
+  let h=`<table class="hor-table">${_horTablaHead()}<tbody>`;
+  for(let sn=1;sn<=4;sn++){
+    const sec=HOR_SECS.find(s=>s.n===sn);if(!sec)continue;
+    h+=`<tr><td class="ht-time"><div class="ht-sn">Sec. ${sn}</div><div class="ht-hr">${sec.i}–${sec.f}</div></td>`;
+    HOR_DIAS.forEach(d=>{
+      const secD=_horSecN(d,sn);
+      if(!secD){h+=`<td class="ht-muted"></td>`;return;}
+      const secData=(hor[d]||{})[`sec${sn}`]||{};
+      let inner='';
+      HOR_GRUPOS.forEach(g=>{
+        const item=secData[g.id]||{};
+        if(String(item.docenteId||'').trim()!==String(docenteId||'').trim()||!item.tallerKey)return;
+        const nom=_horNom(item.tallerKey,tMap,aMap);if(!nom)return;
+        const col=_horColor(item.tallerKey);
+        inner+=`<div class="hor-card" style="background:${col}">
+          <div class="hor-card-t">${nom}</div>
+          <div class="hor-card-g">${g.nombre}</div>
+        </div>`;
+      });
+      h+=`<td class="${inner?'':'ht-empty'}">${inner||'—'}</td>`;
+    });
+    h+=`</tr>`;
+  }
+  return h+`</tbody></table>`;
 }
 
 // ══ GRUPOS — detectar a qué grupo pertenece un estudiante ══
