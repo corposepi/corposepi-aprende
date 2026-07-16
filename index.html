@@ -2889,6 +2889,7 @@ async function abrirPlanProtegido(key,nodo){
     const pdf=await pdfjsLib.getDocument({data:bytes}).promise;
     const cont=document.getElementById('plan-viewer-pages');
     document.getElementById('plan-loading-msg')?.remove();
+    let paginasSinTexto=0;
     for(let n=1;n<=pdf.numPages;n++){
       const page=await pdf.getPage(n);
       const viewport=page.getViewport({scale:1.4});
@@ -2907,8 +2908,10 @@ async function abrirPlanProtegido(key,nodo){
         textLayerDiv.className='plan-textlayer';
         textLayerDiv.style.width=viewport.width+'px';
         textLayerDiv.style.height=viewport.height+'px';
+        let huboTexto=false;
         textContent.items.forEach(item=>{
           if(!item.str)return;
+          huboTexto=true;
           const tx=pdfjsLib.Util.transform(viewport.transform,item.transform);
           const angle=Math.atan2(tx[1],tx[0]);
           const fontHeight=Math.hypot(tx[2],tx[3]);
@@ -2921,13 +2924,20 @@ async function abrirPlanProtegido(key,nodo){
           if(angle!==0) span.style.transform='rotate('+angle+'rad)';
           textLayerDiv.appendChild(span);
         });
+        if(!huboTexto)paginasSinTexto++;
         pageWrap.appendChild(textLayerDiv);
-      }catch(eTxt){ console.warn('Texto no disponible en esta página:',eTxt); }
+      }catch(eTxt){ paginasSinTexto++; console.warn('Texto no disponible en esta página:',eTxt); }
       const wm=document.createElement('div');
       wm.className='plan-watermark';
       wm.innerHTML=Array.from({length:18}).map(()=>`<span>${marca}</span>`).join('');
       pageWrap.appendChild(wm);
       cont.appendChild(pageWrap);
+    }
+    if(paginasSinTexto===pdf.numPages){
+      const aviso=document.createElement('div');
+      aviso.style.cssText='background:#78350F;color:#FEF3C7;padding:.7rem 1rem;border-radius:8px;font-size:.75rem;max-width:600px;text-align:center;';
+      aviso.textContent='⚠️ Este PDF no contiene texto real (parece ser un documento escaneado o convertido desde imágenes), por eso no se puede seleccionar ni copiar texto. Para permitir copiar el contenido, sube un PDF generado desde Word/Google Docs u otro editor de texto.';
+      cont.insertBefore(aviso,cont.firstChild);
     }
   }catch(e){
     document.getElementById('plan-viewer-pages').innerHTML=`<div style="color:#fca5a5;padding:1rem;">❌ No se pudo renderizar el documento: ${e.message}</div>`;
