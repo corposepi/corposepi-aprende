@@ -164,10 +164,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .plan-viewer-bar{display:flex;align-items:center;justify-content:space-between;padding:.7rem 1.1rem;background:#1E1610;color:#fff;flex-shrink:0;}
 .plan-viewer-bar .pv-title{font-weight:700;font-size:.85rem;}
 .plan-viewer-close{background:rgba(255,255,255,.12);border:none;color:#fff;padding:.4rem .9rem;border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:600;}
-.plan-viewer-body{flex:1;overflow:auto;padding:1.5rem;display:flex;flex-direction:column;align-items:center;gap:1rem;user-select:none;-webkit-user-select:none;-ms-user-select:none;position:relative;}
-.plan-viewer-body canvas{max-width:100%;box-shadow:0 4px 20px rgba(0,0,0,.4);border-radius:4px;pointer-events:none;}
+.plan-viewer-body{flex:1;overflow:auto;padding:1.5rem;display:flex;flex-direction:column;align-items:center;gap:1rem;position:relative;}
+.plan-viewer-body canvas{max-width:100%;box-shadow:0 4px 20px rgba(0,0,0,.4);border-radius:4px;pointer-events:none;display:block;}
 .plan-watermark{position:absolute;inset:0;pointer-events:none;display:flex;flex-wrap:wrap;align-content:space-around;justify-content:space-around;opacity:.14;transform:rotate(-28deg);z-index:5;}
 .plan-watermark span{font-size:.72rem;font-weight:700;color:#000;white-space:nowrap;padding:1rem;}
+.plan-textlayer{position:absolute;inset:0;overflow:hidden;line-height:1;text-align:initial;z-index:3;}
+.plan-textlayer span,.plan-textlayer br{color:transparent;position:absolute;white-space:pre;cursor:text;transform-origin:0% 0%;}
+.plan-textlayer ::selection{background:rgba(184,65,10,.35);}
+@media print{ .plan-viewer-overlay{display:none !important;} }
 /* Panel docente */
 .pdok-panel{background:var(--white);border-radius:var(--radius);overflow:hidden;margin-bottom:.65rem;transition:box-shadow .2s;}
 .pdok-panel:hover{box-shadow:0 4px 16px rgba(26,18,8,.07);}
@@ -2852,21 +2856,20 @@ async function abrirPlanProtegido(key,nodo){
 
   const overlay=document.createElement('div');
   overlay.className='plan-viewer-overlay';
-  overlay.oncontextmenu=()=>false;
   const marca='© CORPOSEPI · '+new Date().toLocaleDateString('es-CO');
   overlay.innerHTML=`
     <div class="plan-viewer-bar">
       <div class="pv-title">📄 ${plan.titulo}</div>
       <button class="plan-viewer-close" onclick="this.closest('.plan-viewer-overlay').remove()">✕ Cerrar</button>
     </div>
-    <div class="plan-viewer-body" id="plan-viewer-pages" oncontextmenu="return false" onkeydown="return false">
+    <div class="plan-viewer-body" id="plan-viewer-pages">
       <div style="color:#fff;font-size:.8rem;">⏳ Cargando documento...</div>
     </div>`;
   document.body.appendChild(overlay);
 
+  // Se permite seleccionar y copiar texto. Solo se bloquea imprimir y guardar.
   const blockKeys=e=>{
-    if((e.ctrlKey||e.metaKey)&&['s','p','c','u'].includes(e.key.toLowerCase())){ e.preventDefault(); e.stopPropagation(); }
-    if(e.key==='PrintScreen'){ e.preventDefault(); }
+    if((e.ctrlKey||e.metaKey)&&['s','p','u'].includes(e.key.toLowerCase())){ e.preventDefault(); e.stopPropagation(); }
   };
   document.addEventListener('keydown',blockKeys,true);
   const observer=new MutationObserver(muts=>{
@@ -2891,11 +2894,24 @@ async function abrirPlanProtegido(key,nodo){
       const viewport=page.getViewport({scale:1.4});
       const canvas=document.createElement('canvas');
       canvas.width=viewport.width; canvas.height=viewport.height;
+      canvas.style.width=viewport.width+'px'; canvas.style.height=viewport.height+'px';
       const ctx=canvas.getContext('2d');
       await page.render({canvasContext:ctx,viewport}).promise;
       const pageWrap=document.createElement('div');
-      pageWrap.style.cssText='position:relative;max-width:100%;';
+      pageWrap.style.cssText=`position:relative;max-width:100%;width:${viewport.width}px;`;
       pageWrap.appendChild(canvas);
+      // Capa de texto seleccionable/copiable (invisible, sobre el canvas)
+      try{
+        const textContent=await page.getTextContent();
+        const textLayerDiv=document.createElement('div');
+        textLayerDiv.className='plan-textlayer';
+        textLayerDiv.style.width=viewport.width+'px';
+        textLayerDiv.style.height=viewport.height+'px';
+        pageWrap.appendChild(textLayerDiv);
+        if(pdfjsLib.renderTextLayer){
+          await pdfjsLib.renderTextLayer({textContentSource:textContent,container:textLayerDiv,viewport,textDivs:[]}).promise;
+        }
+      }catch(eTxt){ console.warn('Texto no disponible en esta página:',eTxt); }
       const wm=document.createElement('div');
       wm.className='plan-watermark';
       wm.innerHTML=Array.from({length:18}).map(()=>`<span>${marca}</span>`).join('');
