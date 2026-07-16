@@ -2853,14 +2853,13 @@ async function abrirPlanProtegido(key,nodo){
   const overlay=document.createElement('div');
   overlay.className='plan-viewer-overlay';
   overlay.oncontextmenu=()=>false;
-  const marca=(currentUser?.nombres||currentUser?.id||'CORPOSEPI')+' · '+new Date().toLocaleString('es-CO');
+  const marca='© CORPOSEPI · '+new Date().toLocaleDateString('es-CO');
   overlay.innerHTML=`
     <div class="plan-viewer-bar">
       <div class="pv-title">📄 ${plan.titulo}</div>
       <button class="plan-viewer-close" onclick="this.closest('.plan-viewer-overlay').remove()">✕ Cerrar</button>
     </div>
     <div class="plan-viewer-body" id="plan-viewer-pages" oncontextmenu="return false" onkeydown="return false">
-      <div class="plan-watermark">${Array.from({length:24}).map(()=>`<span>${marca}</span>`).join('')}</div>
       <div style="color:#fff;font-size:.8rem;">⏳ Cargando documento...</div>
     </div>`;
   document.body.appendChild(overlay);
@@ -2894,7 +2893,14 @@ async function abrirPlanProtegido(key,nodo){
       canvas.width=viewport.width; canvas.height=viewport.height;
       const ctx=canvas.getContext('2d');
       await page.render({canvasContext:ctx,viewport}).promise;
-      cont.appendChild(canvas);
+      const pageWrap=document.createElement('div');
+      pageWrap.style.cssText='position:relative;max-width:100%;';
+      pageWrap.appendChild(canvas);
+      const wm=document.createElement('div');
+      wm.className='plan-watermark';
+      wm.innerHTML=Array.from({length:18}).map(()=>`<span>${marca}</span>`).join('');
+      pageWrap.appendChild(wm);
+      cont.appendChild(pageWrap);
     }
   }catch(e){
     document.getElementById('plan-viewer-pages').innerHTML=`<div style="color:#fca5a5;padding:1rem;">❌ No se pudo renderizar el documento: ${e.message}</div>`;
