@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,700;0,900;1,300;1,700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
 :root{
   --corp:#B8410A;--corp2:#8B2F07;--corp3:#E8651A;
@@ -155,6 +156,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .hor-card-g{font-size:.52rem;opacity:.85;}
 .hor-card-d{font-size:.5rem;opacity:.75;}
 .hor-desc{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:5px;font-size:.6rem;font-weight:600;color:#92400E;padding:.18rem .5rem;text-align:center;}
+/* Planes de estudio — visor protegido */
+.plan-card{background:var(--white);border:1px solid var(--cream3);border-radius:var(--radius);padding:1rem 1.1rem;margin-bottom:.7rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;}
+.plan-card-t{font-weight:700;font-size:.88rem;color:var(--ink);}
+.plan-card-s{font-size:.68rem;color:var(--muted);margin-top:.15rem;}
+.plan-viewer-overlay{position:fixed;inset:0;background:rgba(20,15,10,.92);z-index:9999;display:flex;flex-direction:column;}
+.plan-viewer-bar{display:flex;align-items:center;justify-content:space-between;padding:.7rem 1.1rem;background:#1E1610;color:#fff;flex-shrink:0;}
+.plan-viewer-bar .pv-title{font-weight:700;font-size:.85rem;}
+.plan-viewer-close{background:rgba(255,255,255,.12);border:none;color:#fff;padding:.4rem .9rem;border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:600;}
+.plan-viewer-body{flex:1;overflow:auto;padding:1.5rem;display:flex;flex-direction:column;align-items:center;gap:1rem;user-select:none;-webkit-user-select:none;-ms-user-select:none;position:relative;}
+.plan-viewer-body canvas{max-width:100%;box-shadow:0 4px 20px rgba(0,0,0,.4);border-radius:4px;pointer-events:none;}
+.plan-watermark{position:absolute;inset:0;pointer-events:none;display:flex;flex-wrap:wrap;align-content:space-around;justify-content:space-around;opacity:.14;transform:rotate(-28deg);z-index:5;}
+.plan-watermark span{font-size:.72rem;font-weight:700;color:#000;white-space:nowrap;padding:1rem;}
 /* Panel docente */
 .pdok-panel{background:var(--white);border-radius:var(--radius);overflow:hidden;margin-bottom:.65rem;transition:box-shadow .2s;}
 .pdok-panel:hover{box-shadow:0 4px 16px rgba(26,18,8,.07);}
@@ -883,6 +896,7 @@ const NAV_CONFIG={
   docente:[
     {id:'inicio',     label:'Inicio',                  icon:'🏠',short:'Inicio',    fn:buildInicioDocente},
     {id:'horario',    label:'📅 Mi horario',            icon:'📅',short:'Horario',   fn:buildHorario},
+    {id:'plan-estudio',label:'📄 Plan de estudio',      icon:'📄',short:'Plan',      fn:buildPlanesDocente},
     {id:'planeacion', label:'📝 Planeación',            icon:'📝',short:'Planear',   fn:buildPlaneacion},
     {id:'asistencia', label:'✅ Asistencia',            icon:'✅',short:'Asistencia',fn:buildAsistenciaDocente},
     {id:'entregas',   label:'📥 Entregas',              icon:'📥',short:'Entregas',  fn:buildEntregasDocente},
@@ -2056,6 +2070,7 @@ async function buildAdmin(el){
     <button onclick="adminTab('modulos',this)" id="atab-modulos" class="admin-tab">🔗 Módulos</button>
     <button onclick="adminTab('estudiantes',this)" id="atab-estudiantes" class="admin-tab">👤 Estudiantes</button>
     <button onclick="adminTab('ver-horario',this)" id="atab-ver-horario" class="admin-tab">🗓️ Ver Horario</button>
+    <button onclick="adminTab('planes',this)" id="atab-planes" class="admin-tab">📄 Planes de estudio</button>
   </div>
   </div><!-- /admin-tabs-wrap -->
   <!-- Panel Dashboard -->
@@ -2208,7 +2223,31 @@ async function buildAdmin(el){
     </div>
     <div id="adm-est-lista"><div style="color:var(--muted);font-size:.82rem;padding:.5rem;">Selecciona la pestaña Estudiantes para cargar.</div></div>
   </div>
-  <div id="apanel-ver-horario" style="display:none"></div>`;
+  <div id="apanel-ver-horario" style="display:none"></div>
+  <div id="apanel-planes" style="display:none">
+    <div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);padding:1.25rem;margin-bottom:1rem;">
+      <div class="dc-title">📄 Asignar plan de estudio a un docente</div>
+      <div style="font-size:.72rem;color:var(--muted);margin:.3rem 0 .8rem;">El docente solo podrá <strong>ver</strong> el documento (no descargar, seleccionar ni copiar texto).</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
+        <div style="grid-column:1/-1;">
+          <label class="form-label">Título del documento</label>
+          <input class="form-input" id="plan-titulo" placeholder="Ej: Plan de estudio — Ciencias Naturales"/>
+        </div>
+        <div>
+          <label class="form-label">Asignar a docente</label>
+          <select class="form-select" id="plan-docente"><option value="">— Seleccionar docente —</option></select>
+        </div>
+        <div>
+          <label class="form-label">Archivo PDF</label>
+          <input class="form-input" type="file" id="plan-archivo" accept="application/pdf"/>
+        </div>
+        <div style="grid-column:1/-1;">
+          <button class="btn-primary" onclick="subirPlanEstudio()">📤 Subir y asignar</button>
+        </div>
+      </div>
+    </div>
+    <div id="admin-planes-list"></div>
+  </div>`;
 
   // Cargar datos reales de Firebase para el dashboard
   let totalEstudiantes=0,totalStaff=0,totalCPI=0,totalFNX=0;
@@ -2238,7 +2277,7 @@ async function buildAdmin(el){
 function adminTab(id,btn){
   document.querySelectorAll('.admin-tab').forEach(b=>b.classList.remove('active-tab'));
   btn.classList.add('active-tab');
-  ['dash','talleres','acciones','docentes','horario','semanas','modulos','estudiantes','ver-horario'].forEach(p=>document.getElementById('apanel-'+p).style.display='none');
+  ['dash','talleres','acciones','docentes','horario','semanas','modulos','estudiantes','ver-horario','planes'].forEach(p=>document.getElementById('apanel-'+p).style.display='none');
   document.getElementById('apanel-'+id).style.display='block';
   if(id==='talleres'){ _adminStaff=[]; cargarTalleresAdmin(); }
   if(id==='acciones'){ _adminStaff=[]; cargarAccionesAdmin(); }
@@ -2247,6 +2286,7 @@ function adminTab(id,btn){
   if(id==='semanas') cargarSemanasAdmin();
   if(id==='estudiantes') cargarEstudiantesAdmin();
   if(id==='ver-horario') buildHorario(document.getElementById('apanel-ver-horario'));
+  if(id==='planes') cargarPlanesAdmin();
 }
 
 // ══ ADMIN: TALLERES ══
@@ -2770,6 +2810,94 @@ function _horTablaDocente(hor,tMap,aMap,docenteId){
   return h+`</tbody></table>`;
 }
 
+// ══ PLANES DE ESTUDIO — vista docente + visor protegido ══
+async function buildPlanesDocente(el){
+  if(!el){console.error('buildPlanesDocente: el es null');return;}
+  el.innerHTML='<div style="text-align:center;padding:2rem;color:var(--muted)">⏳ Cargando planes de estudio...</div>';
+  let snap;
+  try{ snap=await db.ref('aprende_planes').once('value'); }
+  catch(e){ el.innerHTML=`<div style="color:red;padding:1rem">❌ Error: ${e.message}</div>`; return; }
+  const planes=[];
+  snap.forEach(c=>{ const v=c.val(); if(v&&String(v.docenteId||'').trim()===String(currentUser.id||'').trim()) planes.push({...v,_key:c.key}); });
+  if(!planes.length){
+    el.innerHTML=`<div class="page-hdr">
+      <div class="page-eyebrow">CORPOSEPI · Documentos</div>
+      <div class="page-title">Mi plan de <em>estudio</em></div>
+    </div>
+    <div style="color:var(--hint);padding:1rem;">Aún no tienes planes de estudio asignados. El administrador te asignará el documento correspondiente a tu área.</div>`;
+    return;
+  }
+  el.innerHTML=`<div class="page-hdr">
+      <div class="page-eyebrow">CORPOSEPI · Documentos</div>
+      <div class="page-title">Mi plan de <em>estudio</em></div>
+      <div class="page-sub">Documento de solo lectura — protegido por derechos de creación de la corporación.</div>
+    </div>
+    ${planes.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')).map(p=>`
+      <div class="plan-card">
+        <div>
+          <div class="plan-card-t">📄 ${p.titulo}</div>
+          <div class="plan-card-s">Asignado el ${p.fecha?new Date(p.fecha).toLocaleDateString('es-CO'):''}</div>
+        </div>
+        <button class="btn-primary" style="font-size:.75rem;" onclick="abrirPlanProtegido('${p._key}','aprende_planes')">👁️ Ver documento</button>
+      </div>`).join('')}`;
+}
+
+async function abrirPlanProtegido(key,nodo){
+  const snap=await db.ref(nodo+'/'+key).once('value');
+  const plan=snap.val();
+  if(!plan||!plan.base64){ showToast('❌ Documento no disponible'); return; }
+
+  const overlay=document.createElement('div');
+  overlay.className='plan-viewer-overlay';
+  overlay.oncontextmenu=()=>false;
+  const marca=(currentUser?.nombres||currentUser?.id||'CORPOSEPI')+' · '+new Date().toLocaleString('es-CO');
+  overlay.innerHTML=`
+    <div class="plan-viewer-bar">
+      <div class="pv-title">📄 ${plan.titulo}</div>
+      <button class="plan-viewer-close" onclick="this.closest('.plan-viewer-overlay').remove()">✕ Cerrar</button>
+    </div>
+    <div class="plan-viewer-body" id="plan-viewer-pages" oncontextmenu="return false" onkeydown="return false">
+      <div class="plan-watermark">${Array.from({length:24}).map(()=>`<span>${marca}</span>`).join('')}</div>
+      <div style="color:#fff;font-size:.8rem;">⏳ Cargando documento...</div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const blockKeys=e=>{
+    if((e.ctrlKey||e.metaKey)&&['s','p','c','u'].includes(e.key.toLowerCase())){ e.preventDefault(); e.stopPropagation(); }
+    if(e.key==='PrintScreen'){ e.preventDefault(); }
+  };
+  document.addEventListener('keydown',blockKeys,true);
+  const observer=new MutationObserver(muts=>{
+    if(!document.body.contains(overlay)){
+      document.removeEventListener('keydown',blockKeys,true);
+      observer.disconnect();
+    }
+  });
+  observer.observe(document.body,{childList:true});
+
+  try{
+    if(!window.pdfjsLib){ throw new Error('Visor PDF no disponible'); }
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const bin=atob(plan.base64.split(',')[1]);
+    const bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+    const pdf=await pdfjsLib.getDocument({data:bytes}).promise;
+    const cont=document.getElementById('plan-viewer-pages');
+    cont.querySelector('div[style*="Cargando"]')?.remove();
+    for(let n=1;n<=pdf.numPages;n++){
+      const page=await pdf.getPage(n);
+      const viewport=page.getViewport({scale:1.4});
+      const canvas=document.createElement('canvas');
+      canvas.width=viewport.width; canvas.height=viewport.height;
+      const ctx=canvas.getContext('2d');
+      await page.render({canvasContext:ctx,viewport}).promise;
+      cont.appendChild(canvas);
+    }
+  }catch(e){
+    document.getElementById('plan-viewer-pages').innerHTML=`<div style="color:#fca5a5;padding:1rem;">❌ No se pudo renderizar el documento: ${e.message}</div>`;
+  }
+}
+
 // ══ GRUPOS — detectar a qué grupo pertenece un estudiante ══
 function norm(s){ return String(s||'').toLowerCase().replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i').replace(/[óòö]/g,'o').replace(/[úùü]/g,'u').replace(/[ñ]/g,'n').replace(/[°º]/g,'').trim(); }
 
@@ -2926,6 +3054,82 @@ async function guardarAsignacion(idx){
     if(checked) await db.ref('aprende_acciones/'+k+'/docenteId').set(staffId);
   }
   showToast('✅ Asignación guardada para '+((snapStf.val()?.nombres||'')));
+}
+
+// ══ ADMIN: PLANES DE ESTUDIO (visor protegido, sin descarga/copia) ══
+async function _cargarDocentesSelectPlanes(){
+  const sel=document.getElementById('plan-docente'); if(!sel)return;
+  const snap=await db.ref('corposepi/staff').once('value');
+  const raw=snap.val();
+  const lista=Array.isArray(raw)?raw.filter(Boolean):Object.values(raw||{}).filter(Boolean);
+  sel.innerHTML='<option value="">— Seleccionar docente —</option>'+
+    lista.map(s=>`<option value="${s.id}">${s.nombres||''} ${s.apellidos||''} — ${s.cargo||'Docente'}</option>`).join('');
+}
+
+function _fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(r.result);
+    r.onerror=reject;
+    r.readAsDataURL(file);
+  });
+}
+
+async function subirPlanEstudio(){
+  const titulo=document.getElementById('plan-titulo').value.trim();
+  const docenteId=document.getElementById('plan-docente').value;
+  const archivo=document.getElementById('plan-archivo').files[0];
+  if(!titulo||!docenteId||!archivo){ showToast('⚠️ Completa título, docente y archivo'); return; }
+  if(archivo.type!=='application/pdf'){ showToast('⚠️ Solo se aceptan archivos PDF'); return; }
+  if(archivo.size>8*1024*1024){ showToast('⚠️ El archivo supera 8MB, usa un PDF más liviano'); return; }
+  showToast('⏳ Subiendo documento...');
+  try{
+    const base64=await _fileToBase64(archivo);
+    const snapStf=await db.ref('corposepi/staff').once('value');
+    const rawSt=snapStf.val();
+    const staffLista=Array.isArray(rawSt)?rawSt.filter(Boolean):Object.values(rawSt||{}).filter(Boolean);
+    const doc=staffLista.find(s=>s.id===docenteId);
+    const ref=db.ref('aprende_planes').push();
+    await ref.set({
+      titulo, docenteId,
+      docenteNombre:doc?((doc.nombres||'')+' '+(doc.apellidos||'')).trim():'',
+      archivo:archivo.name, base64,
+      fecha:new Date().toISOString(),
+    });
+    showToast('✅ Plan de estudio asignado');
+    document.getElementById('plan-titulo').value='';
+    document.getElementById('plan-docente').value='';
+    document.getElementById('plan-archivo').value='';
+    cargarPlanesAdmin();
+  }catch(e){
+    showToast('❌ Error al subir: '+e.message);
+  }
+}
+
+async function cargarPlanesAdmin(){
+  await _cargarDocentesSelectPlanes();
+  const el=document.getElementById('admin-planes-list'); if(!el)return;
+  el.innerHTML='<div style="color:var(--hint);font-size:.82rem;padding:.5rem;">Cargando planes...</div>';
+  const snap=await db.ref('aprende_planes').once('value');
+  const planes=[];snap.forEach(c=>{const v=c.val();if(v)planes.push({...v,_key:c.key});});
+  if(!planes.length){ el.innerHTML='<div style="color:var(--hint);font-size:.82rem;">Aún no hay planes de estudio asignados.</div>'; return; }
+  el.innerHTML=planes.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')).map(p=>`
+    <div class="plan-card">
+      <div>
+        <div class="plan-card-t">📄 ${p.titulo}</div>
+        <div class="plan-card-s">Asignado a: <strong>${p.docenteNombre||p.docenteId}</strong> · ${p.archivo||''}</div>
+      </div>
+      <div style="display:flex;gap:.4rem;">
+        <button class="btn-outline" style="font-size:.72rem;" onclick="abrirPlanProtegido('${p._key}','aprende_planes')">👁️ Ver</button>
+        <button class="btn-outline" style="font-size:.72rem;color:#B91C1C;border-color:#FCA5A5;" onclick="eliminarPlanEstudio('${p._key}')">🗑️ Eliminar</button>
+      </div>
+    </div>`).join('');
+}
+
+async function eliminarPlanEstudio(key){
+  await db.ref('aprende_planes/'+key).remove();
+  showToast('🗑️ Plan eliminado');
+  cargarPlanesAdmin();
 }
 
 // ══ ADMIN: HORARIO ══
