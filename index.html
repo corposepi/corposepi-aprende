@@ -2863,7 +2863,7 @@ async function abrirPlanProtegido(key,nodo){
       <button class="plan-viewer-close" onclick="this.closest('.plan-viewer-overlay').remove()">✕ Cerrar</button>
     </div>
     <div class="plan-viewer-body" id="plan-viewer-pages">
-      <div style="color:#fff;font-size:.8rem;">⏳ Cargando documento...</div>
+      <div id="plan-loading-msg" style="color:#fff;font-size:.8rem;">⏳ Cargando documento...</div>
     </div>`;
   document.body.appendChild(overlay);
 
@@ -2888,7 +2888,7 @@ async function abrirPlanProtegido(key,nodo){
     for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
     const pdf=await pdfjsLib.getDocument({data:bytes}).promise;
     const cont=document.getElementById('plan-viewer-pages');
-    cont.querySelector('div[style*="Cargando"]')?.remove();
+    document.getElementById('plan-loading-msg')?.remove();
     for(let n=1;n<=pdf.numPages;n++){
       const page=await pdf.getPage(n);
       const viewport=page.getViewport({scale:1.4});
@@ -2907,10 +2907,21 @@ async function abrirPlanProtegido(key,nodo){
         textLayerDiv.className='plan-textlayer';
         textLayerDiv.style.width=viewport.width+'px';
         textLayerDiv.style.height=viewport.height+'px';
+        textContent.items.forEach(item=>{
+          if(!item.str)return;
+          const tx=pdfjsLib.Util.transform(viewport.transform,item.transform);
+          const angle=Math.atan2(tx[1],tx[0]);
+          const fontHeight=Math.hypot(tx[2],tx[3]);
+          const span=document.createElement('span');
+          span.textContent=item.str;
+          span.style.left=tx[4]+'px';
+          span.style.top=(tx[5]-fontHeight)+'px';
+          span.style.fontSize=fontHeight+'px';
+          span.style.fontFamily='sans-serif';
+          if(angle!==0) span.style.transform='rotate('+angle+'rad)';
+          textLayerDiv.appendChild(span);
+        });
         pageWrap.appendChild(textLayerDiv);
-        if(pdfjsLib.renderTextLayer){
-          await pdfjsLib.renderTextLayer({textContentSource:textContent,container:textLayerDiv,viewport,textDivs:[]}).promise;
-        }
       }catch(eTxt){ console.warn('Texto no disponible en esta página:',eTxt); }
       const wm=document.createElement('div');
       wm.className='plan-watermark';
