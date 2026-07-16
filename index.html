@@ -2237,9 +2237,12 @@ async function buildAdmin(el){
           <label class="form-label">Asignar a docente</label>
           <select class="form-select" id="plan-docente"><option value="">— Seleccionar docente —</option></select>
         </div>
-        <div>
+        <div style="grid-column:1/-1;">
           <label class="form-label">Archivo PDF</label>
-          <input class="form-input" type="file" id="plan-archivo" accept="application/pdf"/>
+          <div id="plan-dropzone" style="border:2px dashed var(--cream3);border-radius:var(--radius-sm);padding:1.3rem;text-align:center;cursor:pointer;background:var(--cream);transition:all .15s;" onclick="document.getElementById('plan-archivo').click()">
+            <div id="plan-dropzone-txt" style="font-size:.8rem;color:var(--muted);">📎 Arrastra aquí el PDF o haz clic para seleccionarlo</div>
+          </div>
+          <input class="form-input" type="file" id="plan-archivo" accept="application/pdf" style="display:none" onchange="_planDropzoneUpdate(this.files[0])"/>
         </div>
         <div style="grid-column:1/-1;">
           <button class="btn-primary" onclick="subirPlanEstudio()">📤 Subir y asignar</button>
@@ -3066,6 +3069,37 @@ async function _cargarDocentesSelectPlanes(){
     lista.map(s=>`<option value="${s.id}">${s.nombres||''} ${s.apellidos||''} — ${s.cargo||'Docente'}</option>`).join('');
 }
 
+function _planDropzoneUpdate(file){
+  const txt=document.getElementById('plan-dropzone-txt');
+  if(!txt)return;
+  if(file) txt.innerHTML=`✅ <strong>${file.name}</strong> (${(file.size/1024/1024).toFixed(2)} MB)`;
+  else txt.textContent='📎 Arrastra aquí el PDF o haz clic para seleccionarlo';
+}
+
+function _initPlanDropzone(){
+  const zone=document.getElementById('plan-dropzone');
+  const input=document.getElementById('plan-archivo');
+  if(!zone||!input||zone.dataset.bound)return;
+  zone.dataset.bound='1';
+  ['dragenter','dragover'].forEach(ev=>zone.addEventListener(ev,e=>{
+    e.preventDefault();e.stopPropagation();
+    zone.style.borderColor='var(--corp)';zone.style.background='var(--cream2)';
+  }));
+  ['dragleave','drop'].forEach(ev=>zone.addEventListener(ev,e=>{
+    e.preventDefault();e.stopPropagation();
+    zone.style.borderColor='var(--cream3)';zone.style.background='var(--cream)';
+  }));
+  zone.addEventListener('drop',e=>{
+    const file=e.dataTransfer.files[0];
+    if(!file)return;
+    if(file.type!=='application/pdf'){ showToast('⚠️ Solo se aceptan archivos PDF'); return; }
+    const dt=new DataTransfer();
+    dt.items.add(file);
+    input.files=dt.files;
+    _planDropzoneUpdate(file);
+  });
+}
+
 function _fileToBase64(file){
   return new Promise((resolve,reject)=>{
     const r=new FileReader();
@@ -3100,6 +3134,7 @@ async function subirPlanEstudio(){
     document.getElementById('plan-titulo').value='';
     document.getElementById('plan-docente').value='';
     document.getElementById('plan-archivo').value='';
+    _planDropzoneUpdate(null);
     cargarPlanesAdmin();
   }catch(e){
     showToast('❌ Error al subir: '+e.message);
@@ -3107,6 +3142,7 @@ async function subirPlanEstudio(){
 }
 
 async function cargarPlanesAdmin(){
+  _initPlanDropzone();
   await _cargarDocentesSelectPlanes();
   const el=document.getElementById('admin-planes-list'); if(!el)return;
   el.innerHTML='<div style="color:var(--hint);font-size:.82rem;padding:.5rem;">Cargando planes...</div>';
