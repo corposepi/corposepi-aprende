@@ -2857,10 +2857,17 @@ async function abrirPlanProtegido(key,nodo){
   const overlay=document.createElement('div');
   overlay.className='plan-viewer-overlay';
   const marca='© CORPOSEPI · '+new Date().toLocaleDateString('es-CO');
+  let planZoom=1.4;
   overlay.innerHTML=`
     <div class="plan-viewer-bar">
       <div class="pv-title">📄 ${plan.titulo}</div>
-      <button class="plan-viewer-close" onclick="this.closest('.plan-viewer-overlay').remove()">✕ Cerrar</button>
+      <div style="display:flex;align-items:center;gap:.4rem;">
+        <button class="plan-viewer-close" onclick="window._planZoomOut()" title="Alejar">➖</button>
+        <span id="plan-zoom-lbl" style="color:#fff;font-size:.72rem;min-width:3.2em;text-align:center;">100%</span>
+        <button class="plan-viewer-close" onclick="window._planZoomIn()" title="Acercar">➕</button>
+        <button class="plan-viewer-close" onclick="window._planZoomReset()" title="Restablecer">↺</button>
+        <button class="plan-viewer-close" onclick="this.closest('.plan-viewer-overlay').remove()">✕ Cerrar</button>
+      </div>
     </div>
     <div class="plan-viewer-body" id="plan-viewer-pages">
       <div id="plan-loading-msg" style="color:#fff;font-size:.8rem;">⏳ Cargando documento...</div>
@@ -2880,19 +2887,16 @@ async function abrirPlanProtegido(key,nodo){
   });
   observer.observe(document.body,{childList:true});
 
-  try{
-    if(!window.pdfjsLib){ throw new Error('Visor PDF no disponible'); }
-    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    const bin=atob(plan.base64.split(',')[1]);
-    const bytes=new Uint8Array(bin.length);
-    for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
-    const pdf=await pdfjsLib.getDocument({data:bytes}).promise;
+  let pdfDoc=null;
+  async function renderPaginas(scale){
     const cont=document.getElementById('plan-viewer-pages');
-    document.getElementById('plan-loading-msg')?.remove();
+    if(!cont)return;
+    cont.innerHTML='<div style="color:#fff;font-size:.8rem;">⏳ Renderizando...</div>';
     let paginasSinTexto=0;
-    for(let n=1;n<=pdf.numPages;n++){
-      const page=await pdf.getPage(n);
-      const viewport=page.getViewport({scale:1.4});
+    cont.innerHTML='';
+    for(let n=1;n<=pdfDoc.numPages;n++){
+      const page=await pdfDoc.getPage(n);
+      const viewport=page.getViewport({scale});
       const canvas=document.createElement('canvas');
       canvas.width=viewport.width; canvas.height=viewport.height;
       canvas.style.width=viewport.width+'px'; canvas.style.height=viewport.height+'px';
@@ -2933,12 +2937,28 @@ async function abrirPlanProtegido(key,nodo){
       pageWrap.appendChild(wm);
       cont.appendChild(pageWrap);
     }
-    if(paginasSinTexto===pdf.numPages){
+    if(paginasSinTexto===pdfDoc.numPages){
       const aviso=document.createElement('div');
       aviso.style.cssText='background:#78350F;color:#FEF3C7;padding:.7rem 1rem;border-radius:8px;font-size:.75rem;max-width:600px;text-align:center;';
       aviso.textContent='⚠️ Este PDF no contiene texto real (parece ser un documento escaneado o convertido desde imágenes), por eso no se puede seleccionar ni copiar texto. Para permitir copiar el contenido, sube un PDF generado desde Word/Google Docs u otro editor de texto.';
       cont.insertBefore(aviso,cont.firstChild);
     }
+    const lbl=document.getElementById('plan-zoom-lbl');
+    if(lbl) lbl.textContent=Math.round(scale/1.4*100)+'%';
+  }
+
+  window._planZoomIn=()=>{ planZoom=Math.min(planZoom+0.3,3.5); renderPaginas(planZoom); };
+  window._planZoomOut=()=>{ planZoom=Math.max(planZoom-0.3,0.6); renderPaginas(planZoom); };
+  window._planZoomReset=()=>{ planZoom=1.4; renderPaginas(planZoom); };
+
+  try{
+    if(!window.pdfjsLib){ throw new Error('Visor PDF no disponible'); }
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const bin=atob(plan.base64.split(',')[1]);
+    const bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+    pdfDoc=await pdfjsLib.getDocument({data:bytes}).promise;
+    await renderPaginas(planZoom);
   }catch(e){
     document.getElementById('plan-viewer-pages').innerHTML=`<div style="color:#fca5a5;padding:1rem;">❌ No se pudo renderizar el documento: ${e.message}</div>`;
   }
