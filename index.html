@@ -474,6 +474,7 @@ textarea:focus{border-color:var(--corp)!important;outline:none;background:var(--
       <div class="ls-role" onclick="selectRole('docente',this)"><div class="ls-role-icon">👩‍🏫</div><div class="ls-role-name">Docente</div></div>
       <div class="ls-role" onclick="selectRole('padre',this)"><div class="ls-role-icon">👨‍👩‍👧</div><div class="ls-role-name">Familia</div></div>
       <div class="ls-role" onclick="selectRole('admin',this)"><div class="ls-role-icon">⚙️</div><div class="ls-role-name">Admin</div></div>
+      <div class="ls-role" onclick="selectRole('cobertura',this)"><div class="ls-role-icon">🔄</div><div class="ls-role-name">Cobertura</div></div>
     </div>
     <div class="ls-card">
       <div id="lf-default" style="text-align:center;color:rgba(255,255,255,.3);font-size:.85rem;padding:.5rem 0;">Selecciona tu rol para continuar</div>
@@ -512,6 +513,14 @@ textarea:focus{border-color:var(--corp)!important;outline:none;background:var(--
         <input class="ls-input" id="adm-nombre" type="text" placeholder="Ej: Desiderio Perdomo"/>
         <input class="ls-input" id="adm-pass" type="password" placeholder="Contraseña admin" onkeydown="if(event.key==='Enter')doLogin()"/>
         <button class="ls-btn" onclick="doLogin()">Ingresar como Admin</button>
+      </div>
+      <!-- COBERTURA -->
+      <div id="lf-cobertura" style="display:none;">
+        <div class="ls-err" id="err-cob">Código inválido, vencido o ya no está activo.</div>
+        <div style="font-size:.68rem;color:rgba(255,255,255,.4);margin-bottom:.7rem;line-height:1.5;">¿Vas a cubrir la clase de un docente que no pudo asistir? Pide al administrador el código de cobertura del día y entra aquí con acceso completo a su planeación, asistencia y pendientes.</div>
+        <label class="ls-label">Código de cobertura</label>
+        <input class="ls-input" id="cob-codigo" type="text" placeholder="Ej: 384920" maxlength="8" style="letter-spacing:.2em;text-align:center;font-size:1.1rem;" onkeydown="if(event.key==='Enter')doLogin()"/>
+        <button class="ls-btn" onclick="doLogin()">Ingresar como reemplazo</button>
       </div>
     </div>
   </div>
@@ -759,7 +768,7 @@ function selectRole(role,el){
   selectedRole=role;
   document.querySelectorAll('.ls-role').forEach(r=>r.classList.remove('active'));
   el.classList.add('active');
-  ['estudiante','docente','padre','admin','default'].forEach(r=>document.getElementById('lf-'+r).style.display='none');
+  ['estudiante','docente','padre','admin','cobertura','default'].forEach(r=>document.getElementById('lf-'+r).style.display='none');
   document.getElementById('lf-'+role).style.display='block';
 }
 
@@ -859,6 +868,38 @@ async function doLogin(){
     currentRole='admin';
     currentUser={nombre,fnx:0,cpi:0};
     startApp();
+
+  } else if(selectedRole==='cobertura'){
+    const codigo=document.getElementById('cob-codigo').value.trim();
+    if(!codigo){showToast('⚠️ Ingresa el código de cobertura');return;}
+    let cob=null;
+    try{
+      const snap=await db.ref('aprende_coberturas/'+codigo).once('value');
+      cob=snap.val();
+    }catch(e){showErr('cob','Error de conexión con Firebase');return;}
+    const hoy=new Date().toISOString().slice(0,10);
+    if(!cob||!cob.activo){showErr('cob');return;}
+    if(cob.fecha!==hoy){showErr('cob','Este código venció. Solo es válido el día '+cob.fecha+'.');return;}
+    let staffMember=null;
+    try{
+      const snapS=await db.ref('corposepi/staff').once('value');
+      const raw=snapS.val();
+      let staffIdx=-1;
+      if(Array.isArray(raw)){ staffIdx=raw.findIndex(s=>s&&s.id===cob.docenteId); if(staffIdx>=0)staffMember=raw[staffIdx]; }
+      else{ const entries=Object.entries(raw||{}); const found=entries.find(([k,s])=>s&&s.id===cob.docenteId); if(found){staffIdx=parseInt(found[0]);staffMember=found[1];} }
+      staffMember=staffMember?{...staffMember,_idx:staffIdx}:null;
+    }catch(e){showErr('cob','Error de conexión con Firebase');return;}
+    if(!staffMember){showErr('cob','No se encontró el docente asociado a este código.');return;}
+    currentRole='docente';
+    currentUser={
+      idx:staffMember._idx, id:staffMember.id,
+      nombres:staffMember.nombres||'', apellidos:staffMember.apellidos||'',
+      nombre:(staffMember.nombres||'')+(staffMember.apellidos?' '+staffMember.apellidos:''),
+      cargo:staffMember.cargo||'Docente', numdoc:staffMember.numdoc,
+      fnx:parseFloat(staffMember.fnx||0).toFixed(0),
+      esCobertura:true, coberturaCodigo:codigo,
+    };
+    startApp();
   }
 }
 
@@ -876,7 +917,17 @@ function startApp(){
   const displayName=currentUser.nombres&&currentUser.apellidos
     ?(currentUser.nombres+' '+currentUser.apellidos)
     :(currentUser.nombre||'Usuario');
-  document.getElementById('tb-user').textContent=displayName;
+  document.getElementById('tb-user').textContent=displayName+(currentUser.esCobertura?' (cobertura)':'');
+  let banner=document.getElementById('cobertura-banner');
+  if(currentUser.esCobertura){
+    if(!banner){
+      banner=document.createElement('div');
+      banner.id='cobertura-banner';
+      banner.style.cssText='background:#78350F;color:#FEF3C7;text-align:center;font-size:.75rem;font-weight:600;padding:.5rem 1rem;';
+      document.getElementById('app').insertBefore(banner,document.getElementById('app').firstChild);
+    }
+    banner.textContent='🔄 Modo cobertura — Tienes acceso temporal a la cuenta de '+displayName+' (código '+currentUser.coberturaCodigo+', válido solo hoy)';
+  } else if(banner){ banner.remove(); }
   // Tokens — values come from Firebase-loaded currentUser
   const tokEl=document.getElementById('tb-tokens');
   if(currentRole==='estudiante'||currentRole==='padre'){
@@ -3066,7 +3117,10 @@ async function cargarStaffAdmin(){
           <div style="font-weight:700;font-size:.9rem;">${s.nombres||''} ${s.apellidos||''}</div>
           <div style="font-size:.68rem;color:var(--muted);">${s.cargo||'Docente'} · ${s.id}</div>
         </div>
-        <button class="btn-primary" style="font-size:.72rem;padding:.4rem .9rem" onclick="guardarAsignacion(${s._idx})">💾 Guardar</button>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+          <button class="btn-outline" style="font-size:.72rem;padding:.4rem .9rem" onclick="generarCoberturaDocente('${s.id}','${(s.nombres||'')+' '+(s.apellidos||'')}')">🔄 Código de cobertura</button>
+          <button class="btn-primary" style="font-size:.72rem;padding:.4rem .9rem" onclick="guardarAsignacion(${s._idx})">💾 Guardar</button>
+        </div>
       </div>
       <div style="margin-bottom:.75rem;">
         <div class="dc-title" style="margin-bottom:.4rem;">Bloques temáticos</div>
@@ -3121,6 +3175,28 @@ async function guardarAsignacion(idx){
     if(checked) await db.ref('aprende_acciones/'+k+'/docenteId').set(staffId);
   }
   showToast('✅ Asignación guardada para '+((snapStf.val()?.nombres||'')));
+}
+
+// ══ ADMIN: CÓDIGOS DE COBERTURA (reemplazo temporal de un docente) ══
+async function generarCoberturaDocente(docenteId,docenteNombre){
+  const codigo=String(Math.floor(100000+Math.random()*900000));
+  const hoy=new Date().toISOString().slice(0,10);
+  await db.ref('aprende_coberturas/'+codigo).set({
+    docenteId, docenteNombre, fecha:hoy, activo:true, creadoEn:new Date().toISOString(),
+  });
+  const modal=document.createElement('div');
+  modal.className='plan-viewer-overlay';
+  modal.innerHTML=`<div class="plan-viewer-bar"><div class="pv-title">🔄 Código de cobertura</div>
+    <button class="plan-viewer-close" onclick="this.closest('.plan-viewer-overlay').remove()">✕ Cerrar</button></div>
+    <div class="plan-viewer-body" style="justify-content:center;">
+      <div style="background:#fff;border-radius:14px;padding:2rem;text-align:center;max-width:380px;">
+        <div style="font-size:.8rem;color:#555;margin-bottom:.5rem;">Para cubrir a</div>
+        <div style="font-weight:800;font-size:1.05rem;margin-bottom:1rem;">${docenteNombre}</div>
+        <div style="font-size:2.2rem;font-weight:900;letter-spacing:.15em;color:var(--corp);font-family:'DM Mono',monospace;">${codigo}</div>
+        <div style="font-size:.7rem;color:#888;margin-top:.8rem;">Válido solo hoy (${hoy}). Comparte este código con la persona que va a cubrir la clase — debe seleccionar "🔄 Cobertura" en la pantalla de inicio de sesión.</div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
 }
 
 // ══ ADMIN: PLANES DE ESTUDIO (visor protegido, sin descarga/copia) ══
