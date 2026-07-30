@@ -3605,9 +3605,13 @@ async function renderDiasPlan(semana, dias, horario, tMap){
       html+='</div>';
 
       html+='<div style="padding:.85rem;">';
-      if(!misClasesSec.length){
+      const tienePlanGuardado=!!(planSec.A||planSec.B||planSec.C);
+      if(!misClasesSec.length&&!tienePlanGuardado){
         html+='<div style="font-size:.75rem;color:var(--hint);text-align:center;padding:.5rem;">Sin clase asignada en esta sección según el horario</div>';
       } else {
+        if(!misClasesSec.length&&tienePlanGuardado){
+          html+='<div style="font-size:.68rem;color:#92400E;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:.5rem .7rem;margin-bottom:.6rem;">⚠️ Esta sección ya no tiene clase asignada en el horario actual (fue movida o cambiada), pero se conserva lo que habías planeado aquí.</div>';
+        }
         var ida=dia.fecha+'_'+planKey;
         html+='<div style="display:grid;gap:.5rem;">';
         html+='<div>';
