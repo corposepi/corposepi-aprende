@@ -3674,6 +3674,19 @@ async function renderDiasPlan(semana, dias, horario, tMap){
           'Didáctica, Evidencias y Productos</label>';
         html+='<textarea id="plan-C-'+ida+'" rows="2" style="width:100%;background:var(--cream);border:1px solid var(--cream3);border-radius:8px;padding:.5rem .75rem;font-family:\'DM Sans\',sans-serif;font-size:.82rem;resize:vertical;outline:none;" placeholder="¿Cómo se desarrolla la clase? ¿Qué productos o evidencias se esperan?">'+escHtml(planSec.C||'')+'</textarea>';
         html+='</div>';
+        // Recursos y enlaces (YouTube, Drive, PDF/infografía) — visibles para el estudiante
+        _planRecursosState[ida]=(planSec.recursos||[]).slice();
+        html+='<div style="background:var(--cream);border-radius:8px;padding:.65rem .75rem;margin-top:.3rem;">';
+        html+='<div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.4rem;">🔗 Recursos y enlaces (videos, Drive, PDF) — el estudiante los verá aquí</div>';
+        html+='<div id="recursos-list-'+ida+'">'+_renderRecursosListHTML(ida)+'</div>';
+        html+='<div style="display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.4rem;">';
+        html+='<input class="form-input" id="rec-titulo-'+ida+'" placeholder="Título (opcional)" style="flex:1;min-width:110px;font-size:.75rem;padding:.35rem .6rem;"/>';
+        html+='<input class="form-input" id="rec-url-'+ida+'" placeholder="Pega el link (YouTube, Drive, etc.)" style="flex:2;min-width:150px;font-size:.75rem;padding:.35rem .6rem;" onkeydown="if(event.key===\'Enter\'){event.preventDefault();agregarRecursoLink(\''+ida+'\');}"/>';
+        html+='<button class="btn-outline" style="font-size:.7rem;padding:.35rem .7rem;" onclick="agregarRecursoLink(\''+ida+'\')">➕ Agregar link</button>';
+        html+='<label class="btn-outline" style="font-size:.7rem;padding:.35rem .7rem;cursor:pointer;">📎 Subir PDF<input type="file" accept="application/pdf" style="display:none" onchange="agregarRecursoPdf(\''+ida+'\',this)"/></label>';
+        html+='</div>';
+        html+='<div style="font-size:.6rem;color:var(--hint);margin-top:.3rem;">Los PDF se limitan a 4MB. Para archivos más pesados, súbelo a Google Drive y pega aquí el link.</div>';
+        html+='</div>';
         html+='</div>';
         // Por cada grupo: evaluación individual + clase en vivo
         misClasesSec.forEach(function(mc){
@@ -3721,13 +3734,64 @@ async function guardarPlaneacionDia(fecha, semanaKey){
     const A=document.getElementById('plan-A-'+ida)?.value||'';
     const B=document.getElementById('plan-B-'+ida)?.value||'';
     const C=document.getElementById('plan-C-'+ida)?.value||'';
-    if(A||B||C) planDia['sec'+sec.n]={A,B,C,fecha,docenteId:currentUser.id};
+    const recursos=_planRecursosState[ida]||[];
+    if(A||B||C||recursos.length) planDia['sec'+sec.n]={A,B,C,fecha,docenteId:currentUser.id,recursos};
   });
   await db.ref('aprende_planeacion/'+currentUser.id+'/'+semanaKey+'/'+fecha).set(planDia);
   showToast('✅ Planeación del '+fecha+' guardada');
 }
 
 function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ══ RECURSOS Y ENLACES EN PLANEACIÓN (punto C) ══
+let _planRecursosState={};
+function _recursoIcon(url){
+  if(/youtu\.?be/i.test(url||''))return'▶️';
+  if(/drive\.google/i.test(url||''))return'📁';
+  if(/docs\.google/i.test(url||''))return'📄';
+  return'🔗';
+}
+function _renderRecursosListHTML(ida){
+  const arr=_planRecursosState[ida]||[];
+  if(!arr.length)return'<div style="font-size:.68rem;color:var(--hint);">Sin recursos agregados.</div>';
+  return arr.map(function(r,i){
+    return'<div style="display:flex;align-items:center;justify-content:space-between;background:var(--white);border:1px solid var(--cream3);border-radius:7px;padding:.35rem .6rem;font-size:.72rem;margin-bottom:.25rem;">'+
+      '<a href="'+escHtml(r.url||'#')+'" target="_blank" '+(r.tipo==='pdf'?'download="'+escHtml(r.titulo||'documento.pdf')+'"':'')+' style="color:var(--corp);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:82%;">'+
+      (r.tipo==='pdf'?'📎':_recursoIcon(r.url))+' '+escHtml(r.titulo||r.url||'Recurso')+'</a>'+
+      '<button onclick="_quitarRecurso(\''+ida+'\','+i+')" style="background:none;border:none;color:#B91C1C;cursor:pointer;font-size:.75rem;">✕</button></div>';
+  }).join('');
+}
+function _quitarRecurso(ida,i){
+  (_planRecursosState[ida]||[]).splice(i,1);
+  const cont=document.getElementById('recursos-list-'+ida);
+  if(cont)cont.innerHTML=_renderRecursosListHTML(ida);
+}
+function agregarRecursoLink(ida){
+  const inpT=document.getElementById('rec-titulo-'+ida);
+  const inpU=document.getElementById('rec-url-'+ida);
+  if(!inpU)return;
+  let url=inpU.value.trim();
+  const titulo=inpT.value.trim();
+  if(!url){showToast('⚠️ Pega un link primero');return;}
+  if(!/^https?:\/\//i.test(url))url='https://'+url;
+  if(!_planRecursosState[ida])_planRecursosState[ida]=[];
+  _planRecursosState[ida].push({tipo:'link',titulo:titulo||url,url});
+  inpT.value='';inpU.value='';
+  const cont=document.getElementById('recursos-list-'+ida);
+  if(cont)cont.innerHTML=_renderRecursosListHTML(ida);
+}
+async function agregarRecursoPdf(ida,inputEl){
+  const file=inputEl.files[0]; if(!file)return;
+  if(file.type!=='application/pdf'){showToast('⚠️ Solo se aceptan archivos PDF');inputEl.value='';return;}
+  if(file.size>4*1024*1024){showToast('⚠️ El archivo supera 4MB. Para archivos más grandes, sube a Google Drive y pega el link.');inputEl.value='';return;}
+  const base64=await _fileToBase64(file);
+  if(!_planRecursosState[ida])_planRecursosState[ida]=[];
+  _planRecursosState[ida].push({tipo:'pdf',titulo:file.name,url:base64});
+  inputEl.value='';
+  const cont=document.getElementById('recursos-list-'+ida);
+  if(cont)cont.innerHTML=_renderRecursosListHTML(ida);
+  showToast('✅ '+file.name+' agregado — recuerda hacer clic en "Guardar día"');
+}
 
 // ══ ASISTENCIA DOCENTE ══
 async function buildAsistenciaDocente(el){
@@ -3919,6 +3983,16 @@ async function cargarMiClaseFecha(){
           });
         } else {
           secHtml+='<div style="color:var(--hint);font-size:.8rem;text-align:center;padding:.75rem;">El docente aún no ha publicado la planeación de esta sección.</div>';
+        }
+
+        if(planSec.recursos&&planSec.recursos.length){
+          secHtml+='<div style="margin-top:.6rem;">';
+          secHtml+='<div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.35rem;">🔗 Recursos y materiales</div>';
+          secHtml+=planSec.recursos.map(function(r){
+            return'<a href="'+escHtml(r.url||'#')+'" target="_blank" '+(r.tipo==='pdf'?'download="'+escHtml(r.titulo||'documento.pdf')+'"':'')+' style="display:flex;align-items:center;gap:.4rem;background:var(--cream);border:1px solid var(--cream3);border-radius:8px;padding:.5rem .75rem;font-size:.78rem;color:var(--corp);text-decoration:none;margin-bottom:.35rem;font-weight:600;">'+
+              (r.tipo==='pdf'?'📎':_recursoIcon(r.url))+' '+escHtml(r.titulo||r.url||'Recurso')+'</a>';
+          }).join('');
+          secHtml+='</div>';
         }
 
         secHtml+='<div style="background:var(--cream);border-radius:var(--radius-sm);padding:1rem;margin-top:.75rem;">';
@@ -4595,6 +4669,7 @@ function filtrarEstudiantesAdmin(){
       <th style="text-align:left;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:.5rem .75rem;">ID</th>
       <th style="text-align:left;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:.5rem .75rem;">Nivel</th>
       <th style="text-align:left;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:.5rem .75rem;">Grado</th>
+      <th style="text-align:left;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:.5rem .75rem;">Correo institucional</th>
       <th style="text-align:left;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:.5rem .75rem;">Estado</th>
       <th style="text-align:left;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:.5rem .75rem;">Acceso plataforma</th>
     </tr></thead>
@@ -4618,6 +4693,13 @@ function filtrarEstudiantesAdmin(){
           onfocus="this.style.borderColor='var(--corp)';this.style.background='var(--white)'"
           onblur="guardarCampoEstudiante('${s._key}','grado',this.value,this)"
           placeholder="Ej: 11°"/>
+      </td>
+      <td style="padding:.45rem .75rem;">
+        <input id="ecorreo-${s._key}" value="${escHtml(s.correo||'')}" type="email"
+          style="width:100%;min-width:160px;background:var(--cream);border:1px solid transparent;border-radius:5px;padding:.25rem .4rem;font-size:.76rem;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;"
+          onfocus="this.style.borderColor='var(--corp)';this.style.background='var(--white)'"
+          onblur="guardarCampoEstudiante('${s._key}','correo',this.value,this)"
+          placeholder="nombre@corposepi.org"/>
       </td>
       <td style="padding:.45rem .75rem;">
         <select id="estatus-${s._key}" style="background:${s.status==='active'?'#E8F5E9':'#FBE9E7'};color:${s.status==='active'?'#2E7D32':'#BF360C'};border:none;border-radius:5px;padding:.25rem .5rem;font-size:.72rem;font-family:'DM Sans',sans-serif;cursor:pointer;"
