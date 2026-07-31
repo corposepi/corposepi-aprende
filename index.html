@@ -8,6 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
 :root{
   --corp:#B8410A;--corp2:#8B2F07;--corp3:#E8651A;
@@ -559,6 +560,7 @@ const FB_CONFIG = {
 const PASS_DOC='DocentesCorposepi@#@2026';
 const PASS_ADMIN=['Deperavi1973@#@2026','Deperavi1973@#@2026'];
 const BASE_CARNETS='https://corposepi.github.io/corposepi-carnets';
+const EMAILJS_CONFIG={serviceId:'service_k992wi6',templateId:'template_wculg4',publicKey:'LUS5MGWMYSBs0YuRc'};
 
 let db=null;
 let currentRole=null;
@@ -761,6 +763,7 @@ const LIVES_DEMO=[
 // ══ INIT ══
 (function(){
   try{if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);db=firebase.database();}catch(e){}
+  try{if(window.emailjs)emailjs.init({publicKey:EMAILJS_CONFIG.publicKey});}catch(e){}
 })();
 
 // ══ LOGIN ══
@@ -3739,6 +3742,7 @@ async function guardarPlaneacionDia(fecha, semanaKey){
   });
   await db.ref('aprende_planeacion/'+currentUser.id+'/'+semanaKey+'/'+fecha).set(planDia);
   showToast('✅ Planeación del '+fecha+' guardada');
+  _enviarNotificacionesRecursos(fecha,diaKey);
 }
 
 function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -3766,6 +3770,7 @@ function _quitarRecurso(ida,i){
   const cont=document.getElementById('recursos-list-'+ida);
   if(cont)cont.innerHTML=_renderRecursosListHTML(ida);
 }
+let _planRecursosNuevos={};
 function agregarRecursoLink(ida){
   const inpT=document.getElementById('rec-titulo-'+ida);
   const inpU=document.getElementById('rec-url-'+ida);
@@ -3774,8 +3779,11 @@ function agregarRecursoLink(ida){
   const titulo=inpT.value.trim();
   if(!url){showToast('⚠️ Pega un link primero');return;}
   if(!/^https?:\/\//i.test(url))url='https://'+url;
+  const rec={tipo:'link',titulo:titulo||url,url};
   if(!_planRecursosState[ida])_planRecursosState[ida]=[];
-  _planRecursosState[ida].push({tipo:'link',titulo:titulo||url,url});
+  _planRecursosState[ida].push(rec);
+  if(!_planRecursosNuevos[ida])_planRecursosNuevos[ida]=[];
+  _planRecursosNuevos[ida].push(rec);
   inpT.value='';inpU.value='';
   const cont=document.getElementById('recursos-list-'+ida);
   if(cont)cont.innerHTML=_renderRecursosListHTML(ida);
@@ -3785,12 +3793,70 @@ async function agregarRecursoPdf(ida,inputEl){
   if(file.type!=='application/pdf'){showToast('⚠️ Solo se aceptan archivos PDF');inputEl.value='';return;}
   if(file.size>4*1024*1024){showToast('⚠️ El archivo supera 4MB. Para archivos más grandes, sube a Google Drive y pega el link.');inputEl.value='';return;}
   const base64=await _fileToBase64(file);
+  const rec={tipo:'pdf',titulo:file.name,url:base64};
   if(!_planRecursosState[ida])_planRecursosState[ida]=[];
-  _planRecursosState[ida].push({tipo:'pdf',titulo:file.name,url:base64});
+  _planRecursosState[ida].push(rec);
+  if(!_planRecursosNuevos[ida])_planRecursosNuevos[ida]=[];
+  _planRecursosNuevos[ida].push(rec);
   inputEl.value='';
   const cont=document.getElementById('recursos-list-'+ida);
   if(cont)cont.innerHTML=_renderRecursosListHTML(ida);
   showToast('✅ '+file.name+' agregado — recuerda hacer clic en "Guardar día"');
+}
+
+// Envía un correo (vía EmailJS) a cada estudiante del grupo avisando de recursos nuevos agregados hoy
+async function _enviarNotificacionesRecursos(fecha,diaKey){
+  if(!window.emailjs)return;
+  const idsConNuevos=Object.keys(_planRecursosNuevos).filter(k=>k.indexOf(fecha+'_')===0&&(_planRecursosNuevos[k]||[]).length);
+  if(!idsConNuevos.length)return;
+  let snapHor,snapTal,snapStu;
+  try{
+    [snapHor,snapTal,snapStu]=await Promise.all([
+      db.ref('aprende_horario/'+diaKey).once('value'),
+      db.ref('aprende_talleres').once('value'),
+      db.ref('corposepi/students').once('value'),
+    ]);
+  }catch(e){return;}
+  const diaHor=snapHor.val()||{};
+  const tMap={};snapTal.forEach(function(c){tMap[c.key]=c.val();});
+  const rawStu=snapStu.val()||{};
+  const estudiantes=(Array.isArray(rawStu)?rawStu:Object.values(rawStu)).filter(function(s){return s&&s.id;});
+
+  let enviados=0,fallidos=0;
+  for(const ida of idsConNuevos){
+    const secN=ida.split('_sec')[1];
+    const nuevosLink=(_planRecursosNuevos[ida]||[]).filter(function(r){return r.tipo==='link';});
+    if(!nuevosLink.length)continue;
+    const secData=diaHor['sec'+secN]||{};
+    const gruposDocente=GRUPOS.filter(function(g){
+      const item=secData[g.id];
+      return item&&String(item.docenteId||'').trim()===String(currentUser.id||'').trim();
+    });
+    if(!gruposDocente.length)continue;
+    const tallerKey=(secData[gruposDocente[0].id]||{}).tallerKey;
+    const tallerTitulo=(tMap[tallerKey]||{}).titulo||'tu clase';
+    const alumnosGrupo=estudiantes.filter(function(s){
+      return s.correo&&gruposDocente.some(function(g){return detectarGrupoEstudiante(s.nivel,s.grado)===g.id;});
+    });
+    for(const al of alumnosGrupo){
+      for(const rec of nuevosLink){
+        try{
+          await emailjs.send(EMAILJS_CONFIG.serviceId,EMAILJS_CONFIG.templateId,{
+            correo_estudiante:al.correo,
+            nombre_estudiante:al.nombres||'',
+            titulo_clase:tallerTitulo,
+            titulo_recurso:rec.titulo||rec.url,
+            link_recurso:rec.url,
+          });
+          enviados++;
+        }catch(e){fallidos++;}
+      }
+    }
+  }
+  idsConNuevos.forEach(function(ida){_planRecursosNuevos[ida]=[];});
+  if(enviados||fallidos){
+    showToast('📧 '+enviados+' correo(s) de aviso enviados'+(fallidos?', '+fallidos+' fallidos':''));
+  }
 }
 
 // ══ ASISTENCIA DOCENTE ══
