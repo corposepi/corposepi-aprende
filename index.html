@@ -2296,9 +2296,10 @@ async function buildAdmin(el){
         <div>
           <label class="form-label">Archivo(s) PDF</label>
           <div id="plan-dropzone" style="border:2px dashed var(--cream3);border-radius:var(--radius-sm);padding:1.3rem;text-align:center;cursor:pointer;background:var(--cream);transition:all .15s;" onclick="document.getElementById('plan-archivo').click()">
-            <div id="plan-dropzone-txt" style="font-size:.8rem;color:var(--muted);">📎 Arrastra aquí uno o varios PDF, o haz clic para seleccionarlos</div>
+            <div id="plan-dropzone-txt" style="font-size:.8rem;color:var(--muted);">📎 Arrastra aquí uno o varios PDF, o haz clic para seleccionarlos<br><span style="font-size:.65rem;">(puedes hacer clic varias veces para ir agregando más archivos — cada uno se suma a la lista)</span></div>
           </div>
-          <input class="form-input" type="file" id="plan-archivo" accept="application/pdf" multiple style="display:none" onchange="_planDropzoneUpdate(this.files)"/>
+          <div id="plan-archivos-lista" style="margin-top:.5rem;display:flex;flex-direction:column;gap:.3rem;"></div>
+          <input class="form-input" type="file" id="plan-archivo" accept="application/pdf" multiple style="display:none" onchange="_planDropzoneAdd(this.files)"/>
         </div>
         <div>
           <button class="btn-primary" onclick="subirPlanEstudio()">📤 Subir y asignar</button>
@@ -3215,15 +3216,41 @@ async function _cargarDocentesSelectPlanes(){
 }
 
 let _planArchivos=[];
-function _planDropzoneUpdate(files){
+function _planRenderLista(){
   const txt=document.getElementById('plan-dropzone-txt');
-  if(!txt)return;
-  const arr=files?Array.from(files):[];
-  _planArchivos=arr;
-  if(!arr.length){ txt.textContent='📎 Arrastra aquí uno o varios PDF, o haz clic para seleccionarlos'; return; }
-  const totalMB=(arr.reduce((a,f)=>a+f.size,0)/1024/1024).toFixed(2);
-  txt.innerHTML=`✅ <strong>${arr.length} archivo(s)</strong> seleccionado(s) (${totalMB} MB total)<br>`+
-    arr.map(f=>`<span style="font-size:.68rem;color:var(--muted);">${f.name} (${(f.size/1024/1024).toFixed(2)} MB)</span>`).join('<br>');
+  const lista=document.getElementById('plan-archivos-lista');
+  if(!txt||!lista)return;
+  if(!_planArchivos.length){
+    txt.innerHTML='📎 Arrastra aquí uno o varios PDF, o haz clic para seleccionarlos<br><span style="font-size:.65rem;">(puedes hacer clic varias veces para ir agregando más archivos — cada uno se suma a la lista)</span>';
+    lista.innerHTML='';
+    return;
+  }
+  const totalMB=(_planArchivos.reduce((a,f)=>a+f.size,0)/1024/1024).toFixed(2);
+  txt.innerHTML=`✅ <strong>${_planArchivos.length} archivo(s)</strong> listos para subir (${totalMB} MB total) — haz clic aquí para agregar más`;
+  lista.innerHTML=_planArchivos.map((f,i)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--white);border:1px solid var(--cream3);border-radius:7px;padding:.35rem .6rem;font-size:.72rem;">
+      <span>📄 ${f.name} <span style="color:var(--muted);">(${(f.size/1024/1024).toFixed(2)} MB)</span></span>
+      <button onclick="event.stopPropagation();_planQuitarArchivo(${i})" style="background:none;border:none;color:#B91C1C;cursor:pointer;font-size:.8rem;">✕</button>
+    </div>`).join('');
+}
+function _planDropzoneAdd(files){
+  const nuevos=files?Array.from(files):[];
+  const existentesKey=new Set(_planArchivos.map(f=>f.name+'_'+f.size));
+  nuevos.forEach(f=>{
+    const key=f.name+'_'+f.size;
+    if(!existentesKey.has(key)){ _planArchivos.push(f); existentesKey.add(key); }
+  });
+  document.getElementById('plan-archivo').value='';
+  _planRenderLista();
+}
+function _planQuitarArchivo(i){
+  _planArchivos.splice(i,1);
+  _planRenderLista();
+}
+function _planDropzoneUpdate(files){
+  // Reinicia la lista (usado al limpiar el formulario tras subir)
+  _planArchivos=files?Array.from(files):[];
+  _planRenderLista();
 }
 
 function _initPlanDropzone(){
@@ -3242,10 +3269,7 @@ function _initPlanDropzone(){
   zone.addEventListener('drop',e=>{
     const files=Array.from(e.dataTransfer.files||[]).filter(f=>f.type==='application/pdf');
     if(!files.length){ showToast('⚠️ Solo se aceptan archivos PDF'); return; }
-    const dt=new DataTransfer();
-    files.forEach(f=>dt.items.add(f));
-    input.files=dt.files;
-    _planDropzoneUpdate(dt.files);
+    _planDropzoneAdd(files);
   });
 }
 
