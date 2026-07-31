@@ -2282,25 +2282,25 @@ async function buildAdmin(el){
   <div id="apanel-ver-horario" style="display:none"></div>
   <div id="apanel-planes" style="display:none">
     <div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--cream3);padding:1.25rem;margin-bottom:1rem;">
-      <div class="dc-title">📄 Asignar plan de estudio a un docente</div>
-      <div style="font-size:.72rem;color:var(--muted);margin:.3rem 0 .8rem;">El docente solo podrá <strong>ver</strong> el documento (no descargar, seleccionar ni copiar texto).</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
-        <div style="grid-column:1/-1;">
-          <label class="form-label">Título del documento</label>
+      <div class="dc-title">📄 Asignar planes de estudio</div>
+      <div style="font-size:.72rem;color:var(--muted);margin:.3rem 0 .8rem;">Puedes subir <strong>varios PDF a la vez</strong> y asignarlos a <strong>uno o varios docentes</strong> al mismo tiempo. El docente solo podrá <strong>ver</strong> el documento (no descargar, seleccionar ni copiar texto).</div>
+      <div style="display:grid;grid-template-columns:1fr;gap:.7rem;">
+        <div>
+          <label class="form-label">Título (solo se usa si subes un único archivo; si subes varios, se usa el nombre de cada archivo)</label>
           <input class="form-input" id="plan-titulo" placeholder="Ej: Plan de estudio — Ciencias Naturales"/>
         </div>
         <div>
-          <label class="form-label">Asignar a docente</label>
-          <select class="form-select" id="plan-docente"><option value="">— Seleccionar docente —</option></select>
+          <label class="form-label">Asignar a (selecciona uno o varios docentes)</label>
+          <div id="plan-docentes-checks" style="display:flex;gap:.4rem;flex-wrap:wrap;background:var(--cream);border:1px solid var(--cream3);border-radius:var(--radius-sm);padding:.6rem;max-height:180px;overflow-y:auto;">Cargando docentes...</div>
         </div>
-        <div style="grid-column:1/-1;">
-          <label class="form-label">Archivo PDF</label>
+        <div>
+          <label class="form-label">Archivo(s) PDF</label>
           <div id="plan-dropzone" style="border:2px dashed var(--cream3);border-radius:var(--radius-sm);padding:1.3rem;text-align:center;cursor:pointer;background:var(--cream);transition:all .15s;" onclick="document.getElementById('plan-archivo').click()">
-            <div id="plan-dropzone-txt" style="font-size:.8rem;color:var(--muted);">📎 Arrastra aquí el PDF o haz clic para seleccionarlo</div>
+            <div id="plan-dropzone-txt" style="font-size:.8rem;color:var(--muted);">📎 Arrastra aquí uno o varios PDF, o haz clic para seleccionarlos</div>
           </div>
-          <input class="form-input" type="file" id="plan-archivo" accept="application/pdf" style="display:none" onchange="_planDropzoneUpdate(this.files[0])"/>
+          <input class="form-input" type="file" id="plan-archivo" accept="application/pdf" multiple style="display:none" onchange="_planDropzoneUpdate(this.files)"/>
         </div>
-        <div style="grid-column:1/-1;">
+        <div>
           <button class="btn-primary" onclick="subirPlanEstudio()">📤 Subir y asignar</button>
         </div>
       </div>
@@ -3200,20 +3200,30 @@ async function generarCoberturaDocente(docenteId,docenteNombre){
 }
 
 // ══ ADMIN: PLANES DE ESTUDIO (visor protegido, sin descarga/copia) ══
+let _planStaffCache=[];
 async function _cargarDocentesSelectPlanes(){
-  const sel=document.getElementById('plan-docente'); if(!sel)return;
+  const cont=document.getElementById('plan-docentes-checks'); if(!cont)return;
   const snap=await db.ref('corposepi/staff').once('value');
   const raw=snap.val();
-  const lista=Array.isArray(raw)?raw.filter(Boolean):Object.values(raw||{}).filter(Boolean);
-  sel.innerHTML='<option value="">— Seleccionar docente —</option>'+
-    lista.map(s=>`<option value="${s.id}">${s.nombres||''} ${s.apellidos||''} — ${s.cargo||'Docente'}</option>`).join('');
+  _planStaffCache=Array.isArray(raw)?raw.filter(Boolean):Object.values(raw||{}).filter(Boolean);
+  if(!_planStaffCache.length){ cont.innerHTML='<div style="color:var(--hint);font-size:.78rem;">Sin docentes registrados.</div>'; return; }
+  cont.innerHTML=_planStaffCache.map(s=>`
+    <label style="display:flex;align-items:center;gap:.35rem;background:var(--white);border:1px solid var(--cream3);border-radius:8px;padding:.35rem .7rem;font-size:.75rem;cursor:pointer;">
+      <input type="checkbox" class="plan-doc-chk" value="${s.id}" style="accent-color:var(--corp);">
+      ${s.nombres||''} ${s.apellidos||''} <span style="color:var(--muted);font-size:.65rem;">(${s.cargo||'Docente'})</span>
+    </label>`).join('');
 }
 
-function _planDropzoneUpdate(file){
+let _planArchivos=[];
+function _planDropzoneUpdate(files){
   const txt=document.getElementById('plan-dropzone-txt');
   if(!txt)return;
-  if(file) txt.innerHTML=`✅ <strong>${file.name}</strong> (${(file.size/1024/1024).toFixed(2)} MB)`;
-  else txt.textContent='📎 Arrastra aquí el PDF o haz clic para seleccionarlo';
+  const arr=files?Array.from(files):[];
+  _planArchivos=arr;
+  if(!arr.length){ txt.textContent='📎 Arrastra aquí uno o varios PDF, o haz clic para seleccionarlos'; return; }
+  const totalMB=(arr.reduce((a,f)=>a+f.size,0)/1024/1024).toFixed(2);
+  txt.innerHTML=`✅ <strong>${arr.length} archivo(s)</strong> seleccionado(s) (${totalMB} MB total)<br>`+
+    arr.map(f=>`<span style="font-size:.68rem;color:var(--muted);">${f.name} (${(f.size/1024/1024).toFixed(2)} MB)</span>`).join('<br>');
 }
 
 function _initPlanDropzone(){
@@ -3230,13 +3240,12 @@ function _initPlanDropzone(){
     zone.style.borderColor='var(--cream3)';zone.style.background='var(--cream)';
   }));
   zone.addEventListener('drop',e=>{
-    const file=e.dataTransfer.files[0];
-    if(!file)return;
-    if(file.type!=='application/pdf'){ showToast('⚠️ Solo se aceptan archivos PDF'); return; }
+    const files=Array.from(e.dataTransfer.files||[]).filter(f=>f.type==='application/pdf');
+    if(!files.length){ showToast('⚠️ Solo se aceptan archivos PDF'); return; }
     const dt=new DataTransfer();
-    dt.items.add(file);
+    files.forEach(f=>dt.items.add(f));
     input.files=dt.files;
-    _planDropzoneUpdate(file);
+    _planDropzoneUpdate(dt.files);
   });
 }
 
@@ -3250,29 +3259,38 @@ function _fileToBase64(file){
 }
 
 async function subirPlanEstudio(){
-  const titulo=document.getElementById('plan-titulo').value.trim();
-  const docenteId=document.getElementById('plan-docente').value;
-  const archivo=document.getElementById('plan-archivo').files[0];
-  if(!titulo||!docenteId||!archivo){ showToast('⚠️ Completa título, docente y archivo'); return; }
-  if(archivo.type!=='application/pdf'){ showToast('⚠️ Solo se aceptan archivos PDF'); return; }
-  if(archivo.size>8*1024*1024){ showToast('⚠️ El archivo supera 8MB, usa un PDF más liviano'); return; }
-  showToast('⏳ Subiendo documento...');
+  const tituloBase=document.getElementById('plan-titulo').value.trim();
+  const docenteIds=Array.from(document.querySelectorAll('.plan-doc-chk:checked')).map(c=>c.value);
+  const archivos=_planArchivos.length?_planArchivos:Array.from(document.getElementById('plan-archivo').files||[]);
+  if(!docenteIds.length||!archivos.length){ showToast('⚠️ Selecciona al menos un docente y un archivo PDF'); return; }
+  const invalidos=archivos.filter(f=>f.type!=='application/pdf');
+  if(invalidos.length){ showToast('⚠️ Solo se aceptan archivos PDF'); return; }
+  const pesados=archivos.filter(f=>f.size>8*1024*1024);
+  if(pesados.length){ showToast('⚠️ '+pesados.map(f=>f.name).join(', ')+' supera(n) 8MB'); return; }
+
+  const total=archivos.length*docenteIds.length;
+  let hechos=0;
+  showToast('⏳ Subiendo 0/'+total+'...');
   try{
-    const base64=await _fileToBase64(archivo);
-    const snapStf=await db.ref('corposepi/staff').once('value');
-    const rawSt=snapStf.val();
-    const staffLista=Array.isArray(rawSt)?rawSt.filter(Boolean):Object.values(rawSt||{}).filter(Boolean);
-    const doc=staffLista.find(s=>s.id===docenteId);
-    const ref=db.ref('aprende_planes').push();
-    await ref.set({
-      titulo, docenteId,
-      docenteNombre:doc?((doc.nombres||'')+' '+(doc.apellidos||'')).trim():'',
-      archivo:archivo.name, base64,
-      fecha:new Date().toISOString(),
-    });
-    showToast('✅ Plan de estudio asignado');
+    for(const archivo of archivos){
+      const base64=await _fileToBase64(archivo);
+      const tituloArchivo=(archivos.length===1&&tituloBase)?tituloBase:archivo.name.replace(/\.pdf$/i,'');
+      for(const docenteId of docenteIds){
+        const doc=_planStaffCache.find(s=>s.id===docenteId);
+        const ref=db.ref('aprende_planes').push();
+        await ref.set({
+          titulo:tituloArchivo, docenteId,
+          docenteNombre:doc?((doc.nombres||'')+' '+(doc.apellidos||'')).trim():'',
+          archivo:archivo.name, base64,
+          fecha:new Date().toISOString(),
+        });
+        hechos++;
+        showToast('⏳ Subiendo '+hechos+'/'+total+'...');
+      }
+    }
+    showToast('✅ '+total+' documento(s) asignado(s) correctamente');
     document.getElementById('plan-titulo').value='';
-    document.getElementById('plan-docente').value='';
+    document.querySelectorAll('.plan-doc-chk:checked').forEach(c=>c.checked=false);
     document.getElementById('plan-archivo').value='';
     _planDropzoneUpdate(null);
     cargarPlanesAdmin();
