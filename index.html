@@ -3677,18 +3677,17 @@ async function renderDiasPlan(semana, dias, horario, tMap){
           'Didáctica, Evidencias y Productos</label>';
         html+='<textarea id="plan-C-'+ida+'" rows="2" style="width:100%;background:var(--cream);border:1px solid var(--cream3);border-radius:8px;padding:.5rem .75rem;font-family:\'DM Sans\',sans-serif;font-size:.82rem;resize:vertical;outline:none;" placeholder="¿Cómo se desarrolla la clase? ¿Qué productos o evidencias se esperan?">'+escHtml(planSec.C||'')+'</textarea>';
         html+='</div>';
-        // Recursos y enlaces (YouTube, Drive, PDF/infografía) — visibles para el estudiante
+        // Recursos y enlaces (YouTube, Drive, PDF) — todo por link, no se sube nada a la plataforma
         _planRecursosState[ida]=(planSec.recursos||[]).slice();
         html+='<div style="background:var(--cream);border-radius:8px;padding:.65rem .75rem;margin-top:.3rem;">';
-        html+='<div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.4rem;">🔗 Recursos y enlaces (videos, Drive, PDF) — el estudiante los verá aquí</div>';
+        html+='<div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.4rem;">🔗 Recursos y enlaces — el estudiante los verá aquí y le llegará un correo avisando</div>';
         html+='<div id="recursos-list-'+ida+'">'+_renderRecursosListHTML(ida)+'</div>';
         html+='<div style="display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.4rem;">';
         html+='<input class="form-input" id="rec-titulo-'+ida+'" placeholder="Título (opcional)" style="flex:1;min-width:110px;font-size:.75rem;padding:.35rem .6rem;"/>';
-        html+='<input class="form-input" id="rec-url-'+ida+'" placeholder="Pega el link (YouTube, Drive, etc.)" style="flex:2;min-width:150px;font-size:.75rem;padding:.35rem .6rem;" onkeydown="if(event.key===\'Enter\'){event.preventDefault();agregarRecursoLink(\''+ida+'\');}"/>';
+        html+='<input class="form-input" id="rec-url-'+ida+'" placeholder="Pega el link — video de YouTube, PDF en Drive, infografía, etc." style="flex:2;min-width:150px;font-size:.75rem;padding:.35rem .6rem;" onkeydown="if(event.key===\'Enter\'){event.preventDefault();agregarRecursoLink(\''+ida+'\');}"/>';
         html+='<button class="btn-outline" style="font-size:.7rem;padding:.35rem .7rem;" onclick="agregarRecursoLink(\''+ida+'\')">➕ Agregar link</button>';
-        html+='<label class="btn-outline" style="font-size:.7rem;padding:.35rem .7rem;cursor:pointer;">📎 Subir PDF<input type="file" accept="application/pdf" style="display:none" onchange="agregarRecursoPdf(\''+ida+'\',this)"/></label>';
         html+='</div>';
-        html+='<div style="font-size:.6rem;color:var(--hint);margin-top:.3rem;">Los PDF se limitan a 4MB. Para archivos más pesados, súbelo a Google Drive y pega aquí el link.</div>';
+        html+='<div style="font-size:.6rem;color:var(--hint);margin-top:.3rem;">Para PDF/infografías: súbelo a Google Drive (o similar), copia el link para que sea visible para todos, y pégalo aquí. Al hacer clic el estudiante va directo al archivo.</div>';
         html+='</div>';
         html+='</div>';
         // Por cada grupo: evaluación individual + clase en vivo
@@ -3751,6 +3750,7 @@ function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&l
 let _planRecursosState={};
 function _recursoIcon(url){
   if(/youtu\.?be/i.test(url||''))return'▶️';
+  if(/\.pdf(\?|$)/i.test(url||''))return'📎';
   if(/drive\.google/i.test(url||''))return'📁';
   if(/docs\.google/i.test(url||''))return'📄';
   return'🔗';
@@ -3760,8 +3760,8 @@ function _renderRecursosListHTML(ida){
   if(!arr.length)return'<div style="font-size:.68rem;color:var(--hint);">Sin recursos agregados.</div>';
   return arr.map(function(r,i){
     return'<div style="display:flex;align-items:center;justify-content:space-between;background:var(--white);border:1px solid var(--cream3);border-radius:7px;padding:.35rem .6rem;font-size:.72rem;margin-bottom:.25rem;">'+
-      '<a href="'+escHtml(r.url||'#')+'" target="_blank" '+(r.tipo==='pdf'?'download="'+escHtml(r.titulo||'documento.pdf')+'"':'')+' style="color:var(--corp);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:82%;">'+
-      (r.tipo==='pdf'?'📎':_recursoIcon(r.url))+' '+escHtml(r.titulo||r.url||'Recurso')+'</a>'+
+      '<a href="'+escHtml(r.url||'#')+'" target="_blank" style="color:var(--corp);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:82%;">'+
+      _recursoIcon(r.url)+' '+escHtml(r.titulo||r.url||'Recurso')+'</a>'+
       '<button onclick="_quitarRecurso(\''+ida+'\','+i+')" style="background:none;border:none;color:#B91C1C;cursor:pointer;font-size:.75rem;">✕</button></div>';
   }).join('');
 }
@@ -3788,22 +3788,6 @@ function agregarRecursoLink(ida){
   const cont=document.getElementById('recursos-list-'+ida);
   if(cont)cont.innerHTML=_renderRecursosListHTML(ida);
 }
-async function agregarRecursoPdf(ida,inputEl){
-  const file=inputEl.files[0]; if(!file)return;
-  if(file.type!=='application/pdf'){showToast('⚠️ Solo se aceptan archivos PDF');inputEl.value='';return;}
-  if(file.size>4*1024*1024){showToast('⚠️ El archivo supera 4MB. Para archivos más grandes, sube a Google Drive y pega el link.');inputEl.value='';return;}
-  const base64=await _fileToBase64(file);
-  const rec={tipo:'pdf',titulo:file.name,url:base64};
-  if(!_planRecursosState[ida])_planRecursosState[ida]=[];
-  _planRecursosState[ida].push(rec);
-  if(!_planRecursosNuevos[ida])_planRecursosNuevos[ida]=[];
-  _planRecursosNuevos[ida].push(rec);
-  inputEl.value='';
-  const cont=document.getElementById('recursos-list-'+ida);
-  if(cont)cont.innerHTML=_renderRecursosListHTML(ida);
-  showToast('✅ '+file.name+' agregado — recuerda hacer clic en "Guardar día"');
-}
-
 // Envía un correo (vía EmailJS) a cada estudiante del grupo avisando de recursos nuevos agregados hoy
 async function _enviarNotificacionesRecursos(fecha,diaKey){
   if(!window.emailjs)return;
@@ -4055,8 +4039,8 @@ async function cargarMiClaseFecha(){
           secHtml+='<div style="margin-top:.6rem;">';
           secHtml+='<div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.35rem;">🔗 Recursos y materiales</div>';
           secHtml+=planSec.recursos.map(function(r){
-            return'<a href="'+escHtml(r.url||'#')+'" target="_blank" '+(r.tipo==='pdf'?'download="'+escHtml(r.titulo||'documento.pdf')+'"':'')+' style="display:flex;align-items:center;gap:.4rem;background:var(--cream);border:1px solid var(--cream3);border-radius:8px;padding:.5rem .75rem;font-size:.78rem;color:var(--corp);text-decoration:none;margin-bottom:.35rem;font-weight:600;">'+
-              (r.tipo==='pdf'?'📎':_recursoIcon(r.url))+' '+escHtml(r.titulo||r.url||'Recurso')+'</a>';
+            return'<a href="'+escHtml(r.url||'#')+'" target="_blank" style="display:flex;align-items:center;gap:.4rem;background:var(--cream);border:1px solid var(--cream3);border-radius:8px;padding:.5rem .75rem;font-size:.78rem;color:var(--corp);text-decoration:none;margin-bottom:.35rem;font-weight:600;">'+
+              _recursoIcon(r.url)+' '+escHtml(r.titulo||r.url||'Recurso')+'</a>';
           }).join('');
           secHtml+='</div>';
         }
