@@ -560,7 +560,7 @@ const FB_CONFIG = {
 const PASS_DOC='DocentesCorposepi@#@2026';
 const PASS_ADMIN=['Deperavi1973@#@2026','Deperavi1973@#@2026'];
 const BASE_CARNETS='https://corposepi.github.io/corposepi-carnets';
-const EMAILJS_CONFIG={serviceId:'service_k992wi6',templateId:'template_wculg4',publicKey:'LUS5MGWMYSBs0YuRc'};
+const EMAILJS_CONFIG={serviceId:'service_k992wi6',templateId:'template_wculg4',templateEntregaId:'',publicKey:'LUS5MGWMYSBs0YuRc'};
 
 let db=null;
 let currentRole=null;
@@ -801,7 +801,8 @@ async function doLogin(){
       cpi:parseFloat(estudiante.cpi||0).toFixed(0),
       nivel:estudiante.nivel||'',grado:estudiante.grado||'',
       numdoc:estudiante.numdoc,
-      ciclo:estudiante.ciclo||''
+      ciclo:estudiante.ciclo||'',
+      correo:estudiante.correo||''
     };
     startApp();
 
@@ -3127,6 +3128,11 @@ async function cargarStaffAdmin(){
         </div>
       </div>
       <div style="margin-bottom:.75rem;">
+        <label class="form-label">Correo institucional (recibe aviso de entregas de sus estudiantes)</label>
+        <input class="form-input" id="ecorreo-doc-${s._idx}" type="email" value="${escHtml(s.correo||'')}" placeholder="nombre@corposepi.org"
+          style="max-width:320px;" onblur="guardarCorreoDocente(${s._idx},this.value)"/>
+      </div>
+      <div style="margin-bottom:.75rem;">
         <div class="dc-title" style="margin-bottom:.4rem;">Bloques temáticos</div>
         <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
           ${BLOQUES.map(b=>`<label style="display:flex;align-items:center;gap:.3rem;background:var(--cream);border:1px solid var(--cream3);border-radius:8px;padding:.35rem .7rem;font-size:.75rem;cursor:pointer;">
@@ -3155,6 +3161,12 @@ async function cargarStaffAdmin(){
       </div>`:''}
     </div>`;
   }).join('');
+}
+
+async function guardarCorreoDocente(idx,correo){
+  correo=correo.trim();
+  await db.ref('corposepi/staff/'+idx+'/correo').set(correo);
+  showToast(correo?'✅ Correo guardado':'Correo eliminado');
 }
 
 async function guardarAsignacion(idx){
@@ -4078,7 +4090,32 @@ async function enviarEntrega(fecha, secKey, docenteId, tallerKey){
     timestamp:new Date().toISOString()
   });
   showToast('✅ Entrega enviada correctamente');
+  _notificarEntregaDocente(docenteId,tallerKey,texto,link);
   cargarMiClaseFecha();
+}
+
+// Avisa por correo al docente cuando un estudiante hace una entrega
+async function _notificarEntregaDocente(docenteId,tallerKey,texto,link){
+  if(!window.emailjs||!EMAILJS_CONFIG.templateEntregaId)return;
+  try{
+    const [snapStf,snapTal]=await Promise.all([
+      db.ref('corposepi/staff').once('value'),
+      tallerKey?db.ref('aprende_talleres/'+tallerKey).once('value'):Promise.resolve(null),
+    ]);
+    const rawSt=snapStf.val();
+    const staffLista=Array.isArray(rawSt)?rawSt.filter(Boolean):Object.values(rawSt||{}).filter(Boolean);
+    const doc=staffLista.find(function(s){return s.id===docenteId;});
+    if(!doc||!doc.correo)return;
+    const tallerTitulo=(snapTal&&snapTal.val()&&snapTal.val().titulo)||'su clase';
+    await emailjs.send(EMAILJS_CONFIG.serviceId,EMAILJS_CONFIG.templateEntregaId,{
+      correo_docente:doc.correo,
+      correo_estudiante:currentUser.correo||'',
+      nombre_estudiante:currentUser.nombres+' '+(currentUser.apellidos||''),
+      titulo_clase:tallerTitulo,
+      texto_entrega:texto||'(sin texto, solo link)',
+      link_entrega:link||'(sin link)',
+    });
+  }catch(e){/* fallo silencioso: la entrega ya quedó guardada en la plataforma */}
 }
 
 // ══ DOCENTE: ENTREGAS ══
@@ -4302,6 +4339,7 @@ async function enviarEntregaPendiente(pendKey, docenteId, tallerKey){
   // Marcar pendiente como cumplido
   await db.ref('aprende_pendientes/'+currentUser.id+'/'+pendKey+'/estado').set('cumplido');
   showToast('✅ Trabajo enviado al docente');
+  _notificarEntregaDocente(docenteId,tallerKey,texto,link);
   buildMisPendientes(document.getElementById('sec-mispendientes'));
 }
 
