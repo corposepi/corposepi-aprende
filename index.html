@@ -4427,26 +4427,80 @@ async function cargarPendientesDocente(){
   const snapStu=await db.ref('corposepi/students').once('value');
   const students=(snapStu.val()||[]).filter(s=>s&&s.id);
   const sMap={};students.forEach(s=>{sMap[s.id]=s;});
-  const pendientes=todos.sort((a,b)=>a.fechaLimite>b.fechaLimite?1:-1);
-  el.innerHTML=pendientes.map(p=>{
+
+  const hoy=new Date().toLocaleDateString('en-CA');
+  const vencidos=todos.filter(p=>p.estado!=='cumplido'&&p.fechaLimite<hoy).sort((a,b)=>a.fechaLimite>b.fechaLimite?1:-1);
+  const activos=todos.filter(p=>p.estado!=='cumplido'&&p.fechaLimite>=hoy).sort((a,b)=>a.fechaLimite>b.fechaLimite?1:-1);
+  const cumplidos=todos.filter(p=>p.estado==='cumplido').sort((a,b)=>a.fechaLimite<b.fechaLimite?1:-1);
+
+  function tarjetaPendiente(p){
     const est=sMap[p._estId];
-    const vencido=p.fechaLimite<new Date().toLocaleDateString('en-CA');
-    return`<div style="background:var(--white);border-radius:var(--radius-sm);border:1px solid ${vencido&&p.estado==='pendiente'?'rgba(184,65,10,.35)':'var(--cream3)'};padding:.85rem 1rem;margin-bottom:.5rem;display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;flex-wrap:wrap;">
+    const vencido=p.fechaLimite<hoy;
+    return`<div style="background:var(--white);border-radius:var(--radius-sm);border:1px solid ${vencido&&p.estado==='pendiente'?'rgba(184,65,10,.35)':'var(--cream3)'};padding:.75rem .9rem;margin-bottom:.45rem;display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;flex-wrap:wrap;">
       <div style="flex:1;">
         <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.3rem;">
           <span style="font-weight:700;font-size:.85rem;">${est?est.nombres+' '+(est.apellidos||''):p._estId}</span>
-          <span class="badge ${p.estado==='cumplido'?'b-act':vencido?'b-blk':'b-pen'}">${p.estado==='cumplido'?'✅ Cumplido':vencido?'🔴 Vencido':'⏳ Pendiente'}</span>
         </div>
         <div style="font-size:.72rem;color:var(--corp);font-weight:600;margin-bottom:.2rem;">📚 ${p.tallerTitulo}${p.materia?' · '+p.materia:''}</div>
         <div style="font-size:.78rem;color:var(--text);line-height:1.5;margin-bottom:.25rem;">${escHtml(p.descripcion)}</div>
-        <div style="font-size:.65rem;color:var(--hint);">Fecha límite: ${p.fechaLimite} · Registrado: ${p.creadoEn}</div>
+        <div style="font-size:.65rem;color:var(--hint);">Registrado: ${p.creadoEn}</div>
       </div>
       <div style="display:flex;gap:.35rem;flex-shrink:0;">
         ${p.estado!=='cumplido'?`<button onclick="marcarPendienteCumplido('${p._estId}','${p._key}')" style="background:rgba(74,103,65,.1);border:1px solid rgba(74,103,65,.2);border-radius:7px;padding:3px 9px;font-size:.65rem;color:var(--sage);cursor:pointer;">✅ Cumplido</button>`:''}
         <button onclick="eliminarPendiente('${p._estId}','${p._key}')" style="background:rgba(184,65,10,.1);border:1px solid rgba(184,65,10,.2);border-radius:7px;padding:3px 9px;font-size:.65rem;color:var(--corp);cursor:pointer;">🗑️</button>
       </div>
     </div>`;
-  }).join('');
+  }
+
+  // Agrupa una lista de pendientes por fecha límite, en el orden en que ya vienen ordenados
+  function agruparPorFecha(lista){
+    const grupos=[];
+    lista.forEach(p=>{
+      let g=grupos.find(x=>x.fecha===p.fechaLimite);
+      if(!g){g={fecha:p.fechaLimite,items:[]};grupos.push(g);}
+      g.items.push(p);
+    });
+    return grupos;
+  }
+  function fechaLegible(f){
+    try{return new Date(f+'T12:00:00').toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long',year:'numeric'});}
+    catch(e){return f;}
+  }
+  function renderBloqueFecha(lista){
+    return agruparPorFecha(lista).map(g=>`
+      <div style="margin-bottom:.7rem;">
+        <div style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem;padding-left:.1rem;">📅 ${fechaLegible(g.fecha)}</div>
+        ${g.items.map(tarjetaPendiente).join('')}
+      </div>`).join('');
+  }
+
+  let html='';
+
+  html+=`<div style="margin-bottom:1.1rem;">
+    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;">
+      <span style="font-size:.78rem;font-weight:800;color:#B91C1C;">🔴 Vencidos</span>
+      <span style="background:#FFEBEE;color:#C62828;font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:99px;">${vencidos.length}</span>
+    </div>
+    ${vencidos.length?renderBloqueFecha(vencidos):'<div style="color:var(--hint);font-size:.78rem;padding:.4rem 0;">Sin pendientes vencidos. 🎉</div>'}
+  </div>`;
+
+  html+=`<div style="margin-bottom:1.1rem;">
+    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;">
+      <span style="font-size:.78rem;font-weight:800;color:#B45309;">⏳ Pendientes activos</span>
+      <span style="background:#FEF3C7;color:#92400E;font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:99px;">${activos.length}</span>
+    </div>
+    ${activos.length?renderBloqueFecha(activos):'<div style="color:var(--hint);font-size:.78rem;padding:.4rem 0;">Sin pendientes activos por ahora.</div>'}
+  </div>`;
+
+  html+=`<details style="margin-bottom:.5rem;">
+    <summary style="cursor:pointer;display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;list-style:none;">
+      <span style="font-size:.78rem;font-weight:800;color:var(--sage);">✅ Cumplidos (histórico)</span>
+      <span style="background:rgba(74,103,65,.12);color:var(--sage);font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:99px;">${cumplidos.length}</span>
+    </summary>
+    ${cumplidos.length?renderBloqueFecha(cumplidos):'<div style="color:var(--hint);font-size:.78rem;padding:.4rem 0;">Aún no hay pendientes cumplidos.</div>'}
+  </details>`;
+
+  el.innerHTML=html;
 }
 
 async function marcarPendienteCumplido(estId,key){
