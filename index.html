@@ -543,6 +543,7 @@ textarea:focus{border-color:var(--corp)!important;outline:none;background:var(--
       </div>
       <nav class="tb-nav" id="tb-nav"></nav>
       <div class="tb-right">
+        <div id="tb-nav-more-wrap" style="position:relative;"></div>
         <div class="tb-tokens" id="tb-tokens"></div>
         <div class="tb-user" id="tb-user">—</div>
         <button class="tb-logout" onclick="location.reload()">Salir</button>
@@ -1000,14 +1001,18 @@ function buildNav(){
   const visibleNav=nav.length>MAX_VISIBLE?nav.slice(0,MAX_VISIBLE):nav;
   const overflowNav=nav.length>MAX_VISIBLE?nav.slice(MAX_VISIBLE):[];
 
-  // Top nav — items visibles + menú "⋯ Más" con el resto, si no caben todos
-  navEl.innerHTML=visibleNav.map((n,i)=>`<button class="tb-nav-item${i===0?' active':''}" data-idx="${i}">${n.label}</button>`).join('')+
-    (overflowNav.length?`<div style="position:relative;flex-shrink:0;">
+  // Top nav — solo los items visibles (el resto va en "⋯ Más", fuera del área con scroll)
+  navEl.innerHTML=visibleNav.map((n,i)=>`<button class="tb-nav-item${i===0?' active':''}" data-idx="${i}">${n.label}</button>`).join('');
+
+  // "⋯ Más" se renderiza en un contenedor aparte (tb-right) para que el desplegable no quede recortado por el scroll de tb-nav
+  const moreWrap=document.getElementById('tb-nav-more-wrap');
+  if(moreWrap){
+    moreWrap.innerHTML=overflowNav.length?`
       <button class="tb-nav-item" id="tb-nav-more-btn">⋯ Más</button>
       <div id="tb-nav-more-menu" style="display:none;position:absolute;top:120%;right:0;background:#1E1610;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:.35rem;min-width:190px;z-index:200;box-shadow:0 10px 30px rgba(0,0,0,.45);">
         ${overflowNav.map((n,j)=>`<button class="tb-nav-more-item" data-idx="${MAX_VISIBLE+j}" style="display:block;width:100%;text-align:left;padding:.5rem .7rem;border-radius:7px;border:none;background:transparent;color:rgba(255,255,255,.75);font-size:.78rem;cursor:pointer;white-space:nowrap;">${n.label}</button>`).join('')}
-      </div>
-    </div>`:'');
+      </div>`:'';
+  }
 
   if(!navEl.dataset.wheelBound){
     navEl.dataset.wheelBound='1';
