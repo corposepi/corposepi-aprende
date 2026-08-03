@@ -158,6 +158,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .hor-card-g{font-size:.52rem;opacity:.85;}
 .hor-card-d{font-size:.5rem;opacity:.75;}
 .hor-desc{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:5px;font-size:.6rem;font-weight:600;color:#92400E;padding:.18rem .5rem;text-align:center;}
+details summary{outline:none;}
+details summary::-webkit-details-marker{display:none;}
+details summary::marker{content:'';}
+details[open] summary::after{content:'▲';float:right;font-size:.6rem;color:var(--muted);}
+details:not([open]) summary::after{content:'▼';float:right;font-size:.6rem;color:var(--muted);}
 /* Planes de estudio — visor protegido */
 .plan-card{background:var(--white);border:1px solid var(--cream3);border-radius:var(--radius);padding:1rem 1.1rem;margin-bottom:.7rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;}
 .plan-card-t{font-weight:700;font-size:.88rem;color:var(--ink);}
@@ -4468,10 +4473,13 @@ async function cargarPendientesDocente(){
   }
   function renderBloqueFecha(lista){
     return agruparPorFecha(lista).map(g=>`
-      <div style="margin-bottom:.7rem;">
-        <div style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem;padding-left:.1rem;">📅 ${fechaLegible(g.fecha)}</div>
-        ${g.items.map(tarjetaPendiente).join('')}
-      </div>`).join('');
+      <details style="margin-bottom:.5rem;">
+        <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:.4rem;padding:.4rem .6rem;background:var(--cream);border-radius:8px;">
+          <span style="font-size:.72rem;font-weight:700;color:var(--dark);">📅 ${fechaLegible(g.fecha)}</span>
+          <span style="background:var(--white);color:var(--muted);font-size:.62rem;font-weight:700;padding:1px 7px;border-radius:99px;">${g.items.length}</span>
+        </summary>
+        <div style="padding:.5rem .3rem 0;">${g.items.map(tarjetaPendiente).join('')}</div>
+      </details>`).join('');
   }
 
   let html='';
