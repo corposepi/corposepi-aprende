@@ -3697,7 +3697,7 @@ async function renderDiasPlan(semana, dias, horario, tMap){
         // Recursos y enlaces (YouTube, Drive, PDF) — todo por link, no se sube nada a la plataforma
         _planRecursosState[ida]=(planSec.recursos||[]).slice();
         html+='<div style="background:var(--cream);border-radius:8px;padding:.65rem .75rem;margin-top:.3rem;">';
-        html+='<div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.4rem;">🔗 Recursos y enlaces — el estudiante los verá aquí y le llegará un correo avisando</div>';
+        html+='<div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.4rem;">🔗 Recursos y enlaces — el estudiante los verá aquí en su clase</div>';
         html+='<div id="recursos-list-'+ida+'">'+_renderRecursosListHTML(ida)+'</div>';
         html+='<div style="display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.4rem;">';
         html+='<input class="form-input" id="rec-titulo-'+ida+'" placeholder="Título (opcional)" style="flex:1;min-width:110px;font-size:.75rem;padding:.35rem .6rem;"/>';
@@ -3758,7 +3758,6 @@ async function guardarPlaneacionDia(fecha, semanaKey){
   });
   await db.ref('aprende_planeacion/'+currentUser.id+'/'+semanaKey+'/'+fecha).set(planDia);
   showToast('✅ Planeación del '+fecha+' guardada');
-  _enviarNotificacionesRecursos(fecha,diaKey);
 }
 
 function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -3787,7 +3786,6 @@ function _quitarRecurso(ida,i){
   const cont=document.getElementById('recursos-list-'+ida);
   if(cont)cont.innerHTML=_renderRecursosListHTML(ida);
 }
-let _planRecursosNuevos={};
 function agregarRecursoLink(ida){
   const inpT=document.getElementById('rec-titulo-'+ida);
   const inpU=document.getElementById('rec-url-'+ida);
@@ -3799,65 +3797,9 @@ function agregarRecursoLink(ida){
   const rec={tipo:'link',titulo:titulo||url,url};
   if(!_planRecursosState[ida])_planRecursosState[ida]=[];
   _planRecursosState[ida].push(rec);
-  if(!_planRecursosNuevos[ida])_planRecursosNuevos[ida]=[];
-  _planRecursosNuevos[ida].push(rec);
   inpT.value='';inpU.value='';
   const cont=document.getElementById('recursos-list-'+ida);
   if(cont)cont.innerHTML=_renderRecursosListHTML(ida);
-}
-// Envía un correo (vía EmailJS) a cada estudiante del grupo avisando de recursos nuevos agregados hoy
-async function _enviarNotificacionesRecursos(fecha,diaKey){
-  if(!window.emailjs)return;
-  const idsConNuevos=Object.keys(_planRecursosNuevos).filter(k=>k.indexOf(fecha+'_')===0&&(_planRecursosNuevos[k]||[]).length);
-  if(!idsConNuevos.length)return;
-  let snapHor,snapTal,snapStu;
-  try{
-    [snapHor,snapTal,snapStu]=await Promise.all([
-      db.ref('aprende_horario/'+diaKey).once('value'),
-      db.ref('aprende_talleres').once('value'),
-      db.ref('corposepi/students').once('value'),
-    ]);
-  }catch(e){return;}
-  const diaHor=snapHor.val()||{};
-  const tMap={};snapTal.forEach(function(c){tMap[c.key]=c.val();});
-  const rawStu=snapStu.val()||{};
-  const estudiantes=(Array.isArray(rawStu)?rawStu:Object.values(rawStu)).filter(function(s){return s&&s.id;});
-
-  let enviados=0,fallidos=0;
-  for(const ida of idsConNuevos){
-    const secN=ida.split('_sec')[1];
-    const nuevosLink=(_planRecursosNuevos[ida]||[]).filter(function(r){return r.tipo==='link';});
-    if(!nuevosLink.length)continue;
-    const secData=diaHor['sec'+secN]||{};
-    const gruposDocente=GRUPOS.filter(function(g){
-      const item=secData[g.id];
-      return item&&String(item.docenteId||'').trim()===String(currentUser.id||'').trim();
-    });
-    if(!gruposDocente.length)continue;
-    const tallerKey=(secData[gruposDocente[0].id]||{}).tallerKey;
-    const tallerTitulo=(tMap[tallerKey]||{}).titulo||'tu clase';
-    const alumnosGrupo=estudiantes.filter(function(s){
-      return s.correo&&gruposDocente.some(function(g){return detectarGrupoEstudiante(s.nivel,s.grado)===g.id;});
-    });
-    for(const al of alumnosGrupo){
-      for(const rec of nuevosLink){
-        try{
-          await emailjs.send(EMAILJS_CONFIG.serviceId,EMAILJS_CONFIG.templateId,{
-            correo_estudiante:al.correo,
-            nombre_estudiante:al.nombres||'',
-            titulo_clase:tallerTitulo,
-            titulo_recurso:rec.titulo||rec.url,
-            link_recurso:rec.url,
-          });
-          enviados++;
-        }catch(e){fallidos++;}
-      }
-    }
-  }
-  idsConNuevos.forEach(function(ida){_planRecursosNuevos[ida]=[];});
-  if(enviados||fallidos){
-    showToast('📧 '+enviados+' correo(s) de aviso enviados'+(fallidos?', '+fallidos+' fallidos':''));
-  }
 }
 
 // ══ ASISTENCIA DOCENTE ══
