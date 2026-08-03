@@ -995,8 +995,20 @@ function buildNav(){
   const bnScroll=document.getElementById('bn-scroll');
   const content=document.getElementById('app-content');
   content.innerHTML='';
-  // Top nav
-  navEl.innerHTML=nav.map((n,i)=>`<button class="tb-nav-item${i===0?' active':''}">${n.label}</button>`).join('');
+
+  const MAX_VISIBLE=6;
+  const visibleNav=nav.length>MAX_VISIBLE?nav.slice(0,MAX_VISIBLE):nav;
+  const overflowNav=nav.length>MAX_VISIBLE?nav.slice(MAX_VISIBLE):[];
+
+  // Top nav — items visibles + menú "⋯ Más" con el resto, si no caben todos
+  navEl.innerHTML=visibleNav.map((n,i)=>`<button class="tb-nav-item${i===0?' active':''}" data-idx="${i}">${n.label}</button>`).join('')+
+    (overflowNav.length?`<div style="position:relative;flex-shrink:0;">
+      <button class="tb-nav-item" id="tb-nav-more-btn">⋯ Más</button>
+      <div id="tb-nav-more-menu" style="display:none;position:absolute;top:120%;right:0;background:#1E1610;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:.35rem;min-width:190px;z-index:200;box-shadow:0 10px 30px rgba(0,0,0,.45);">
+        ${overflowNav.map((n,j)=>`<button class="tb-nav-more-item" data-idx="${MAX_VISIBLE+j}" style="display:block;width:100%;text-align:left;padding:.5rem .7rem;border-radius:7px;border:none;background:transparent;color:rgba(255,255,255,.75);font-size:.78rem;cursor:pointer;white-space:nowrap;">${n.label}</button>`).join('')}
+      </div>
+    </div>`:'');
+
   if(!navEl.dataset.wheelBound){
     navEl.dataset.wheelBound='1';
     navEl.addEventListener('wheel',function(e){
@@ -1005,7 +1017,7 @@ function buildNav(){
       navEl.scrollLeft+=e.deltaY;
     },{passive:false});
   }
-  // Bottom nav (móvil)
+  // Bottom nav (móvil) — muestra todos los items, con scroll propio
   if(bnScroll){
     bnScroll.innerHTML=nav.map((n,i)=>`<button type="button" class="bn-item${i===0?' active':''}" id="bn-${n.id}"><span class="bn-icon">${n.icon||'📌'}</span><span class="bn-lbl">${n.short||n.label}</span></button>`).join('');
   }
@@ -1017,33 +1029,51 @@ function buildNav(){
     content.appendChild(sec);
     if(i===0) n.fn(sec);
   });
-  // Handlers — igual que el original que funcionaba, + sync bottom nav
-  navEl.querySelectorAll('.tb-nav-item').forEach((btn,i)=>{
-    btn.onclick=()=>{
-      document.querySelectorAll('.tb-nav-item').forEach(b=>b.classList.remove('active'));
-      document.querySelectorAll('.bn-item').forEach(b=>b.classList.remove('active'));
-      document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-      btn.classList.add('active');
-      const bnBtn=document.getElementById('bn-'+nav[i].id);
-      if(bnBtn) bnBtn.classList.add('active');
-      const sec=document.getElementById('sec-'+nav[i].id);
-      if(!sec.innerHTML) nav[i].fn(sec);
-      sec.classList.add('active');
-    };
+
+  function activarIdx(i,origenBtn){
+    document.querySelectorAll('.tb-nav-item').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.bn-item').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    if(origenBtn) origenBtn.classList.add('active');
+    else{
+      // El item activo estaba dentro de "Más": resalta el botón "⋯ Más"
+      const moreBtn=document.getElementById('tb-nav-more-btn');
+      if(moreBtn) moreBtn.classList.add('active');
+    }
+    const bnBtn=document.getElementById('bn-'+nav[i].id);
+    if(bnBtn) bnBtn.classList.add('active');
+    const sec=document.getElementById('sec-'+nav[i].id);
+    if(!sec.innerHTML) nav[i].fn(sec);
+    sec.classList.add('active');
+    const menu=document.getElementById('tb-nav-more-menu');
+    if(menu) menu.style.display='none';
+  }
+
+  // Handlers de los items visibles
+  navEl.querySelectorAll('.tb-nav-item[data-idx]').forEach(btn=>{
+    btn.onclick=()=>activarIdx(parseInt(btn.dataset.idx),btn);
   });
+  // Toggle del menú "⋯ Más"
+  const moreBtn=document.getElementById('tb-nav-more-btn');
+  const moreMenu=document.getElementById('tb-nav-more-menu');
+  if(moreBtn&&moreMenu){
+    moreBtn.onclick=(e)=>{ e.stopPropagation(); moreMenu.style.display=moreMenu.style.display==='none'?'block':'none'; };
+    document.addEventListener('click',function(e){
+      if(moreMenu.style.display==='block'&&!moreMenu.contains(e.target)&&e.target!==moreBtn) moreMenu.style.display='none';
+    });
+    moreMenu.querySelectorAll('.tb-nav-more-item').forEach(btn=>{
+      btn.onclick=()=>activarIdx(parseInt(btn.dataset.idx),null);
+      btn.onmouseenter=()=>{btn.style.background='rgba(255,255,255,.08)';btn.style.color='#fff';};
+      btn.onmouseleave=()=>{btn.style.background='transparent';btn.style.color='rgba(255,255,255,.75)';};
+    });
+  }
   // Bottom nav handlers — mismo mecanismo
   if(bnScroll){
     bnScroll.querySelectorAll('.bn-item').forEach((btn,i)=>{
       btn.onclick=()=>{
-        document.querySelectorAll('.tb-nav-item').forEach(b=>b.classList.remove('active'));
-        document.querySelectorAll('.bn-item').forEach(b=>b.classList.remove('active'));
-        document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-        const topBtn=navEl.querySelectorAll('.tb-nav-item')[i];
-        if(topBtn) topBtn.classList.add('active');
+        const topBtn=navEl.querySelector('.tb-nav-item[data-idx="'+i+'"]');
+        activarIdx(i,topBtn);
         btn.classList.add('active');
-        const sec=document.getElementById('sec-'+nav[i].id);
-        if(!sec.innerHTML) nav[i].fn(sec);
-        sec.classList.add('active');
       };
     });
   }
