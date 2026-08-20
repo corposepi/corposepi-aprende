@@ -4634,13 +4634,26 @@ async function buildNotificacionesPadre(el){
     <div class="page-sub">Avisos en tiempo real sobre ${currentUser.nombres||'tu hijo(a)'} — no necesitas recargar la página, aparecen solos.</div>
   </div>
   <div class="tiempo-stats" id="tiempo-stats">
-    <div class="tiempo-stats-title">⏱️ Tiempo efectivo de clase — este mes</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.15rem;">
+      <div class="tiempo-stats-title" style="margin-bottom:0;">⏱️ Tiempo efectivo de clase</div>
+      <input type="month" id="tiempo-mes-sel" class="form-input" style="max-width:150px;font-size:.75rem;padding:.3rem .5rem;"/>
+    </div>
     <div class="tiempo-stats-sub">1 día = 5 horas (300 min) efectivas · 1 semana = 25 horas (1.500 min)</div>
     <div id="tiempo-stats-body">Calculando...</div>
   </div>
+  <div class="tiempo-stats" id="tiempo-stats-acum" style="border-color:var(--corp);background:rgba(184,65,10,.03);">
+    <div class="tiempo-stats-title">📊 Acumulado total desde el ${FECHA_INICIO_SISTEMA.split('-').reverse().join('/')}</div>
+    <div class="tiempo-stats-sub">Suma de todos los meses, no solo el actual.</div>
+    <div id="tiempo-stats-acum-body">Calculando...</div>
+  </div>
   <div class="notif-feed" id="notif-feed"><div class="notif-vacio">Cargando...</div></div>`;
 
-  _cargarTiempoEfectivoPadre(estId);
+  const mesSel=document.getElementById('tiempo-mes-sel');
+  const hoyInicial=new Date();
+  mesSel.value=hoyInicial.getFullYear()+'-'+String(hoyInicial.getMonth()+1).padStart(2,'0');
+  mesSel.onchange=()=>_cargarTiempoEfectivoPadre(estId,mesSel.value);
+  _cargarTiempoEfectivoPadre(estId,mesSel.value);
+  _cargarTiempoAcumuladoPadre(estId);
 
   // Desconectar listener anterior si existía (evita duplicados al navegar entre pestañas)
   if(_notifListenerRef&&_notifListenerFn) _notifListenerRef.off('value',_notifListenerFn);
@@ -4669,13 +4682,14 @@ async function buildNotificacionesPadre(el){
   ref.on('value',_notifListenerFn);
 }
 
-async function _cargarTiempoEfectivoPadre(estId){
+async function _cargarTiempoEfectivoPadre(estId,mesStr){
   const body=document.getElementById('tiempo-stats-body');
   if(!body)return;
+  body.innerHTML='Calculando...';
   try{
-    const hoy=new Date();
-    const hoyStr=hoy.toLocaleDateString('en-CA');
-    const diasHabilesMes=await _diasHabilesDelMes(hoy.getFullYear(),hoy.getMonth()+1);
+    const hoyStr=new Date().toLocaleDateString('en-CA');
+    const [anio,mesNum]=(mesStr||hoyStr.slice(0,7)).split('-').map(Number);
+    const diasHabilesMes=await _diasHabilesDelMes(anio,mesNum);
     const diasHabiles=diasHabilesMes.filter(f=>f<=hoyStr&&f>=FECHA_INICIO_SISTEMA); // sin días futuros ni anteriores al inicio del sistema
     const {minutosPerdidosTotal,diasATiempo,diasTarde,diasAusente}=await _calcularMinutosPerdidos(estId,diasHabiles);
     const minutosDisponibles=diasHabiles.length*MINUTOS_DIA_EFECTIVO;
@@ -4686,6 +4700,10 @@ async function _cargarTiempoEfectivoPadre(estId){
 
     const body2=document.getElementById('tiempo-stats-body');
     if(!body2)return;
+    if(!diasHabiles.length){
+      body2.innerHTML='<div style="color:var(--hint);font-size:.75rem;text-align:center;padding:.5rem;">Sin días hábiles registrados en ese mes (puede ser un mes futuro o antes de que arrancara el sistema).</div>';
+      return;
+    }
     body2.innerHTML=`
       <div class="tiempo-grid">
         <div class="tiempo-tile"><div class="tiempo-tile-val" style="font-size:.85rem;">${textoGanado||'0 min'}</div><div class="tiempo-tile-lbl">Tiempo aprovechado</div></div>
@@ -4693,10 +4711,47 @@ async function _cargarTiempoEfectivoPadre(estId){
         <div class="tiempo-tile"><div class="tiempo-tile-val">${pct}%</div><div class="tiempo-tile-lbl">Asistencia</div></div>
       </div>
       <div class="tiempo-barra-wrap"><div class="tiempo-barra" style="width:${pct}%;"></div></div>
-      <div style="font-size:.68rem;color:var(--muted);text-align:center;">${diasATiempo} días a tiempo · ${diasTarde} con tardanza · ${diasAusente} sin asistir (de ${diasHabiles.length} días hábiles este mes) · ${minutosPerdidosTotal} min perdidos en total</div>
+      <div style="font-size:.68rem;color:var(--muted);text-align:center;">${diasATiempo} días a tiempo · ${diasTarde} con tardanza · ${diasAusente} sin asistir (de ${diasHabiles.length} días hábiles ese mes) · ${minutosPerdidosTotal} min perdidos en total</div>
     `;
   }catch(e){
     if(body)body.innerHTML='<div style="color:var(--hint);font-size:.75rem;">No se pudo calcular la estadística.</div>';
+  }
+}
+
+// Acumulado desde el inicio del sistema (todos los meses sumados, no solo el actual)
+async function _cargarTiempoAcumuladoPadre(estId){
+  const body=document.getElementById('tiempo-stats-acum-body');
+  if(!body)return;
+  try{
+    const hoy=new Date();
+    const hoyStr=hoy.toLocaleDateString('en-CA');
+    // Recorre mes a mes desde el inicio del sistema hasta el mes actual
+    let diasHabilesTotal=[];
+    let cursor=new Date(FECHA_INICIO_SISTEMA+'T12:00:00');
+    const fin=new Date(hoyStr+'T12:00:00');
+    while(cursor<=fin){
+      const dias=await _diasHabilesDelMes(cursor.getFullYear(),cursor.getMonth()+1);
+      diasHabilesTotal=diasHabilesTotal.concat(dias.filter(f=>f<=hoyStr&&f>=FECHA_INICIO_SISTEMA));
+      cursor=new Date(cursor.getFullYear(),cursor.getMonth()+1,1);
+    }
+    const {minutosPerdidosTotal,diasATiempo,diasTarde,diasAusente}=await _calcularMinutosPerdidos(estId,diasHabilesTotal);
+    const minutosDisponibles=diasHabilesTotal.length*MINUTOS_DIA_EFECTIVO;
+    const minutosGanados=minutosDisponibles-minutosPerdidosTotal;
+    const pct=minutosDisponibles>0?Math.round((minutosGanados/minutosDisponibles)*100):100;
+
+    const body2=document.getElementById('tiempo-stats-acum-body');
+    if(!body2)return;
+    body2.innerHTML=`
+      <div class="tiempo-grid">
+        <div class="tiempo-tile"><div class="tiempo-tile-val" style="font-size:.85rem;">${_formatearTiempo(minutosGanados)||'0 min'}</div><div class="tiempo-tile-lbl">Aprovechado en total</div></div>
+        <div class="tiempo-tile"><div class="tiempo-tile-val" style="font-size:.85rem;color:#B91C1C;">${_formatearTiempo(minutosPerdidosTotal)}</div><div class="tiempo-tile-lbl">Perdido en total</div></div>
+        <div class="tiempo-tile"><div class="tiempo-tile-val">${pct}%</div><div class="tiempo-tile-lbl">Asistencia global</div></div>
+      </div>
+      <div class="tiempo-barra-wrap"><div class="tiempo-barra" style="width:${pct}%;"></div></div>
+      <div style="font-size:.68rem;color:var(--muted);text-align:center;">${diasATiempo} días a tiempo · ${diasTarde} con tardanza · ${diasAusente} sin asistir (de ${diasHabilesTotal.length} días hábiles en total)</div>
+    `;
+  }catch(e){
+    if(body)body.innerHTML='<div style="color:var(--hint);font-size:.75rem;">No se pudo calcular el acumulado.</div>';
   }
 }
 
