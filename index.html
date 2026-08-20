@@ -4547,6 +4547,18 @@ const MINUTOS_DIA_EFECTIVO=300;
 const FECHA_INICIO_SISTEMA='2026-08-03'; // primer día con el sistema de asistencia ya funcionando bien
 const HORA_INICIO_CLASE=8*60; // 8:00am
 
+// Convierte minutos totales perdidos a formato legible: "1 día y 100 min" (300 min = 1 día)
+function _formatearTiempo(minutos){
+  minutos=Math.round(minutos);
+  if(minutos<=0)return'0 min';
+  const dias=Math.floor(minutos/MINUTOS_DIA_EFECTIVO);
+  const resto=minutos%MINUTOS_DIA_EFECTIVO;
+  const partes=[];
+  if(dias>0)partes.push(dias+(dias===1?' día':' días'));
+  if(resto>0)partes.push(resto+' min');
+  return partes.join(' y ');
+}
+
 function _parseHoraAMinutos(horaStr){
   if(!horaStr)return null;
   horaStr=String(horaStr).trim();
@@ -4669,19 +4681,19 @@ async function _cargarTiempoEfectivoPadre(estId){
     const minutosDisponibles=diasHabiles.length*MINUTOS_DIA_EFECTIVO;
     const minutosGanados=minutosDisponibles-minutosPerdidosTotal;
     const pct=minutosDisponibles>0?Math.round((minutosGanados/minutosDisponibles)*100):100;
-    const horasPerdidas=(minutosPerdidosTotal/60).toFixed(1);
-    const horasGanadas=(minutosGanados/60).toFixed(1);
+    const textoPerdido=_formatearTiempo(minutosPerdidosTotal);
+    const textoGanado=_formatearTiempo(minutosGanados);
 
     const body2=document.getElementById('tiempo-stats-body');
     if(!body2)return;
     body2.innerHTML=`
       <div class="tiempo-grid">
-        <div class="tiempo-tile"><div class="tiempo-tile-val">${horasGanadas}h</div><div class="tiempo-tile-lbl">Tiempo aprovechado</div></div>
-        <div class="tiempo-tile"><div class="tiempo-tile-val" style="color:#B91C1C;">${horasPerdidas}h</div><div class="tiempo-tile-lbl">Tiempo perdido</div></div>
+        <div class="tiempo-tile"><div class="tiempo-tile-val" style="font-size:.85rem;">${textoGanado||'0 min'}</div><div class="tiempo-tile-lbl">Tiempo aprovechado</div></div>
+        <div class="tiempo-tile"><div class="tiempo-tile-val" style="font-size:.85rem;color:#B91C1C;">${textoPerdido}</div><div class="tiempo-tile-lbl">Tiempo perdido</div></div>
         <div class="tiempo-tile"><div class="tiempo-tile-val">${pct}%</div><div class="tiempo-tile-lbl">Asistencia</div></div>
       </div>
       <div class="tiempo-barra-wrap"><div class="tiempo-barra" style="width:${pct}%;"></div></div>
-      <div style="font-size:.68rem;color:var(--muted);text-align:center;">${diasATiempo} días a tiempo · ${diasTarde} con tardanza · ${diasAusente} sin asistir (de ${diasHabiles.length} días hábiles este mes)</div>
+      <div style="font-size:.68rem;color:var(--muted);text-align:center;">${diasATiempo} días a tiempo · ${diasTarde} con tardanza · ${diasAusente} sin asistir (de ${diasHabiles.length} días hábiles este mes) · ${minutosPerdidosTotal} min perdidos en total</div>
     `;
   }catch(e){
     if(body)body.innerHTML='<div style="color:var(--hint);font-size:.75rem;">No se pudo calcular la estadística.</div>';
