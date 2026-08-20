@@ -4544,6 +4544,7 @@ function _notifIcono(tipo){
 }
 // ── Tiempo efectivo: 1 día de clase = 5 horas = 300 minutos ──
 const MINUTOS_DIA_EFECTIVO=300;
+const FECHA_INICIO_SISTEMA='2026-08-03'; // primer día con el sistema de asistencia ya funcionando bien
 const HORA_INICIO_CLASE=8*60; // 8:00am
 
 function _parseHoraAMinutos(horaStr){
@@ -4663,7 +4664,7 @@ async function _cargarTiempoEfectivoPadre(estId){
     const hoy=new Date();
     const hoyStr=hoy.toLocaleDateString('en-CA');
     const diasHabilesMes=await _diasHabilesDelMes(hoy.getFullYear(),hoy.getMonth()+1);
-    const diasHabiles=diasHabilesMes.filter(f=>f<=hoyStr); // no contar días futuros del mes que aún no han pasado
+    const diasHabiles=diasHabilesMes.filter(f=>f<=hoyStr&&f>=FECHA_INICIO_SISTEMA); // sin días futuros ni anteriores al inicio del sistema
     const {minutosPerdidosTotal,diasATiempo,diasTarde,diasAusente}=await _calcularMinutosPerdidos(estId,diasHabiles);
     const minutosDisponibles=diasHabiles.length*MINUTOS_DIA_EFECTIVO;
     const minutosGanados=minutosDisponibles-minutosPerdidosTotal;
