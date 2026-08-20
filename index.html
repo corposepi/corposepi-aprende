@@ -4661,7 +4661,9 @@ async function _cargarTiempoEfectivoPadre(estId){
   if(!body)return;
   try{
     const hoy=new Date();
-    const diasHabiles=await _diasHabilesDelMes(hoy.getFullYear(),hoy.getMonth()+1);
+    const hoyStr=hoy.toLocaleDateString('en-CA');
+    const diasHabilesMes=await _diasHabilesDelMes(hoy.getFullYear(),hoy.getMonth()+1);
+    const diasHabiles=diasHabilesMes.filter(f=>f<=hoyStr); // no contar días futuros del mes que aún no han pasado
     const {minutosPerdidosTotal,diasATiempo,diasTarde,diasAusente}=await _calcularMinutosPerdidos(estId,diasHabiles);
     const minutosDisponibles=diasHabiles.length*MINUTOS_DIA_EFECTIVO;
     const minutosGanados=minutosDisponibles-minutosPerdidosTotal;
