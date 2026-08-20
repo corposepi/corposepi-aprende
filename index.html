@@ -176,6 +176,17 @@ details:not([open]) summary::after{content:'▼';float:right;font-size:.6rem;col
 .notif-msg{font-size:.8rem;color:var(--text);line-height:1.5;}
 .notif-hora{font-size:.62rem;color:var(--muted);margin-top:.35rem;text-align:right;}
 .notif-vacio{text-align:center;color:var(--hint);padding:3rem 1rem;font-size:.85rem;}
+/* Estadística de tiempo efectivo perdido */
+.tiempo-stats{background:var(--white);border:1px solid var(--cream3);border-radius:var(--radius);padding:1.1rem 1.25rem;margin-bottom:1.25rem;max-width:560px;}
+.tiempo-stats-title{font-size:.8rem;font-weight:800;color:var(--ink);margin-bottom:.15rem;}
+.tiempo-stats-sub{font-size:.68rem;color:var(--muted);margin-bottom:.9rem;}
+.tiempo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.6rem;margin-bottom:.9rem;}
+.tiempo-tile{background:var(--cream);border-radius:10px;padding:.65rem .75rem;text-align:center;}
+.tiempo-tile-val{font-size:1.15rem;font-weight:800;color:var(--corp);}
+.tiempo-tile-lbl{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:.15rem;}
+.tiempo-barra-wrap{background:var(--cream);border-radius:99px;height:10px;overflow:hidden;margin-bottom:.4rem;}
+.tiempo-barra{height:100%;background:linear-gradient(90deg,var(--sage),var(--sage2));border-radius:99px;transition:width .4s;}
+.tiempo-rank{font-size:.72rem;color:var(--text);text-align:center;margin-top:.6rem;padding-top:.6rem;border-top:1px solid var(--cream3);}
 /* Planes de estudio — visor protegido */
 .plan-card{background:var(--white);border:1px solid var(--cream3);border-radius:var(--radius);padding:1rem 1.1rem;margin-bottom:.7rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;}
 .plan-card-t{font-weight:700;font-size:.88rem;color:var(--ink);}
@@ -4531,6 +4542,77 @@ function _notifIcono(tipo){
   if(tipo==='entrega')return'📥';
   return'🔔';
 }
+// ── Tiempo efectivo: 1 día de clase = 5 horas = 300 minutos ──
+const MINUTOS_DIA_EFECTIVO=300;
+const HORA_INICIO_CLASE=8*60; // 8:00am
+
+function _parseHoraAMinutos(horaStr){
+  if(!horaStr)return null;
+  horaStr=String(horaStr).trim();
+  if(/^\d{1,2}:\d{2}$/.test(horaStr)){ // "14:00" (formato 24h, usado por el proceso de ausencias)
+    const [h,m]=horaStr.split(':').map(Number);
+    return h*60+m;
+  }
+  const match=horaStr.match(/(\d{1,2}):(\d{2})\s*([ap])/i);
+  if(!match)return null;
+  let h=parseInt(match[1]),m=parseInt(match[2]);
+  const esPM=match[3].toLowerCase()==='p';
+  if(esPM&&h!==12)h+=12;
+  if(!esPM&&h===12)h=0;
+  return h*60+m;
+}
+function _minutosPerdidos(reg){
+  if(!reg)return MINUTOS_DIA_EFECTIVO; // sin registro ese día hábil = día completo perdido
+  if(reg.estado==='P')return 0; // a tiempo (o corregido manualmente, ej. salida pedagógica)
+  if(reg.estado==='A')return MINUTOS_DIA_EFECTIVO; // ausente = día completo
+  const minLlegada=_parseHoraAMinutos(reg.hora);
+  if(minLlegada==null)return reg.penalidad_fnx>0?60:0;
+  return Math.min(MINUTOS_DIA_EFECTIVO,Math.max(0,minLlegada-HORA_INICIO_CLASE));
+}
+function _lunesDeSemanaEf(fechaISO){
+  const d=new Date(fechaISO+'T12:00:00');
+  const dow=d.getDay();
+  const diff=dow===0?-6:1-dow;
+  d.setDate(d.getDate()+diff);
+  return d.toLocaleDateString('en-CA');
+}
+async function _diasHabilesDelMes(anio,mesNum){
+  const [snapFer,snapSem]=await Promise.all([
+    db.ref('aprende_feriados').once('value'),
+    db.ref('aprende_semanas').once('value'),
+  ]);
+  const feriados=[];snapFer.forEach(c=>{const v=c.val();if(v)feriados.push(v);});
+  const semanasActivas=snapSem.val()||{};
+  const diasEnMes=new Date(anio,mesNum,0).getDate();
+  const dias=[];
+  for(let d=1;d<=diasEnMes;d++){
+    const fecha=anio+'-'+String(mesNum).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const dow=new Date(fecha+'T12:00:00').getDay();
+    if(dow===0||dow===6)continue;
+    const fer=feriados.find(f=>f&&f.fecha===fecha);
+    if(fer)continue;
+    if(semanasActivas[_lunesDeSemanaEf(fecha)]===false)continue;
+    dias.push(fecha);
+  }
+  return dias;
+}
+
+// ── Calcula minutos perdidos por estudiante en un rango de fechas (para stats y ranking) ──
+async function _calcularMinutosPerdidos(estudianteId, diasHabiles){
+  let minutosPerdidosTotal=0, diasATiempo=0, diasTarde=0, diasAusente=0;
+  for(const fecha of diasHabiles){
+    const snap=await db.ref('asistencia/'+fecha).once('value');
+    let registro=null;
+    snap.forEach(c=>{const v=c.val();if(v&&v.id===estudianteId&&v.tipo==='student')registro=v;});
+    const perdidos=_minutosPerdidos(registro);
+    minutosPerdidosTotal+=perdidos;
+    if(!registro||registro.estado==='A')diasAusente++;
+    else if(registro.estado==='P')diasATiempo++;
+    else diasTarde++;
+  }
+  return {minutosPerdidosTotal,diasATiempo,diasTarde,diasAusente};
+}
+
 async function buildNotificacionesPadre(el){
   const estId=currentUser.estudianteId||currentUser.id;
   el.innerHTML=`<div class="page-hdr">
@@ -4538,7 +4620,14 @@ async function buildNotificacionesPadre(el){
     <div class="page-title">🔔 <em>Notificaciones</em></div>
     <div class="page-sub">Avisos en tiempo real sobre ${currentUser.nombres||'tu hijo(a)'} — no necesitas recargar la página, aparecen solos.</div>
   </div>
+  <div class="tiempo-stats" id="tiempo-stats">
+    <div class="tiempo-stats-title">⏱️ Tiempo efectivo de clase — este mes</div>
+    <div class="tiempo-stats-sub">1 día = 5 horas (300 min) efectivas · 1 semana = 25 horas (1.500 min)</div>
+    <div id="tiempo-stats-body">Calculando...</div>
+  </div>
   <div class="notif-feed" id="notif-feed"><div class="notif-vacio">Cargando...</div></div>`;
+
+  _cargarTiempoEfectivoPadre(estId);
 
   // Desconectar listener anterior si existía (evita duplicados al navegar entre pestañas)
   if(_notifListenerRef&&_notifListenerFn) _notifListenerRef.off('value',_notifListenerFn);
@@ -4565,6 +4654,35 @@ async function buildNotificacionesPadre(el){
     items.filter(n=>!n.leido).forEach(n=>db.ref('notificaciones/'+estId+'/'+n._key+'/leido').set(true));
   };
   ref.on('value',_notifListenerFn);
+}
+
+async function _cargarTiempoEfectivoPadre(estId){
+  const body=document.getElementById('tiempo-stats-body');
+  if(!body)return;
+  try{
+    const hoy=new Date();
+    const diasHabiles=await _diasHabilesDelMes(hoy.getFullYear(),hoy.getMonth()+1);
+    const {minutosPerdidosTotal,diasATiempo,diasTarde,diasAusente}=await _calcularMinutosPerdidos(estId,diasHabiles);
+    const minutosDisponibles=diasHabiles.length*MINUTOS_DIA_EFECTIVO;
+    const minutosGanados=minutosDisponibles-minutosPerdidosTotal;
+    const pct=minutosDisponibles>0?Math.round((minutosGanados/minutosDisponibles)*100):100;
+    const horasPerdidas=(minutosPerdidosTotal/60).toFixed(1);
+    const horasGanadas=(minutosGanados/60).toFixed(1);
+
+    const body2=document.getElementById('tiempo-stats-body');
+    if(!body2)return;
+    body2.innerHTML=`
+      <div class="tiempo-grid">
+        <div class="tiempo-tile"><div class="tiempo-tile-val">${horasGanadas}h</div><div class="tiempo-tile-lbl">Tiempo aprovechado</div></div>
+        <div class="tiempo-tile"><div class="tiempo-tile-val" style="color:#B91C1C;">${horasPerdidas}h</div><div class="tiempo-tile-lbl">Tiempo perdido</div></div>
+        <div class="tiempo-tile"><div class="tiempo-tile-val">${pct}%</div><div class="tiempo-tile-lbl">Asistencia</div></div>
+      </div>
+      <div class="tiempo-barra-wrap"><div class="tiempo-barra" style="width:${pct}%;"></div></div>
+      <div style="font-size:.68rem;color:var(--muted);text-align:center;">${diasATiempo} días a tiempo · ${diasTarde} con tardanza · ${diasAusente} sin asistir (de ${diasHabiles.length} días hábiles este mes)</div>
+    `;
+  }catch(e){
+    if(body)body.innerHTML='<div style="color:var(--hint);font-size:.75rem;">No se pudo calcular la estadística.</div>';
+  }
 }
 
 // ══ PENDIENTES — VISTA PADRE ══
