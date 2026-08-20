@@ -3236,7 +3236,7 @@ async function guardarAsignacion(idx){
   await db.ref('corposepi/staff/'+idx+'/bloques').set(bloques);
   // Talleres: guardar en staff y actualizar docenteId en cada taller
   const snapT=await db.ref('aprende_talleres').once('value');
-  const talKeys=[];snapT.forEach(c=>talKeys.push(c.key));
+  const talKeys=[];snapT.forEach(c=>{talKeys.push(c.key);});
   const talSelec=talKeys.filter(k=>document.getElementById('chk-t-'+idx+'-'+k)?.checked);
   await db.ref('corposepi/staff/'+idx+'/talleres').set(talSelec);
   // Actualizar docenteId en los talleres seleccionados
@@ -3247,7 +3247,7 @@ async function guardarAsignacion(idx){
   }
   // Acciones: actualizar docenteId en las acciones seleccionadas
   const snapA=await db.ref('aprende_acciones').once('value');
-  const accKeys=[];snapA.forEach(c=>accKeys.push(c.key));
+  const accKeys=[];snapA.forEach(c=>{accKeys.push(c.key);});
   for(const k of accKeys){
     const checked=document.getElementById('chk-ac-'+idx+'-'+k)?.checked;
     if(checked) await db.ref('aprende_acciones/'+k+'/docenteId').set(staffId);
@@ -4354,7 +4354,7 @@ async function buildPendientesDocente(el){
     db.ref('aprende_talleres').once('value'),
   ]);
   const students=(snapStu.val()||[]).filter(s=>s&&s.id&&s.status==='active');
-  const talleres=[];snapTal.forEach(c=>talleres.push({...c.val(),_key:c.key}));
+  const talleres=[];snapTal.forEach(c=>{talleres.push({...c.val(),_key:c.key});});
   // Solo talleres del docente (por bloque asignado)
   const misBloquesIds=currentUser.bloques||[];
   const misTalleres=talleres.filter(t=>misBloquesIds.includes(t.bloqueId));
@@ -4549,7 +4549,7 @@ async function buildNotificacionesPadre(el){
     const feed=document.getElementById('notif-feed');
     if(!feed)return; // el padre ya navegó a otra pestaña
     const items=[];
-    snap.forEach(c=>items.push({...c.val(),_key:c.key}));
+    snap.forEach(c=>{items.push({...c.val(),_key:c.key});});
     items.reverse(); // más reciente arriba
     if(!items.length){ feed.innerHTML='<div class="notif-vacio">📭 Sin notificaciones todavía. Aquí verás avisos de asistencia y novedades en tiempo real.</div>'; return; }
     feed.innerHTML=items.map(n=>`
