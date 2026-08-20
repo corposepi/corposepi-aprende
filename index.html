@@ -166,6 +166,16 @@ details summary::-webkit-details-marker{display:none;}
 details summary::marker{content:'';}
 details[open] summary::after{content:'▲';float:right;font-size:.6rem;color:var(--muted);}
 details:not([open]) summary::after{content:'▼';float:right;font-size:.6rem;color:var(--muted);}
+/* Notificaciones — estilo chat en tiempo real */
+.notif-feed{display:flex;flex-direction:column;gap:.6rem;max-width:560px;}
+.notif-bubble{background:var(--white);border:1px solid var(--cream3);border-radius:14px;border-top-left-radius:4px;padding:.85rem 1rem;box-shadow:0 1px 3px rgba(0,0,0,.04);position:relative;}
+.notif-bubble.unread{border-color:var(--corp);background:rgba(184,65,10,.04);}
+.notif-bubble.unread::before{content:'';position:absolute;top:.9rem;left:-8px;width:8px;height:8px;border-radius:50%;background:var(--corp);}
+.notif-icon-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem;}
+.notif-titulo{font-weight:700;font-size:.82rem;color:var(--ink);}
+.notif-msg{font-size:.8rem;color:var(--text);line-height:1.5;}
+.notif-hora{font-size:.62rem;color:var(--muted);margin-top:.35rem;text-align:right;}
+.notif-vacio{text-align:center;color:var(--hint);padding:3rem 1rem;font-size:.85rem;}
 /* Planes de estudio — visor protegido */
 .plan-card{background:var(--white);border:1px solid var(--cream3);border-radius:var(--radius);padding:1rem 1.1rem;margin-bottom:.7rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;}
 .plan-card-t{font-weight:700;font-size:.88rem;color:var(--ink);}
@@ -978,6 +988,7 @@ const NAV_CONFIG={
   ],
   padre:[
     {id:'inicio',     label:'Inicio',                  icon:'🏠',short:'Inicio',    fn:buildInicioPadre},
+    {id:'notif',      label:'🔔 Notificaciones',        icon:'🔔',short:'Avisos',    fn:buildNotificacionesPadre},
     {id:'horario',    label:'📅 Horario',               icon:'📅',short:'Horario',   fn:buildHorario},
     {id:'pendientes', label:'⚠️ Pendientes',            icon:'⚠️',short:'Pendient.', fn:buildPendientesPadre},
     {id:'proyectos',  label:'Proyectos',                icon:'🎯',short:'Proyectos', fn:buildProyectos},
@@ -4509,6 +4520,51 @@ async function eliminarPendiente(estId,key){
   await db.ref('aprende_pendientes/'+estId+'/'+key).remove();
   showToast('🗑️ Pendiente eliminado');
   cargarPendientesDocente();
+}
+
+// ══ NOTIFICACIONES — VISTA PADRE (tiempo real, estilo chat) ══
+let _notifListenerRef=null, _notifListenerFn=null;
+function _notifIcono(tipo){
+  if(tipo==='asistencia')return'✅';
+  if(tipo==='recurso')return'🔗';
+  if(tipo==='pendiente')return'⚠️';
+  if(tipo==='entrega')return'📥';
+  return'🔔';
+}
+async function buildNotificacionesPadre(el){
+  const estId=currentUser.estudianteId||currentUser.id;
+  el.innerHTML=`<div class="page-hdr">
+    <div class="page-eyebrow">CORPOSEPI · Comunidad</div>
+    <div class="page-title">🔔 <em>Notificaciones</em></div>
+    <div class="page-sub">Avisos en tiempo real sobre ${currentUser.nombres||'tu hijo(a)'} — no necesitas recargar la página, aparecen solos.</div>
+  </div>
+  <div class="notif-feed" id="notif-feed"><div class="notif-vacio">Cargando...</div></div>`;
+
+  // Desconectar listener anterior si existía (evita duplicados al navegar entre pestañas)
+  if(_notifListenerRef&&_notifListenerFn) _notifListenerRef.off('value',_notifListenerFn);
+
+  const ref=db.ref('notificaciones/'+estId).orderByChild('timestamp');
+  _notifListenerRef=ref;
+  _notifListenerFn=(snap)=>{
+    const feed=document.getElementById('notif-feed');
+    if(!feed)return; // el padre ya navegó a otra pestaña
+    const items=[];
+    snap.forEach(c=>items.push({...c.val(),_key:c.key}));
+    items.reverse(); // más reciente arriba
+    if(!items.length){ feed.innerHTML='<div class="notif-vacio">📭 Sin notificaciones todavía. Aquí verás avisos de asistencia y novedades en tiempo real.</div>'; return; }
+    feed.innerHTML=items.map(n=>`
+      <div class="notif-bubble${n.leido?'':' unread'}">
+        <div class="notif-icon-row">
+          <span>${_notifIcono(n.tipo)}</span>
+          <span class="notif-titulo">${escHtml(n.titulo||'Aviso')}</span>
+        </div>
+        <div class="notif-msg">${escHtml(n.mensaje||'')}</div>
+        <div class="notif-hora">${n.fecha||''} · ${n.hora||''}</div>
+      </div>`).join('');
+    // Marcar como leídas después de mostrarlas
+    items.filter(n=>!n.leido).forEach(n=>db.ref('notificaciones/'+estId+'/'+n._key+'/leido').set(true));
+  };
+  ref.on('value',_notifListenerFn);
 }
 
 // ══ PENDIENTES — VISTA PADRE ══
